@@ -2,11 +2,11 @@
 
 import * as React from "react"
 import { useRouter } from "next/navigation"
-import Script from "next/script"
 import {
+  getRedirectResult,
   GoogleAuthProvider,
-  signInWithCredential,
   signInWithEmailAndPassword,
+  signInWithRedirect,
 } from "firebase/auth"
 
 import { auth } from "@/lib/firebase"
@@ -23,27 +23,6 @@ import {
   FieldSeparator,
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
-
-const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ?? ""
-
-declare global {
-  interface Window {
-    google?: {
-      accounts: {
-        oauth2: {
-          initTokenClient(config: {
-            client_id: string
-            scope: string
-            callback: (response: {
-              access_token?: string
-              error?: string
-            }) => void
-          }): { requestAccessToken: () => void }
-        }
-      }
-    }
-  }
-}
 
 function getAuthErrorMessage(err: unknown): string {
   const code = (err as { code?: string })?.code ?? "unknown"
@@ -77,6 +56,27 @@ export function LoginForm({
   const [isSubmitting, setIsSubmitting] = React.useState(false)
 
   React.useEffect(() => {
+    const wasRedirecting = sessionStorage.getItem("googleAuthPending") === "1"
+    sessionStorage.removeItem("googleAuthPending")
+
+    getRedirectResult(auth)
+      .then((result) => {
+        if (result) router.push("/dashboard")
+      })
+      .catch((err) => setError(getAuthErrorMessage(err)))
+
+    if (!wasRedirecting) return
+    const timeout = setTimeout(() => {
+      if (!auth.currentUser) {
+        setError(
+          "Đăng nhập Google không hoàn tất được, có thể do trình duyệt đang chặn cookie bên thứ 3 cho firebaseapp.com. Hãy thử tắt chế độ chặn cookie bên thứ 3 (hoặc dùng trình duyệt khác) rồi thử lại."
+        )
+      }
+    }, 5000)
+    return () => clearTimeout(timeout)
+  }, [router])
+
+  React.useEffect(() => {
     if (!loading && user) {
       router.replace("/dashboard")
     }
@@ -96,35 +96,19 @@ export function LoginForm({
     }
   }
 
-  function handleGoogleLogin() {
+  async function handleGoogleLogin() {
     setError(null)
-    if (!window.google) {
-      setError("Google Sign-In chưa tải xong, thử lại sau vài giây.")
-      return
+    try {
+      sessionStorage.setItem("googleAuthPending", "1")
+      await signInWithRedirect(auth, new GoogleAuthProvider())
+    } catch (err) {
+      sessionStorage.removeItem("googleAuthPending")
+      setError(getAuthErrorMessage(err))
     }
-    const client = window.google.accounts.oauth2.initTokenClient({
-      client_id: GOOGLE_CLIENT_ID,
-      scope: "openid email profile",
-      callback: async (response) => {
-        if (response.error || !response.access_token) {
-          setError("Đăng nhập Google thất bại.")
-          return
-        }
-        try {
-          const credential = GoogleAuthProvider.credential(null, response.access_token)
-          await signInWithCredential(auth, credential)
-          router.push("/dashboard")
-        } catch (err) {
-          setError(getAuthErrorMessage(err))
-        }
-      },
-    })
-    client.requestAccessToken()
   }
 
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
-      <Script src="https://accounts.google.com/gsi/client" strategy="afterInteractive" />
       <Card className="overflow-hidden p-0">
         <CardContent className="grid p-0 md:grid-cols-2">
           <form className="p-6 md:p-8" onSubmit={handleSubmit}>
