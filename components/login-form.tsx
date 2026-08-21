@@ -3,9 +3,10 @@
 import * as React from "react"
 import { useRouter } from "next/navigation"
 import {
+  getRedirectResult,
   GoogleAuthProvider,
   signInWithEmailAndPassword,
-  signInWithPopup,
+  signInWithRedirect,
 } from "firebase/auth"
 
 import { auth } from "@/lib/firebase"
@@ -37,7 +38,9 @@ function getAuthErrorMessage(err: unknown): string {
     "auth/popup-closed-by-user": "Bạn đã đóng popup đăng nhập trước khi hoàn tất.",
     "auth/network-request-failed": "Lỗi kết nối mạng.",
   }
-  return messages[code] ?? `Đăng nhập thất bại (${code}).`
+  if (messages[code]) return messages[code]
+  const message = (err as { message?: string })?.message
+  return message ? `Đăng nhập thất bại: ${message}` : `Đăng nhập thất bại (${code}).`
 }
 
 export function LoginForm({
@@ -49,6 +52,14 @@ export function LoginForm({
   const [password, setPassword] = React.useState("")
   const [error, setError] = React.useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = React.useState(false)
+
+  React.useEffect(() => {
+    getRedirectResult(auth)
+      .then((result) => {
+        if (result) router.push("/dashboard")
+      })
+      .catch((err) => setError(getAuthErrorMessage(err)))
+  }, [router])
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -67,8 +78,7 @@ export function LoginForm({
   async function handleGoogleLogin() {
     setError(null)
     try {
-      await signInWithPopup(auth, new GoogleAuthProvider())
-      router.push("/dashboard")
+      await signInWithRedirect(auth, new GoogleAuthProvider())
     } catch (err) {
       setError(getAuthErrorMessage(err))
     }
