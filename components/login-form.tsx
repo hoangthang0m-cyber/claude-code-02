@@ -2,11 +2,11 @@
 
 import * as React from "react"
 import { useRouter } from "next/navigation"
+import Script from "next/script"
 import {
-  getRedirectResult,
   GoogleAuthProvider,
+  signInWithCredential,
   signInWithEmailAndPassword,
-  signInWithRedirect,
 } from "firebase/auth"
 
 import { auth } from "@/lib/firebase"
@@ -23,6 +23,27 @@ import {
   FieldSeparator,
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
+
+const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ?? ""
+
+declare global {
+  interface Window {
+    google?: {
+      accounts: {
+        oauth2: {
+          initTokenClient(config: {
+            client_id: string
+            scope: string
+            callback: (response: {
+              access_token?: string
+              error?: string
+            }) => void
+          }): { requestAccessToken: () => void }
+        }
+      }
+    }
+  }
+}
 
 function getAuthErrorMessage(err: unknown): string {
   const code = (err as { code?: string })?.code ?? "unknown"
@@ -54,40 +75,6 @@ export function LoginForm({
   const [password, setPassword] = React.useState("")
   const [error, setError] = React.useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = React.useState(false)
-  const [debugInfo, setDebugInfo] = React.useState<string[]>([])
-
-  React.useEffect(() => {
-    const wasRedirecting = sessionStorage.getItem("googleAuthPending") === "1"
-    sessionStorage.removeItem("googleAuthPending")
-    if (!wasRedirecting) return
-
-    const log: string[] = []
-    log.push(`referrer: ${document.referrer || "(trống)"}`)
-    log.push(`cookieEnabled: ${navigator.cookieEnabled}`)
-    log.push(`indexedDB: ${typeof indexedDB !== "undefined" ? "có" : "không có"}`)
-
-    getRedirectResult(auth)
-      .then((result) => {
-        log.push(`getRedirectResult: ${result ? `OK, user=${result.user.email}` : "null (không có kết quả)"}`)
-        setDebugInfo([...log])
-        if (result) router.push("/dashboard")
-      })
-      .catch((err) => {
-        const e = err as { code?: string; message?: string; customData?: unknown }
-        log.push(`getRedirectResult lỗi: code=${e.code} message=${e.message} customData=${JSON.stringify(e.customData)}`)
-        setDebugInfo([...log])
-        setError(getAuthErrorMessage(err))
-      })
-
-    const timeout = setTimeout(() => {
-      log.push(`sau 5s, auth.currentUser: ${auth.currentUser ? auth.currentUser.email : "vẫn null"}`)
-      setDebugInfo([...log])
-      if (!auth.currentUser) {
-        setError("Đăng nhập Google không hoàn tất được. Xem thông tin debug bên dưới.")
-      }
-    }, 5000)
-    return () => clearTimeout(timeout)
-  }, [router])
 
   React.useEffect(() => {
     if (!loading && user) {
@@ -109,19 +96,35 @@ export function LoginForm({
     }
   }
 
-  async function handleGoogleLogin() {
+  function handleGoogleLogin() {
     setError(null)
-    try {
-      sessionStorage.setItem("googleAuthPending", "1")
-      await signInWithRedirect(auth, new GoogleAuthProvider())
-    } catch (err) {
-      sessionStorage.removeItem("googleAuthPending")
-      setError(getAuthErrorMessage(err))
+    if (!window.google) {
+      setError("Google Sign-In chưa tải xong, thử lại sau vài giây.")
+      return
     }
+    const client = window.google.accounts.oauth2.initTokenClient({
+      client_id: GOOGLE_CLIENT_ID,
+      scope: "openid email profile",
+      callback: async (response) => {
+        if (response.error || !response.access_token) {
+          setError("Đăng nhập Google thất bại.")
+          return
+        }
+        try {
+          const credential = GoogleAuthProvider.credential(null, response.access_token)
+          await signInWithCredential(auth, credential)
+          router.push("/dashboard")
+        } catch (err) {
+          setError(getAuthErrorMessage(err))
+        }
+      },
+    })
+    client.requestAccessToken()
   }
 
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
+      <Script src="https://accounts.google.com/gsi/client" strategy="afterInteractive" />
       <Card className="overflow-hidden p-0">
         <CardContent className="grid p-0 md:grid-cols-2">
           <form className="p-6 md:p-8" onSubmit={handleSubmit}>
@@ -134,11 +137,6 @@ export function LoginForm({
               </div>
               {error && (
                 <p className="text-center text-sm text-destructive">{error}</p>
-              )}
-              {debugInfo.length > 0 && (
-                <pre className="overflow-x-auto rounded-md bg-muted p-2 text-[10px] leading-tight whitespace-pre-wrap text-muted-foreground">
-                  {debugInfo.join("\n")}
-                </pre>
               )}
               <Field>
                 <FieldLabel htmlFor="email">Email</FieldLabel>
