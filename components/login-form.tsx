@@ -56,11 +56,24 @@ export function LoginForm({
   const [isSubmitting, setIsSubmitting] = React.useState(false)
 
   React.useEffect(() => {
+    const wasRedirecting = sessionStorage.getItem("googleAuthPending") === "1"
+    sessionStorage.removeItem("googleAuthPending")
+
     getRedirectResult(auth)
       .then((result) => {
         if (result) router.push("/dashboard")
       })
       .catch((err) => setError(getAuthErrorMessage(err)))
+
+    if (!wasRedirecting) return
+    const timeout = setTimeout(() => {
+      if (!auth.currentUser) {
+        setError(
+          "Đăng nhập Google không hoàn tất được, có thể do trình duyệt đang chặn cookie bên thứ 3 cho firebaseapp.com. Hãy thử tắt chế độ chặn cookie bên thứ 3 (hoặc dùng trình duyệt khác) rồi thử lại."
+        )
+      }
+    }, 5000)
+    return () => clearTimeout(timeout)
   }, [router])
 
   React.useEffect(() => {
@@ -86,8 +99,10 @@ export function LoginForm({
   async function handleGoogleLogin() {
     setError(null)
     try {
+      sessionStorage.setItem("googleAuthPending", "1")
       await signInWithRedirect(auth, new GoogleAuthProvider())
     } catch (err) {
+      sessionStorage.removeItem("googleAuthPending")
       setError(getAuthErrorMessage(err))
     }
   }
