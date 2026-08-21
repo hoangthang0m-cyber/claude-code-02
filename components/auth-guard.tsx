@@ -2,26 +2,20 @@
 
 import * as React from "react"
 import { useRouter } from "next/navigation"
-import { onAuthStateChanged } from "firebase/auth"
 
-import { auth } from "@/lib/firebase"
+import { useAuth } from "@/components/auth-provider"
 
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter()
-  const [isChecking, setIsChecking] = React.useState(true)
+  const { user, loading } = useAuth()
 
   React.useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (!user) {
-        router.replace("/login")
-        return
-      }
-      setIsChecking(false)
-    })
-    return unsubscribe
-  }, [router])
+    if (!loading && !user) {
+      router.replace("/login")
+    }
+  }, [loading, user, router])
 
-  if (isChecking) {
+  if (loading || !user) {
     return (
       <div className="flex min-h-svh items-center justify-center">
         <p className="text-sm text-muted-foreground">Đang kiểm tra đăng nhập...</p>

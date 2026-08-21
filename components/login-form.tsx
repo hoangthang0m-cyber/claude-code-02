@@ -11,6 +11,7 @@ import {
 
 import { auth } from "@/lib/firebase"
 import { cn } from "@/lib/utils"
+import { useAuth } from "@/components/auth-provider"
 import { HemTarotMark } from "@/components/hem-tarot-mark"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -48,6 +49,7 @@ export function LoginForm({
   ...props
 }: React.ComponentProps<"div">) {
   const router = useRouter()
+  const { user, loading } = useAuth()
   const [email, setEmail] = React.useState("")
   const [password, setPassword] = React.useState("")
   const [error, setError] = React.useState<string | null>(null)
@@ -60,6 +62,12 @@ export function LoginForm({
       })
       .catch((err) => setError(getAuthErrorMessage(err)))
   }, [router])
+
+  React.useEffect(() => {
+    if (!loading && user) {
+      router.replace("/dashboard")
+    }
+  }, [loading, user, router])
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
