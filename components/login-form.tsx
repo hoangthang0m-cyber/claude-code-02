@@ -54,23 +54,36 @@ export function LoginForm({
   const [password, setPassword] = React.useState("")
   const [error, setError] = React.useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = React.useState(false)
+  const [debugInfo, setDebugInfo] = React.useState<string[]>([])
 
   React.useEffect(() => {
     const wasRedirecting = sessionStorage.getItem("googleAuthPending") === "1"
     sessionStorage.removeItem("googleAuthPending")
+    if (!wasRedirecting) return
+
+    const log: string[] = []
+    log.push(`referrer: ${document.referrer || "(trống)"}`)
+    log.push(`cookieEnabled: ${navigator.cookieEnabled}`)
+    log.push(`indexedDB: ${typeof indexedDB !== "undefined" ? "có" : "không có"}`)
 
     getRedirectResult(auth)
       .then((result) => {
+        log.push(`getRedirectResult: ${result ? `OK, user=${result.user.email}` : "null (không có kết quả)"}`)
+        setDebugInfo([...log])
         if (result) router.push("/dashboard")
       })
-      .catch((err) => setError(getAuthErrorMessage(err)))
+      .catch((err) => {
+        const e = err as { code?: string; message?: string; customData?: unknown }
+        log.push(`getRedirectResult lỗi: code=${e.code} message=${e.message} customData=${JSON.stringify(e.customData)}`)
+        setDebugInfo([...log])
+        setError(getAuthErrorMessage(err))
+      })
 
-    if (!wasRedirecting) return
     const timeout = setTimeout(() => {
+      log.push(`sau 5s, auth.currentUser: ${auth.currentUser ? auth.currentUser.email : "vẫn null"}`)
+      setDebugInfo([...log])
       if (!auth.currentUser) {
-        setError(
-          "Đăng nhập Google không hoàn tất được, có thể do trình duyệt đang chặn cookie bên thứ 3 cho firebaseapp.com. Hãy thử tắt chế độ chặn cookie bên thứ 3 (hoặc dùng trình duyệt khác) rồi thử lại."
-        )
+        setError("Đăng nhập Google không hoàn tất được. Xem thông tin debug bên dưới.")
       }
     }, 5000)
     return () => clearTimeout(timeout)
@@ -121,6 +134,11 @@ export function LoginForm({
               </div>
               {error && (
                 <p className="text-center text-sm text-destructive">{error}</p>
+              )}
+              {debugInfo.length > 0 && (
+                <pre className="overflow-x-auto rounded-md bg-muted p-2 text-[10px] leading-tight whitespace-pre-wrap text-muted-foreground">
+                  {debugInfo.join("\n")}
+                </pre>
               )}
               <Field>
                 <FieldLabel htmlFor="email">Email</FieldLabel>
