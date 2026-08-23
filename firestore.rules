@@ -1,0 +1,46 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    // users/ — hồ sơ cá nhân: chỉ chính chủ được đọc/sửa/xóa
+    match /users/{userId} {
+      allow read, write: if isOwner(userId);
+    }
+
+    // tasks/ — thành viên đã đăng nhập được đọc, chỉ người tạo được sửa/xóa
+    match /tasks/{taskId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && request.resource.data.createdBy == request.auth.uid;
+      allow update, delete: if isSignedIn() && resource.data.createdBy == request.auth.uid;
+    }
+
+    // risks/ — người đã đăng nhập được đọc, chỉ người tạo được sửa/xóa
+    match /risks/{riskId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && request.resource.data.createdBy == request.auth.uid;
+      allow update, delete: if isSignedIn() && resource.data.createdBy == request.auth.uid;
+    }
+
+    // projects/ — thành viên được mời (members) mới đọc được, chỉ admin dự án (admins) được sửa/xóa
+    match /projects/{projectId} {
+      allow read: if isSignedIn() && request.auth.uid in resource.data.members;
+      allow create: if isSignedIn();
+      allow update, delete: if isSignedIn() && request.auth.uid in resource.data.admins;
+    }
+
+    // notifications/ — chỉ chính chủ (userId trên document) được đọc/sửa/xóa
+    match /notifications/{notificationId} {
+      allow create: if isOwner(request.resource.data.userId);
+      allow read, update, delete: if isOwner(resource.data.userId);
+    }
+  }
+}
