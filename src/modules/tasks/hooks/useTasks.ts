@@ -3,7 +3,7 @@
 import * as React from "react"
 
 import { subscribeToTasks } from "@/modules/tasks/services/tasks.service"
-import type { Task } from "@/types/task"
+import type { Task } from "@/modules/tasks/types/task.types"
 
 export function useTasks() {
   const [tasks, setTasks] = React.useState<Task[]>([])

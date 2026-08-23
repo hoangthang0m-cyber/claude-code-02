@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import Link from "next/link"
 
 import { useAuth } from "@/context/AuthContext"
 import { NavMain } from "@/components/common/NavMain"
@@ -61,7 +62,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           <SidebarMenuItem>
             <SidebarMenuButton
               className="data-[slot=sidebar-menu-button]:p-1.5!"
-              render={<a href="/tasks" />}
+              render={<Link href="/tasks" />}
             >
               <CommandIcon className="size-5!" />
               <span className="text-base font-semibold">Hẻm Tarot</span>

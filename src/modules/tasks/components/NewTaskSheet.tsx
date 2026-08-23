@@ -1,10 +1,11 @@
 "use client"
 
 import * as React from "react"
+import { Timestamp } from "firebase/firestore"
 
 import { useAuth } from "@/context/AuthContext"
 import { createTask } from "@/modules/tasks/services/tasks.service"
-import type { TaskFormValues } from "@/modules/tasks/types"
+import type { TaskFormValues } from "@/modules/tasks/types/task.types"
 import { Button } from "@/components/ui/button"
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
@@ -23,14 +24,18 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet"
+import { Textarea } from "@/components/ui/textarea"
 import { TASK_PRIORITIES, TASK_PRIORITY_LABELS } from "@/constants/priority"
 import { PlusIcon } from "lucide-react"
 
 const EMPTY_FORM: TaskFormValues = {
   title: "",
-  assignee: "",
-  dueDate: "",
   priority: "medium",
+  status: "todo",
+  assigneeId: "",
+  dueDate: "",
+  description: "",
+  tags: "",
 }
 
 export function NewTaskSheet() {
@@ -41,17 +46,20 @@ export function NewTaskSheet() {
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (!user) return
+    if (!user || !form.title.trim()) return
     setIsSubmitting(true)
     try {
       await createTask({
-        title: form.title,
-        assignee: form.assignee,
-        dueDate: form.dueDate,
+        title: form.title.trim().slice(0, 200),
         priority: form.priority,
         status: "todo",
+        assigneeId: form.assigneeId || undefined,
+        dueDate: form.dueDate ? Timestamp.fromDate(new Date(form.dueDate)) : undefined,
+        description: form.description || undefined,
+        tags: form.tags
+          ? form.tags.split(",").map((tag) => tag.trim()).filter(Boolean)
+          : undefined,
         createdBy: user.uid,
-        createdAt: new Date().toISOString(),
       })
       setForm(EMPTY_FORM)
       setOpen(false)
@@ -81,6 +89,7 @@ export function NewTaskSheet() {
               <Input
                 id="task-title"
                 value={form.title}
+                maxLength={200}
                 onChange={(e) => setForm({ ...form, title: e.target.value })}
                 required
               />
@@ -89,9 +98,8 @@ export function NewTaskSheet() {
               <FieldLabel htmlFor="task-assignee">Assignee</FieldLabel>
               <Input
                 id="task-assignee"
-                value={form.assignee}
-                onChange={(e) => setForm({ ...form, assignee: e.target.value })}
-                required
+                value={form.assigneeId}
+                onChange={(e) => setForm({ ...form, assigneeId: e.target.value })}
               />
             </Field>
             <Field>
@@ -101,7 +109,6 @@ export function NewTaskSheet() {
                 type="date"
                 value={form.dueDate}
                 onChange={(e) => setForm({ ...form, dueDate: e.target.value })}
-                required
               />
             </Field>
             <Field>
@@ -123,6 +130,23 @@ export function NewTaskSheet() {
                   ))}
                 </SelectContent>
               </Select>
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="task-description">Description</FieldLabel>
+              <Textarea
+                id="task-description"
+                rows={3}
+                value={form.description}
+                onChange={(e) => setForm({ ...form, description: e.target.value })}
+              />
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="task-tags">Tags (phân cách bằng dấu phẩy)</FieldLabel>
+              <Input
+                id="task-tags"
+                value={form.tags}
+                onChange={(e) => setForm({ ...form, tags: e.target.value })}
+              />
             </Field>
           </FieldGroup>
         </form>
