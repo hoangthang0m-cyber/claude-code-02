@@ -3,11 +3,11 @@
 import * as React from "react"
 import { Timestamp } from "firebase/firestore"
 
-import { deleteTask, updateTask } from "@/modules/tasks/services/tasks.service"
-import { TaskAttachments } from "@/modules/tasks/components/TaskAttachments"
-import { TaskComments } from "@/modules/tasks/components/TaskComments"
-import { useTask } from "@/modules/tasks/hooks/useTask"
-import type { Task } from "@/modules/tasks/types/task.types"
+import { deleteCampaign, updateCampaign } from "@/modules/campaigns/services/campaigns.service"
+import { CampaignAttachments } from "@/modules/campaigns/components/CampaignAttachments"
+import { CampaignComments } from "@/modules/campaigns/components/CampaignComments"
+import { useCampaign } from "@/modules/campaigns/hooks/useCampaign"
+import type { Campaign } from "@/modules/campaigns/types/campaign.types"
 import { Button } from "@/components/ui/button"
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
@@ -20,8 +20,8 @@ import {
 } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
 import { Textarea } from "@/components/ui/textarea"
-import { TASK_PRIORITIES, TASK_PRIORITY_LABELS } from "@/constants/priority"
-import { TASK_STATUSES, TASK_STATUS_LABELS } from "@/constants/status"
+import { CAMPAIGN_PRIORITIES, CAMPAIGN_PRIORITY_LABELS } from "@/constants/priority"
+import { CAMPAIGN_STATUSES, CAMPAIGN_STATUS_LABELS } from "@/constants/status"
 import { Trash2Icon } from "lucide-react"
 
 function toDateInputValue(timestamp?: Timestamp) {
@@ -29,44 +29,44 @@ function toDateInputValue(timestamp?: Timestamp) {
   return timestamp.toDate().toISOString().slice(0, 10)
 }
 
-export function TaskDetailBody({
-  taskId,
+export function CampaignDetailBody({
+  campaignId,
   onDeleted,
 }: {
-  taskId: string
+  campaignId: string
   onDeleted?: () => void
 }) {
-  const { task, loading } = useTask(taskId)
+  const { campaign, loading } = useCampaign(campaignId)
 
   if (loading) {
     return <p className="px-4 text-sm text-muted-foreground">Đang tải...</p>
   }
 
-  if (!task) {
-    return <p className="px-4 text-sm text-muted-foreground">Không tìm thấy công việc.</p>
+  if (!campaign) {
+    return <p className="px-4 text-sm text-muted-foreground">Không tìm thấy chiến dịch.</p>
   }
 
-  return <TaskDetailFields key={task.id} task={task} onDeleted={onDeleted} />
+  return <CampaignDetailFields key={campaign.id} campaign={campaign} onDeleted={onDeleted} />
 }
 
-function TaskDetailFields({
-  task,
+function CampaignDetailFields({
+  campaign,
   onDeleted,
 }: {
-  task: Task
+  campaign: Campaign
   onDeleted?: () => void
 }) {
-  const [title, setTitle] = React.useState(task.title)
-  const [description, setDescription] = React.useState(task.description ?? "")
-  const [assigneeId, setAssigneeId] = React.useState(task.assigneeId ?? "")
-  const [tags, setTags] = React.useState((task.tags ?? []).join(", "))
+  const [title, setTitle] = React.useState(campaign.title)
+  const [description, setDescription] = React.useState(campaign.description ?? "")
+  const [assigneeId, setAssigneeId] = React.useState(campaign.assigneeId ?? "")
+  const [tags, setTags] = React.useState((campaign.tags ?? []).join(", "))
 
-  function saveField(data: Parameters<typeof updateTask>[1]) {
-    updateTask(task.id, data)
+  function saveField(data: Parameters<typeof updateCampaign>[1]) {
+    updateCampaign(campaign.id, data)
   }
 
   async function handleDelete() {
-    await deleteTask(task.id)
+    await deleteCampaign(campaign.id)
     onDeleted?.()
   }
 
@@ -88,16 +88,16 @@ function TaskDetailFields({
           <Field>
             <FieldLabel>Status</FieldLabel>
             <Select
-              value={task.status}
-              onValueChange={(value) => saveField({ status: value as typeof task.status })}
+              value={campaign.status}
+              onValueChange={(value) => saveField({ status: value as typeof campaign.status })}
             >
               <SelectTrigger className="w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {TASK_STATUSES.map((status) => (
+                {CAMPAIGN_STATUSES.map((status) => (
                   <SelectItem key={status} value={status}>
-                    {TASK_STATUS_LABELS[status]}
+                    {CAMPAIGN_STATUS_LABELS[status]}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -106,18 +106,18 @@ function TaskDetailFields({
           <Field>
             <FieldLabel>Priority</FieldLabel>
             <Select
-              value={task.priority}
+              value={campaign.priority}
               onValueChange={(value) =>
-                saveField({ priority: value as typeof task.priority })
+                saveField({ priority: value as typeof campaign.priority })
               }
             >
               <SelectTrigger className="w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {TASK_PRIORITIES.map((priority) => (
+                {CAMPAIGN_PRIORITIES.map((priority) => (
                   <SelectItem key={priority} value={priority}>
-                    {TASK_PRIORITY_LABELS[priority]}
+                    {CAMPAIGN_PRIORITY_LABELS[priority]}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -140,7 +140,7 @@ function TaskDetailFields({
             <Input
               id="detail-due-date"
               type="date"
-              defaultValue={toDateInputValue(task.dueDate)}
+              defaultValue={toDateInputValue(campaign.dueDate)}
               onChange={(e) =>
                 saveField({
                   dueDate: e.target.value
@@ -179,15 +179,15 @@ function TaskDetailFields({
       </FieldGroup>
 
       <Separator />
-      <TaskAttachments taskId={task.id} attachments={task.attachments ?? []} />
+      <CampaignAttachments campaignId={campaign.id} attachments={campaign.attachments ?? []} />
 
       <Separator />
-      <TaskComments taskId={task.id} />
+      <CampaignComments campaignId={campaign.id} />
 
       <Separator />
       <Button variant="destructive" onClick={handleDelete}>
         <Trash2Icon />
-        Xóa công việc
+        Xóa chiến dịch
       </Button>
     </div>
   )

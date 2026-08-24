@@ -1,9 +1,9 @@
 import type { Timestamp } from "firebase/firestore"
 
-import type { TaskPriority } from "@/constants/priority"
-import type { TaskStatus } from "@/constants/status"
+import type { CampaignPriority } from "@/constants/priority"
+import type { CampaignStatus } from "@/constants/status"
 
-export type { TaskPriority, TaskStatus }
+export type { CampaignPriority, CampaignStatus }
 
 export interface ChecklistItem {
   id: string
@@ -20,17 +20,17 @@ export interface Attachment {
   uploadedAt: Timestamp
 }
 
-export interface Task {
+export interface Campaign {
   id: string
   title: string
-  priority: TaskPriority
-  status: TaskStatus
+  priority: CampaignPriority
+  status: CampaignStatus
   assigneeId?: string
   dueDate?: Timestamp
   description?: string
   tags?: string[]
   checklist?: ChecklistItem[]
-  dependsOnTaskId?: string
+  dependsOnCampaignId?: string
   estimatedHours?: number
   actualHours?: number
   attachments?: Attachment[]
@@ -39,19 +39,19 @@ export interface Task {
   updatedAt: Timestamp
 }
 
-export interface TaskComment {
+export interface CampaignComment {
   id: string
-  taskId: string
+  campaignId: string
   authorId: string
   content: string
   mentionedUserIds?: string[]
   createdAt: Timestamp
 }
 
-export interface TaskFormValues {
+export interface CampaignFormValues {
   title: string
-  priority: TaskPriority
-  status: TaskStatus
+  priority: CampaignPriority
+  status: CampaignStatus
   assigneeId: string
   dueDate: string
   description: string

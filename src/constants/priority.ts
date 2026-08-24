@@ -1,8 +1,8 @@
-export const TASK_PRIORITIES = ["low", "medium", "high"] as const
+export const CAMPAIGN_PRIORITIES = ["low", "medium", "high"] as const
 
-export type TaskPriority = (typeof TASK_PRIORITIES)[number]
+export type CampaignPriority = (typeof CAMPAIGN_PRIORITIES)[number]
 
-export const TASK_PRIORITY_LABELS: Record<TaskPriority, string> = {
+export const CAMPAIGN_PRIORITY_LABELS: Record<CampaignPriority, string> = {
   low: "Thấp",
   medium: "Trung bình",
   high: "Cao",

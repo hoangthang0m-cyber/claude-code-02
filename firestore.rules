@@ -16,13 +16,13 @@ service cloud.firestore {
       allow read, write: if isOwner(userId);
     }
 
-    // tasks/ — thành viên đã đăng nhập được đọc, chỉ người tạo được sửa/xóa
-    match /tasks/{taskId} {
+    // campaigns/ — thành viên đã đăng nhập được đọc, chỉ người tạo được sửa/xóa
+    match /campaigns/{campaignId} {
       allow read: if isSignedIn();
       allow create: if isSignedIn() && request.resource.data.createdBy == request.auth.uid;
       allow update, delete: if isSignedIn() && resource.data.createdBy == request.auth.uid;
 
-      // tasks/{taskId}/comments — người đã đăng nhập đọc/bình luận được,
+      // campaigns/{campaignId}/comments — người đã đăng nhập đọc/bình luận được,
       // chỉ tác giả bình luận được sửa/xóa bình luận của mình
       match /comments/{commentId} {
         allow read: if isSignedIn();

@@ -10,21 +10,21 @@ import {
   type DragEndEvent,
 } from "@dnd-kit/core"
 
-import { TASK_STATUS_LABELS, type TaskStatus } from "@/constants/status"
-import { TASK_STATUSES } from "@/constants/status"
-import { TaskCard } from "@/modules/tasks/components/TaskCard"
-import type { Task } from "@/modules/tasks/types/task.types"
+import { CAMPAIGN_STATUS_LABELS, type CampaignStatus } from "@/constants/status"
+import { CAMPAIGN_STATUSES } from "@/constants/status"
+import { CampaignCard } from "@/modules/campaigns/components/CampaignCard"
+import type { Campaign } from "@/modules/campaigns/types/campaign.types"
 import { cn } from "@/utils/cn"
 
-function DraggableTaskCard({
-  task,
-  onSelectTask,
+function DraggableCampaignCard({
+  campaign,
+  onSelectCampaign,
 }: {
-  task: Task
-  onSelectTask: (id: string) => void
+  campaign: Campaign
+  onSelectCampaign: (id: string) => void
 }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
-    id: task.id,
+    id: campaign.id,
   })
   const style = transform
     ? {
@@ -36,19 +36,19 @@ function DraggableTaskCard({
 
   return (
     <div ref={setNodeRef} style={style} {...listeners} {...attributes}>
-      <TaskCard task={task} onClick={() => onSelectTask(task.id)} />
+      <CampaignCard campaign={campaign} onClick={() => onSelectCampaign(campaign.id)} />
     </div>
   )
 }
 
 function KanbanColumn({
   status,
-  tasks,
-  onSelectTask,
+  campaigns,
+  onSelectCampaign,
 }: {
-  status: TaskStatus
-  tasks: Task[]
-  onSelectTask: (id: string) => void
+  status: CampaignStatus
+  campaigns: Campaign[]
+  onSelectCampaign: (id: string) => void
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: status })
 
@@ -61,26 +61,26 @@ function KanbanColumn({
       )}
     >
       <div className="flex items-center justify-between px-1">
-        <h3 className="text-sm font-semibold">{TASK_STATUS_LABELS[status]}</h3>
-        <span className="text-xs text-muted-foreground">{tasks.length}</span>
+        <h3 className="text-sm font-semibold">{CAMPAIGN_STATUS_LABELS[status]}</h3>
+        <span className="text-xs text-muted-foreground">{campaigns.length}</span>
       </div>
       <div className="flex flex-col gap-2">
-        {tasks.map((task) => (
-          <DraggableTaskCard key={task.id} task={task} onSelectTask={onSelectTask} />
+        {campaigns.map((campaign) => (
+          <DraggableCampaignCard key={campaign.id} campaign={campaign} onSelectCampaign={onSelectCampaign} />
         ))}
       </div>
     </div>
   )
 }
 
-export function TaskKanbanBoard({
-  tasks,
-  onSelectTask,
+export function CampaignKanbanBoard({
+  campaigns,
+  onSelectCampaign,
   onStatusChange,
 }: {
-  tasks: Task[]
-  onSelectTask: (id: string) => void
-  onStatusChange: (taskId: string, status: TaskStatus) => void
+  campaigns: Campaign[]
+  onSelectCampaign: (id: string) => void
+  onStatusChange: (campaignId: string, status: CampaignStatus) => void
 }) {
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
@@ -89,22 +89,22 @@ export function TaskKanbanBoard({
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event
     if (!over) return
-    const newStatus = over.id as TaskStatus
-    const task = tasks.find((item) => item.id === active.id)
-    if (task && task.status !== newStatus) {
-      onStatusChange(task.id, newStatus)
+    const newStatus = over.id as CampaignStatus
+    const campaign = campaigns.find((item) => item.id === active.id)
+    if (campaign && campaign.status !== newStatus) {
+      onStatusChange(campaign.id, newStatus)
     }
   }
 
   return (
     <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
       <div className="flex gap-4 overflow-x-auto pb-2">
-        {TASK_STATUSES.map((status) => (
+        {CAMPAIGN_STATUSES.map((status) => (
           <KanbanColumn
             key={status}
             status={status}
-            tasks={tasks.filter((task) => task.status === status)}
-            onSelectTask={onSelectTask}
+            campaigns={campaigns.filter((campaign) => campaign.status === status)}
+            onSelectCampaign={onSelectCampaign}
           />
         ))}
       </div>

@@ -18,30 +18,30 @@ import {
 } from "firebase/storage"
 
 import { db, storage } from "@/firebase/config"
-import type { Attachment, Task, TaskComment } from "@/modules/tasks/types/task.types"
+import type { Attachment, Campaign, CampaignComment } from "@/modules/campaigns/types/campaign.types"
 
-const COLLECTION = "tasks"
+const COLLECTION = "campaigns"
 export const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024
 
-function toTask(id: string, data: Record<string, unknown>): Task {
-  return { id, ...data } as Task
+function toCampaign(id: string, data: Record<string, unknown>): Campaign {
+  return { id, ...data } as Campaign
 }
 
-export function subscribeToTasks(onChange: (tasks: Task[]) => void) {
+export function subscribeToCampaigns(onChange: (campaigns: Campaign[]) => void) {
   const q = query(collection(db, COLLECTION), orderBy("createdAt", "desc"))
   return onSnapshot(q, (snapshot) => {
-    onChange(snapshot.docs.map((docSnap) => toTask(docSnap.id, docSnap.data())))
+    onChange(snapshot.docs.map((docSnap) => toCampaign(docSnap.id, docSnap.data())))
   })
 }
 
-export function subscribeToTask(taskId: string, onChange: (task: Task | null) => void) {
-  return onSnapshot(doc(db, COLLECTION, taskId), (snapshot) => {
-    onChange(snapshot.exists() ? toTask(snapshot.id, snapshot.data()) : null)
+export function subscribeToCampaign(campaignId: string, onChange: (campaign: Campaign | null) => void) {
+  return onSnapshot(doc(db, COLLECTION, campaignId), (snapshot) => {
+    onChange(snapshot.exists() ? toCampaign(snapshot.id, snapshot.data()) : null)
   })
 }
 
-export function createTask(
-  data: Omit<Task, "id" | "createdAt" | "updatedAt" | "attachments" | "checklist">
+export function createCampaign(
+  data: Omit<Campaign, "id" | "createdAt" | "updatedAt" | "attachments" | "checklist">
 ) {
   return addDoc(collection(db, COLLECTION), {
     ...data,
@@ -52,26 +52,26 @@ export function createTask(
   })
 }
 
-export function updateTask(taskId: string, data: Partial<Omit<Task, "id" | "createdAt">>) {
-  return updateDoc(doc(db, COLLECTION, taskId), { ...data, updatedAt: serverTimestamp() })
+export function updateCampaign(campaignId: string, data: Partial<Omit<Campaign, "id" | "createdAt">>) {
+  return updateDoc(doc(db, COLLECTION, campaignId), { ...data, updatedAt: serverTimestamp() })
 }
 
-export function deleteTask(taskId: string) {
-  return deleteDoc(doc(db, COLLECTION, taskId))
+export function deleteCampaign(campaignId: string) {
+  return deleteDoc(doc(db, COLLECTION, campaignId))
 }
 
 // --- Comments (sub-collection) ---
 
-function toComment(id: string, data: Record<string, unknown>): TaskComment {
-  return { id, ...data } as TaskComment
+function toComment(id: string, data: Record<string, unknown>): CampaignComment {
+  return { id, ...data } as CampaignComment
 }
 
 export function subscribeToComments(
-  taskId: string,
-  onChange: (comments: TaskComment[]) => void
+  campaignId: string,
+  onChange: (comments: CampaignComment[]) => void
 ) {
   const q = query(
-    collection(db, COLLECTION, taskId, "comments"),
+    collection(db, COLLECTION, campaignId, "comments"),
     orderBy("createdAt", "asc")
   )
   return onSnapshot(q, (snapshot) => {
@@ -80,20 +80,20 @@ export function subscribeToComments(
 }
 
 export function addComment(
-  taskId: string,
+  campaignId: string,
   data: { authorId: string; content: string; mentionedUserIds?: string[] }
 ) {
-  return addDoc(collection(db, COLLECTION, taskId, "comments"), {
+  return addDoc(collection(db, COLLECTION, campaignId, "comments"), {
     ...data,
-    taskId,
+    campaignId,
     createdAt: serverTimestamp(),
   })
 }
 
 // --- Attachments (Firebase Storage) ---
 
-export async function uploadTaskAttachment(
-  taskId: string,
+export async function uploadCampaignAttachment(
+  campaignId: string,
   file: File,
   uploadedBy: string,
   currentAttachments: Attachment[]
@@ -103,7 +103,7 @@ export async function uploadTaskAttachment(
   }
 
   const attachmentId = crypto.randomUUID()
-  const storageRef = ref(storage, `tasks/${taskId}/${attachmentId}-${file.name}`)
+  const storageRef = ref(storage, `campaigns/${campaignId}/${attachmentId}-${file.name}`)
   await uploadBytes(storageRef, file)
   const fileUrl = await getDownloadURL(storageRef)
 
@@ -117,19 +117,19 @@ export async function uploadTaskAttachment(
   }
 
   const nextAttachments = [...currentAttachments, attachment]
-  await updateTask(taskId, { attachments: nextAttachments })
+  await updateCampaign(campaignId, { attachments: nextAttachments })
   return nextAttachments
 }
 
-export async function deleteTaskAttachment(
-  taskId: string,
+export async function deleteCampaignAttachment(
+  campaignId: string,
   attachment: Attachment,
   currentAttachments: Attachment[]
 ): Promise<Attachment[]> {
-  const storageRef = ref(storage, `tasks/${taskId}/${attachment.id}-${attachment.fileName}`)
+  const storageRef = ref(storage, `campaigns/${campaignId}/${attachment.id}-${attachment.fileName}`)
   await deleteObject(storageRef).catch(() => undefined)
 
   const nextAttachments = currentAttachments.filter((item) => item.id !== attachment.id)
-  await updateTask(taskId, { attachments: nextAttachments })
+  await updateCampaign(campaignId, { attachments: nextAttachments })
   return nextAttachments
 }

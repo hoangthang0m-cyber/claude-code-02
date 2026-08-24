@@ -5,11 +5,11 @@ import * as React from "react"
 import { useAuth } from "@/context/AuthContext"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { useTaskComments } from "@/modules/tasks/hooks/useTaskComments"
+import { useCampaignComments } from "@/modules/campaigns/hooks/useCampaignComments"
 
-export function TaskComments({ taskId }: { taskId: string }) {
+export function CampaignComments({ campaignId }: { campaignId: string }) {
   const { user } = useAuth()
-  const { comments, postComment } = useTaskComments(taskId)
+  const { comments, postComment } = useCampaignComments(campaignId)
   const [content, setContent] = React.useState("")
   const [isSubmitting, setIsSubmitting] = React.useState(false)
 

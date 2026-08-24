@@ -1,5 +1,5 @@
 import { Badge } from "@/components/ui/badge"
-import { TASK_STATUS_LABELS, type TaskStatus } from "@/constants/status"
+import { CAMPAIGN_STATUS_LABELS, type CampaignStatus } from "@/constants/status"
 import { cn } from "@/utils/cn"
 
 export function StatusBadge({
@@ -7,7 +7,7 @@ export function StatusBadge({
   overdue,
   className,
 }: {
-  status: TaskStatus
+  status: CampaignStatus
   overdue?: boolean
   className?: string
 }) {
@@ -24,7 +24,7 @@ export function StatusBadge({
       variant={status === "done" ? "secondary" : "outline"}
       className={cn(className)}
     >
-      {TASK_STATUS_LABELS[status]}
+      {CAMPAIGN_STATUS_LABELS[status]}
     </Badge>
   )
 }

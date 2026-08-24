@@ -5,11 +5,11 @@ import * as React from "react"
 import { useAuth } from "@/context/AuthContext"
 import { Button } from "@/components/ui/button"
 import {
-  deleteTaskAttachment,
+  deleteCampaignAttachment,
   MAX_ATTACHMENT_BYTES,
-  uploadTaskAttachment,
-} from "@/modules/tasks/services/tasks.service"
-import type { Attachment } from "@/modules/tasks/types/task.types"
+  uploadCampaignAttachment,
+} from "@/modules/campaigns/services/campaigns.service"
+import type { Attachment } from "@/modules/campaigns/types/campaign.types"
 import { PaperclipIcon, Trash2Icon, UploadIcon } from "lucide-react"
 
 function formatBytes(bytes: number) {
@@ -18,11 +18,11 @@ function formatBytes(bytes: number) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
-export function TaskAttachments({
-  taskId,
+export function CampaignAttachments({
+  campaignId,
   attachments,
 }: {
-  taskId: string
+  campaignId: string
   attachments: Attachment[]
 }) {
   const { user } = useAuth()
@@ -43,7 +43,7 @@ export function TaskAttachments({
     setError(null)
     setIsUploading(true)
     try {
-      await uploadTaskAttachment(taskId, file, user.uid, attachments)
+      await uploadCampaignAttachment(campaignId, file, user.uid, attachments)
     } catch {
       setError("Tải file lên thất bại, thử lại sau.")
     } finally {
@@ -52,7 +52,7 @@ export function TaskAttachments({
   }
 
   async function handleDelete(attachment: Attachment) {
-    await deleteTaskAttachment(taskId, attachment, attachments)
+    await deleteCampaignAttachment(campaignId, attachment, attachments)
   }
 
   return (

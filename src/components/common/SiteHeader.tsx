@@ -6,7 +6,7 @@ import { Separator } from "@/components/ui/separator"
 import { SidebarTrigger } from "@/components/ui/sidebar"
 
 const PAGE_TITLES: Record<string, string> = {
-  "/tasks": "Tasks",
+  "/campaigns": "Chiến dịch",
   "/risks": "Risks",
   "/team": "Team",
   "/budget": "Budget",

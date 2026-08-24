@@ -8,21 +8,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { TASK_PRIORITIES, TASK_PRIORITY_LABELS } from "@/constants/priority"
-import { TASK_STATUSES, TASK_STATUS_LABELS } from "@/constants/status"
+import { CAMPAIGN_PRIORITIES, CAMPAIGN_PRIORITY_LABELS } from "@/constants/priority"
+import { CAMPAIGN_STATUSES, CAMPAIGN_STATUS_LABELS } from "@/constants/status"
 import type {
-  TaskFiltersState,
-  TaskSortBy,
-} from "@/modules/tasks/hooks/useTaskFilters"
+  CampaignFiltersState,
+  CampaignSortBy,
+} from "@/modules/campaigns/hooks/useCampaignFilters"
 import { SearchIcon } from "lucide-react"
 
-export function TaskFilterBar({
+export function CampaignFilterBar({
   filters,
   onChange,
   assigneeOptions,
 }: {
-  filters: TaskFiltersState
-  onChange: (filters: TaskFiltersState) => void
+  filters: CampaignFiltersState
+  onChange: (filters: CampaignFiltersState) => void
   assigneeOptions: string[]
 }) {
   return (
@@ -40,7 +40,7 @@ export function TaskFilterBar({
       <Select
         value={filters.status}
         onValueChange={(value) =>
-          onChange({ ...filters, status: value as TaskFiltersState["status"] })
+          onChange({ ...filters, status: value as CampaignFiltersState["status"] })
         }
       >
         <SelectTrigger size="sm" className="w-40">
@@ -48,9 +48,9 @@ export function TaskFilterBar({
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="all">Tất cả trạng thái</SelectItem>
-          {TASK_STATUSES.map((status) => (
+          {CAMPAIGN_STATUSES.map((status) => (
             <SelectItem key={status} value={status}>
-              {TASK_STATUS_LABELS[status]}
+              {CAMPAIGN_STATUS_LABELS[status]}
             </SelectItem>
           ))}
         </SelectContent>
@@ -59,7 +59,7 @@ export function TaskFilterBar({
       <Select
         value={filters.priority}
         onValueChange={(value) =>
-          onChange({ ...filters, priority: value as TaskFiltersState["priority"] })
+          onChange({ ...filters, priority: value as CampaignFiltersState["priority"] })
         }
       >
         <SelectTrigger size="sm" className="w-40">
@@ -67,9 +67,9 @@ export function TaskFilterBar({
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="all">Tất cả độ ưu tiên</SelectItem>
-          {TASK_PRIORITIES.map((priority) => (
+          {CAMPAIGN_PRIORITIES.map((priority) => (
             <SelectItem key={priority} value={priority}>
-              {TASK_PRIORITY_LABELS[priority]}
+              {CAMPAIGN_PRIORITY_LABELS[priority]}
             </SelectItem>
           ))}
         </SelectContent>
@@ -94,7 +94,7 @@ export function TaskFilterBar({
 
       <Select
         value={filters.sortBy}
-        onValueChange={(value) => onChange({ ...filters, sortBy: value as TaskSortBy })}
+        onValueChange={(value) => onChange({ ...filters, sortBy: value as CampaignSortBy })}
       >
         <SelectTrigger size="sm" className="w-44">
           <SelectValue placeholder="Sắp xếp" />

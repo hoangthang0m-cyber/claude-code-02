@@ -1,25 +1,25 @@
 import Link from "next/link"
 
-import { TaskDetailBody } from "@/modules/tasks/components/TaskDetailBody"
+import { CampaignDetailBody } from "@/modules/campaigns/components/CampaignDetailBody"
 import { ArrowLeftIcon } from "lucide-react"
 
-export default async function TaskDetailPage({
+export default async function CampaignDetailPage({
   params,
 }: {
-  params: Promise<{ taskId: string }>
+  params: Promise<{ campaignId: string }>
 }) {
-  const { taskId } = await params
+  const { campaignId } = await params
 
   return (
     <div className="flex flex-col gap-4 px-4 py-4 md:px-6 md:py-6">
       <Link
-        href="/tasks"
+        href="/campaigns"
         className="flex w-fit items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
       >
         <ArrowLeftIcon className="size-4" />
-        Back to tasks
+        Back to campaigns
       </Link>
-      <TaskDetailBody taskId={taskId} />
+      <CampaignDetailBody campaignId={campaignId} />
     </div>
   )
 }

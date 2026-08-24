@@ -17,7 +17,7 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
 import {
-  ListTodoIcon,
+  MegaphoneIcon,
   ShieldAlertIcon,
   UsersIcon,
   WalletIcon,
@@ -32,7 +32,7 @@ import {
 
 const data = {
   navMain: [
-    { title: "Tasks", url: "/tasks", icon: <ListTodoIcon /> },
+    { title: "Chiến dịch", url: "/campaigns", icon: <MegaphoneIcon /> },
     { title: "Risks", url: "/risks", icon: <ShieldAlertIcon /> },
     { title: "Team", url: "/team", icon: <UsersIcon /> },
     { title: "Budget", url: "/budget", icon: <WalletIcon /> },
@@ -62,7 +62,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           <SidebarMenuItem>
             <SidebarMenuButton
               className="data-[slot=sidebar-menu-button]:p-1.5!"
-              render={<Link href="/tasks" />}
+              render={<Link href="/campaigns" />}
             >
               <CommandIcon className="size-5!" />
               <span className="text-base font-semibold">Hẻm Tarot</span>

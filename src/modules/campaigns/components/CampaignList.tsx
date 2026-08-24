@@ -11,14 +11,14 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { formatDate, isOverdue } from "@/utils/date"
-import type { Task } from "@/modules/tasks/types/task.types"
+import type { Campaign } from "@/modules/campaigns/types/campaign.types"
 
-export function TaskList({
-  tasks,
-  onSelectTask,
+export function CampaignList({
+  campaigns,
+  onSelectCampaign,
 }: {
-  tasks: Task[]
-  onSelectTask: (taskId: string) => void
+  campaigns: Campaign[]
+  onSelectCampaign: (campaignId: string) => void
 }) {
   return (
     <Table>
@@ -32,30 +32,30 @@ export function TaskList({
         </TableRow>
       </TableHeader>
       <TableBody>
-        {tasks.length === 0 && (
+        {campaigns.length === 0 && (
           <TableRow>
             <TableCell colSpan={5} className="text-center text-muted-foreground">
-              Chưa có công việc nào phù hợp bộ lọc.
+              Chưa có chiến dịch nào phù hợp bộ lọc.
             </TableCell>
           </TableRow>
         )}
-        {tasks.map((task) => {
-          const overdue = isOverdue(task.dueDate, task.status === "done")
+        {campaigns.map((campaign) => {
+          const overdue = isOverdue(campaign.dueDate, campaign.status === "done")
           return (
             <TableRow
-              key={task.id}
+              key={campaign.id}
               className="cursor-pointer"
-              onClick={() => onSelectTask(task.id)}
+              onClick={() => onSelectCampaign(campaign.id)}
             >
-              <TableCell className="font-medium">{task.title}</TableCell>
-              <TableCell>{task.assigneeId || "Chưa giao"}</TableCell>
+              <TableCell className="font-medium">{campaign.title}</TableCell>
+              <TableCell>{campaign.assigneeId || "Chưa giao"}</TableCell>
               <TableCell>
-                <PriorityBadge priority={task.priority} />
+                <PriorityBadge priority={campaign.priority} />
               </TableCell>
               <TableCell>
-                <StatusBadge status={task.status} overdue={overdue} />
+                <StatusBadge status={campaign.status} overdue={overdue} />
               </TableCell>
-              <TableCell>{formatDate(task.dueDate)}</TableCell>
+              <TableCell>{formatDate(campaign.dueDate)}</TableCell>
             </TableRow>
           )
         })}

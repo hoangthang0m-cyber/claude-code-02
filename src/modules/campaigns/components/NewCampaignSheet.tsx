@@ -4,8 +4,8 @@ import * as React from "react"
 import { Timestamp } from "firebase/firestore"
 
 import { useAuth } from "@/context/AuthContext"
-import { createTask } from "@/modules/tasks/services/tasks.service"
-import type { TaskFormValues } from "@/modules/tasks/types/task.types"
+import { createCampaign } from "@/modules/campaigns/services/campaigns.service"
+import type { CampaignFormValues } from "@/modules/campaigns/types/campaign.types"
 import { Button } from "@/components/ui/button"
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
@@ -25,10 +25,10 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet"
 import { Textarea } from "@/components/ui/textarea"
-import { TASK_PRIORITIES, TASK_PRIORITY_LABELS } from "@/constants/priority"
+import { CAMPAIGN_PRIORITIES, CAMPAIGN_PRIORITY_LABELS } from "@/constants/priority"
 import { PlusIcon } from "lucide-react"
 
-const EMPTY_FORM: TaskFormValues = {
+const EMPTY_FORM: CampaignFormValues = {
   title: "",
   priority: "medium",
   status: "todo",
@@ -38,10 +38,10 @@ const EMPTY_FORM: TaskFormValues = {
   tags: "",
 }
 
-export function NewTaskSheet() {
+export function NewCampaignSheet() {
   const { user } = useAuth()
   const [open, setOpen] = React.useState(false)
-  const [form, setForm] = React.useState<TaskFormValues>(EMPTY_FORM)
+  const [form, setForm] = React.useState<CampaignFormValues>(EMPTY_FORM)
   const [isSubmitting, setIsSubmitting] = React.useState(false)
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -49,7 +49,7 @@ export function NewTaskSheet() {
     if (!user || !form.title.trim()) return
     setIsSubmitting(true)
     try {
-      await createTask({
+      await createCampaign({
         title: form.title.trim().slice(0, 200),
         priority: form.priority,
         status: "todo",
@@ -72,22 +72,22 @@ export function NewTaskSheet() {
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger render={<Button />}>
         <PlusIcon />
-        New task
+        New campaign
       </SheetTrigger>
       <SheetContent>
         <SheetHeader>
-          <SheetTitle>New task</SheetTitle>
+          <SheetTitle>New campaign</SheetTitle>
         </SheetHeader>
         <form
-          id="new-task-form"
+          id="new-campaign-form"
           onSubmit={handleSubmit}
           className="flex flex-1 flex-col gap-4 px-4"
         >
           <FieldGroup>
             <Field>
-              <FieldLabel htmlFor="task-title">Title</FieldLabel>
+              <FieldLabel htmlFor="campaign-title">Title</FieldLabel>
               <Input
-                id="task-title"
+                id="campaign-title"
                 value={form.title}
                 maxLength={200}
                 onChange={(e) => setForm({ ...form, title: e.target.value })}
@@ -95,17 +95,17 @@ export function NewTaskSheet() {
               />
             </Field>
             <Field>
-              <FieldLabel htmlFor="task-assignee">Assignee</FieldLabel>
+              <FieldLabel htmlFor="campaign-assignee">Assignee</FieldLabel>
               <Input
-                id="task-assignee"
+                id="campaign-assignee"
                 value={form.assigneeId}
                 onChange={(e) => setForm({ ...form, assigneeId: e.target.value })}
               />
             </Field>
             <Field>
-              <FieldLabel htmlFor="task-due-date">Due date</FieldLabel>
+              <FieldLabel htmlFor="campaign-due-date">Due date</FieldLabel>
               <Input
-                id="task-due-date"
+                id="campaign-due-date"
                 type="date"
                 value={form.dueDate}
                 onChange={(e) => setForm({ ...form, dueDate: e.target.value })}
@@ -116,34 +116,34 @@ export function NewTaskSheet() {
               <Select
                 value={form.priority}
                 onValueChange={(value) =>
-                  setForm({ ...form, priority: value as TaskFormValues["priority"] })
+                  setForm({ ...form, priority: value as CampaignFormValues["priority"] })
                 }
               >
                 <SelectTrigger className="w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {TASK_PRIORITIES.map((priority) => (
+                  {CAMPAIGN_PRIORITIES.map((priority) => (
                     <SelectItem key={priority} value={priority}>
-                      {TASK_PRIORITY_LABELS[priority]}
+                      {CAMPAIGN_PRIORITY_LABELS[priority]}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </Field>
             <Field>
-              <FieldLabel htmlFor="task-description">Description</FieldLabel>
+              <FieldLabel htmlFor="campaign-description">Description</FieldLabel>
               <Textarea
-                id="task-description"
+                id="campaign-description"
                 rows={3}
                 value={form.description}
                 onChange={(e) => setForm({ ...form, description: e.target.value })}
               />
             </Field>
             <Field>
-              <FieldLabel htmlFor="task-tags">Tags (phân cách bằng dấu phẩy)</FieldLabel>
+              <FieldLabel htmlFor="campaign-tags">Tags (phân cách bằng dấu phẩy)</FieldLabel>
               <Input
-                id="task-tags"
+                id="campaign-tags"
                 value={form.tags}
                 onChange={(e) => setForm({ ...form, tags: e.target.value })}
               />
@@ -151,8 +151,8 @@ export function NewTaskSheet() {
           </FieldGroup>
         </form>
         <SheetFooter>
-          <Button type="submit" form="new-task-form" disabled={isSubmitting}>
-            {isSubmitting ? "Creating..." : "Create task"}
+          <Button type="submit" form="new-campaign-form" disabled={isSubmitting}>
+            {isSubmitting ? "Creating..." : "Create campaign"}
           </Button>
         </SheetFooter>
       </SheetContent>

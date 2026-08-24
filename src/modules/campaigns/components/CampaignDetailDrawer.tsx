@@ -1,6 +1,6 @@
 "use client"
 
-import { TaskDetailBody } from "@/modules/tasks/components/TaskDetailBody"
+import { CampaignDetailBody } from "@/modules/campaigns/components/CampaignDetailBody"
 import {
   Sheet,
   SheetContent,
@@ -8,12 +8,12 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet"
 
-export function TaskDetailDrawer({
-  taskId,
+export function CampaignDetailDrawer({
+  campaignId,
   open,
   onOpenChange,
 }: {
-  taskId: string | null
+  campaignId: string | null
   open: boolean
   onOpenChange: (open: boolean) => void
 }) {
@@ -21,10 +21,10 @@ export function TaskDetailDrawer({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="w-full gap-4 overflow-y-auto sm:max-w-lg">
         <SheetHeader>
-          <SheetTitle>Chi tiết công việc</SheetTitle>
+          <SheetTitle>Chi tiết chiến dịch</SheetTitle>
         </SheetHeader>
-        {taskId && (
-          <TaskDetailBody taskId={taskId} onDeleted={() => onOpenChange(false)} />
+        {campaignId && (
+          <CampaignDetailBody campaignId={campaignId} onDeleted={() => onOpenChange(false)} />
         )}
       </SheetContent>
     </Sheet>

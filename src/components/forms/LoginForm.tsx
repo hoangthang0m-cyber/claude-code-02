@@ -59,7 +59,7 @@ export function LoginForm({
 
   React.useEffect(() => {
     if (!loading && user) {
-      router.replace("/tasks")
+      router.replace("/campaigns")
     }
   }, [loading, user, router])
 
@@ -69,7 +69,7 @@ export function LoginForm({
     setIsSubmitting(true)
     try {
       await signInWithEmailAndPassword(auth, email, password)
-      router.push("/tasks")
+      router.push("/campaigns")
     } catch (err) {
       setError(getAuthErrorMessage(err))
     } finally {
@@ -94,7 +94,7 @@ export function LoginForm({
         try {
           const credential = GoogleAuthProvider.credential(null, response.access_token)
           await signInWithCredential(auth, credential)
-          router.push("/tasks")
+          router.push("/campaigns")
         } catch (err) {
           setError(getAuthErrorMessage(err))
         }

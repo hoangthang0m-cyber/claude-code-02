@@ -3,13 +3,13 @@
 import * as React from "react"
 
 import { Button } from "@/components/ui/button"
-import type { Task } from "@/modules/tasks/types/task.types"
+import type { Campaign } from "@/modules/campaigns/types/campaign.types"
 import { cn } from "@/utils/cn"
 import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react"
 
 const WEEKDAYS = ["T2", "T3", "T4", "T5", "T6", "T7", "CN"]
 
-const PRIORITY_DOT: Record<Task["priority"], string> = {
+const PRIORITY_DOT: Record<Campaign["priority"], string> = {
   low: "bg-muted-foreground",
   medium: "bg-amber-500",
   high: "bg-destructive",
@@ -31,24 +31,24 @@ function buildMonthGrid(year: number, month: number) {
   })
 }
 
-export function TaskCalendarView({
-  tasks,
-  onSelectTask,
+export function CampaignCalendarView({
+  campaigns,
+  onSelectCampaign,
 }: {
-  tasks: Task[]
-  onSelectTask: (id: string) => void
+  campaigns: Campaign[]
+  onSelectCampaign: (id: string) => void
 }) {
   const [cursor, setCursor] = React.useState(() => new Date())
 
-  const tasksByDay = React.useMemo(() => {
-    const map = new Map<string, Task[]>()
-    tasks.forEach((task) => {
-      if (!task.dueDate) return
-      const key = toDateKey(task.dueDate.toDate())
-      map.set(key, [...(map.get(key) ?? []), task])
+  const campaignsByDay = React.useMemo(() => {
+    const map = new Map<string, Campaign[]>()
+    campaigns.forEach((campaign) => {
+      if (!campaign.dueDate) return
+      const key = toDateKey(campaign.dueDate.toDate())
+      map.set(key, [...(map.get(key) ?? []), campaign])
     })
     return map
-  }, [tasks])
+  }, [campaigns])
 
   const days = buildMonthGrid(cursor.getFullYear(), cursor.getMonth())
   const currentMonth = cursor.getMonth()
@@ -85,7 +85,7 @@ export function TaskCalendarView({
         ))}
         {days.map((date) => {
           const key = toDateKey(date)
-          const dayTasks = tasksByDay.get(key) ?? []
+          const dayCampaigns = campaignsByDay.get(key) ?? []
           const isCurrentMonth = date.getMonth() === currentMonth
           return (
             <div
@@ -97,18 +97,18 @@ export function TaskCalendarView({
             >
               <p className="mb-1 text-right">{date.getDate()}</p>
               <div className="flex flex-col gap-1">
-                {dayTasks.slice(0, 3).map((task) => (
+                {dayCampaigns.slice(0, 3).map((campaign) => (
                   <button
-                    key={task.id}
-                    onClick={() => onSelectTask(task.id)}
+                    key={campaign.id}
+                    onClick={() => onSelectCampaign(campaign.id)}
                     className="flex items-center gap-1 truncate rounded bg-muted px-1 py-0.5 text-left hover:bg-accent"
                   >
-                    <span className={cn("size-1.5 shrink-0 rounded-full", PRIORITY_DOT[task.priority])} />
-                    <span className="truncate">{task.title}</span>
+                    <span className={cn("size-1.5 shrink-0 rounded-full", PRIORITY_DOT[campaign.priority])} />
+                    <span className="truncate">{campaign.title}</span>
                   </button>
                 ))}
-                {dayTasks.length > 3 && (
-                  <span className="text-muted-foreground">+{dayTasks.length - 3} khác</span>
+                {dayCampaigns.length > 3 && (
+                  <span className="text-muted-foreground">+{dayCampaigns.length - 3} khác</span>
                 )}
               </div>
             </div>
