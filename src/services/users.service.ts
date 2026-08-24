@@ -1,4 +1,4 @@
-import { doc, getDoc, orderBy, setDoc } from "firebase/firestore"
+import { doc, getDoc, orderBy, setDoc, type FirestoreError } from "firebase/firestore"
 import type { User } from "firebase/auth"
 
 import { db } from "@/firebase/config"
@@ -7,8 +7,11 @@ import type { AppUser } from "@/types/user"
 
 const COLLECTION = "users"
 
-export function subscribeToUsers(onChange: (users: AppUser[]) => void) {
-  return subscribeToCollection<AppUser>(COLLECTION, onChange, [orderBy("name")])
+export function subscribeToUsers(
+  onChange: (users: AppUser[]) => void,
+  onError?: (error: FirestoreError) => void
+) {
+  return subscribeToCollection<AppUser>(COLLECTION, onChange, [orderBy("name")], onError)
 }
 
 export async function upsertUserProfile(user: User) {

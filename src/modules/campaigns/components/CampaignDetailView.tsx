@@ -7,8 +7,12 @@ import { ContentTrackingTable } from "@/modules/campaigns/components/ContentTrac
 import { formatMonth } from "@/utils/date"
 
 export function CampaignDetailView({ campaignId }: { campaignId: string }) {
-  const { campaign, loading: campaignLoading } = useCampaign(campaignId)
-  const { contentItems, loading: contentLoading } = useContentItems(campaignId)
+  const { campaign, loading: campaignLoading, error: campaignError } = useCampaign(campaignId)
+  const { contentItems, loading: contentLoading, error: contentError } = useContentItems(campaignId)
+
+  if (campaignError) {
+    return <p className="text-sm text-destructive">Lỗi tải chiến dịch: {campaignError}</p>
+  }
 
   if (campaignLoading) {
     return <p className="text-sm text-muted-foreground">Đang tải...</p>
@@ -24,7 +28,9 @@ export function CampaignDetailView({ campaignId }: { campaignId: string }) {
         {campaign.title || formatMonth(campaign.month)}
       </h1>
       <CampaignSummaryStats contentItems={contentItems} />
-      {contentLoading ? (
+      {contentError ? (
+        <p className="text-sm text-destructive">Lỗi tải content: {contentError}</p>
+      ) : contentLoading ? (
         <p className="text-sm text-muted-foreground">Đang tải content...</p>
       ) : (
         <ContentTrackingTable campaignId={campaignId} contentItems={contentItems} />

@@ -6,7 +6,7 @@ import { CampaignMonthList } from "@/modules/campaigns/components/CampaignMonthL
 import { NewCampaignSheet } from "@/modules/campaigns/components/NewCampaignSheet"
 
 export function CampaignCategoryDetailView({ category }: { category: CampaignCategory }) {
-  const { campaigns, loading } = useCampaigns(category.id)
+  const { campaigns, loading, error } = useCampaigns(category.id)
 
   return (
     <div className="flex flex-col gap-4">
@@ -14,7 +14,9 @@ export function CampaignCategoryDetailView({ category }: { category: CampaignCat
         <h1 className="text-lg font-semibold">{category.name}</h1>
         <NewCampaignSheet categoryId={category.id} />
       </div>
-      {loading ? (
+      {error ? (
+        <p className="text-sm text-destructive">Lỗi tải dữ liệu: {error}</p>
+      ) : loading ? (
         <p className="text-sm text-muted-foreground">Đang tải...</p>
       ) : (
         <CampaignMonthList campaigns={campaigns} categorySlug={category.slug} />

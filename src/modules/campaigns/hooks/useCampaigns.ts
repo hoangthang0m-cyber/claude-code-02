@@ -9,6 +9,7 @@ import type { Campaign } from "@/modules/campaigns/types/campaign.types"
 export function useCampaigns(categoryId: CampaignCategorySlug) {
   const [campaigns, setCampaigns] = React.useState<Campaign[]>([])
   const [loading, setLoading] = React.useState(true)
+  const [error, setError] = React.useState<string | null>(null)
   const [loadedCategoryId, setLoadedCategoryId] = React.useState(categoryId)
 
   if (categoryId !== loadedCategoryId) {
@@ -17,12 +18,21 @@ export function useCampaigns(categoryId: CampaignCategorySlug) {
   }
 
   React.useEffect(() => {
-    const unsubscribe = subscribeToCampaigns(categoryId, (items) => {
-      setCampaigns(items)
-      setLoading(false)
-    })
+    const unsubscribe = subscribeToCampaigns(
+      categoryId,
+      (items) => {
+        setCampaigns(items)
+        setError(null)
+        setLoading(false)
+      },
+      (err) => {
+        console.error("subscribeToCampaigns failed", err)
+        setError(err.message)
+        setLoading(false)
+      }
+    )
     return unsubscribe
   }, [categoryId])
 
-  return { campaigns, loading }
+  return { campaigns, loading, error }
 }

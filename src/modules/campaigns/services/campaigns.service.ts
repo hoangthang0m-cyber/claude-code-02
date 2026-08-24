@@ -8,6 +8,7 @@ import {
   query,
   serverTimestamp,
   where,
+  type FirestoreError,
 } from "firebase/firestore"
 
 import { db } from "@/firebase/config"
@@ -22,28 +23,48 @@ function toCampaign(id: string, data: Record<string, unknown>): Campaign {
 
 export function subscribeToCampaigns(
   categoryId: CampaignCategorySlug,
-  onChange: (campaigns: Campaign[]) => void
+  onChange: (campaigns: Campaign[]) => void,
+  onError?: (error: FirestoreError) => void
 ) {
   const q = query(collection(db, COLLECTION), where("categoryId", "==", categoryId))
-  return onSnapshot(q, (snapshot) => {
-    const campaigns = snapshot.docs
-      .map((docSnap) => toCampaign(docSnap.id, docSnap.data()))
-      .sort((a, b) => b.month.localeCompare(a.month))
-    onChange(campaigns)
-  })
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      const campaigns = snapshot.docs
+        .map((docSnap) => toCampaign(docSnap.id, docSnap.data()))
+        .sort((a, b) => b.month.localeCompare(a.month))
+      onChange(campaigns)
+    },
+    onError
+  )
 }
 
-export function subscribeToAllCampaigns(onChange: (campaigns: Campaign[]) => void) {
+export function subscribeToAllCampaigns(
+  onChange: (campaigns: Campaign[]) => void,
+  onError?: (error: FirestoreError) => void
+) {
   const q = query(collection(db, COLLECTION), orderBy("month", "desc"))
-  return onSnapshot(q, (snapshot) => {
-    onChange(snapshot.docs.map((docSnap) => toCampaign(docSnap.id, docSnap.data())))
-  })
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      onChange(snapshot.docs.map((docSnap) => toCampaign(docSnap.id, docSnap.data())))
+    },
+    onError
+  )
 }
 
-export function subscribeToCampaign(campaignId: string, onChange: (campaign: Campaign | null) => void) {
-  return onSnapshot(doc(db, COLLECTION, campaignId), (snapshot) => {
-    onChange(snapshot.exists() ? toCampaign(snapshot.id, snapshot.data()) : null)
-  })
+export function subscribeToCampaign(
+  campaignId: string,
+  onChange: (campaign: Campaign | null) => void,
+  onError?: (error: FirestoreError) => void
+) {
+  return onSnapshot(
+    doc(db, COLLECTION, campaignId),
+    (snapshot) => {
+      onChange(snapshot.exists() ? toCampaign(snapshot.id, snapshot.data()) : null)
+    },
+    onError
+  )
 }
 
 export function createCampaign(data: {

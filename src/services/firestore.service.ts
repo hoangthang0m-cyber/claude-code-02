@@ -7,6 +7,7 @@ import {
   query,
   updateDoc,
   type DocumentData,
+  type FirestoreError,
   type QueryConstraint,
   type WithFieldValue,
 } from "firebase/firestore"
@@ -16,15 +17,20 @@ import { db } from "@/firebase/config"
 export function subscribeToCollection<T>(
   collectionName: string,
   onChange: (items: (T & { id: string })[]) => void,
-  constraints: QueryConstraint[] = []
+  constraints: QueryConstraint[] = [],
+  onError?: (error: FirestoreError) => void
 ) {
   const q = query(collection(db, collectionName), ...constraints)
-  return onSnapshot(q, (snapshot) => {
-    const items = snapshot.docs.map(
-      (docSnap) => ({ id: docSnap.id, ...(docSnap.data() as T) }) as T & { id: string }
-    )
-    onChange(items)
-  })
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      const items = snapshot.docs.map(
+        (docSnap) => ({ id: docSnap.id, ...(docSnap.data() as T) }) as T & { id: string }
+      )
+      onChange(items)
+    },
+    onError
+  )
 }
 
 export function createDocument<T extends WithFieldValue<DocumentData>>(

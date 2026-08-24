@@ -9,6 +9,7 @@ import {
   serverTimestamp,
   Timestamp,
   updateDoc,
+  type FirestoreError,
 } from "firebase/firestore"
 import { deleteObject, getDownloadURL, ref, uploadBytes } from "firebase/storage"
 
@@ -25,12 +26,17 @@ function toContentItem(id: string, data: Record<string, unknown>): ContentItem {
 
 export function subscribeToContentItems(
   campaignId: string,
-  onChange: (items: ContentItem[]) => void
+  onChange: (items: ContentItem[]) => void,
+  onError?: (error: FirestoreError) => void
 ) {
   const q = query(collectionRef(campaignId), orderBy("createdAt", "asc"))
-  return onSnapshot(q, (snapshot) => {
-    onChange(snapshot.docs.map((docSnap) => toContentItem(docSnap.id, docSnap.data())))
-  })
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      onChange(snapshot.docs.map((docSnap) => toContentItem(docSnap.id, docSnap.data())))
+    },
+    onError
+  )
 }
 
 export function createContentItem(campaignId: string, createdBy: string) {
