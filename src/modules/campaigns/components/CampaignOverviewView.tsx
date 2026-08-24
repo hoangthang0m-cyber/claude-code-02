@@ -1,0 +1,18 @@
+"use client"
+
+import { useCampaignCategories } from "@/modules/campaigns/hooks/useCampaignCategories"
+import { useCampaignOverviewStats } from "@/modules/campaigns/hooks/useCampaignOverviewStats"
+import { CampaignCategoryCard } from "@/modules/campaigns/components/CampaignCategoryCard"
+
+export function CampaignOverviewView() {
+  const categories = useCampaignCategories()
+  const { stats } = useCampaignOverviewStats()
+
+  return (
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      {categories.map((category) => (
+        <CampaignCategoryCard key={category.id} category={category} stat={stats[category.id]} />
+      ))}
+    </div>
+  )
+}

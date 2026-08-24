@@ -1,20 +1,17 @@
 import type { Timestamp } from "firebase/firestore"
 
-import type { CampaignPriority } from "@/constants/priority"
-import type { CampaignStatus } from "@/constants/status"
+import type { CampaignCategorySlug } from "@/constants/campaignCategories"
+import type { ContentStatus } from "@/constants/contentStatus"
+import type { OnDeadlineStatus } from "@/constants/onDeadlineStatus"
 
-export type { CampaignPriority, CampaignStatus }
-
-export interface ChecklistItem {
-  id: string
-  label: string
-  done: boolean
-}
+export type { CampaignCategorySlug, ContentStatus, OnDeadlineStatus }
+export type { CampaignCategory } from "@/constants/campaignCategories"
 
 export interface Attachment {
   id: string
   fileName: string
   fileUrl: string
+  fileType: string
   fileSizeBytes: number
   uploadedBy: string
   uploadedAt: Timestamp
@@ -22,38 +19,33 @@ export interface Attachment {
 
 export interface Campaign {
   id: string
+  categoryId: CampaignCategorySlug
   title: string
-  priority: CampaignPriority
-  status: CampaignStatus
+  month: string
+  createdBy: string
+  createdAt: Timestamp
+}
+
+export interface ContentItem {
+  id: string
+  campaignId: string
+  deadline?: Timestamp
   assigneeId?: string
-  dueDate?: Timestamp
-  description?: string
-  tags?: string[]
-  checklist?: ChecklistItem[]
-  dependsOnCampaignId?: string
-  estimatedHours?: number
-  actualHours?: number
-  attachments?: Attachment[]
+  scriptTitle: string
+  scriptGroupLabel?: string
+  videoFile?: Attachment
+  status: ContentStatus
+  topic?: string
+  onDeadlineStatus?: OnDeadlineStatus
+  adsPerformanceReport?: string
+  evaluationNote?: string
+  productFiles?: Attachment[]
   createdBy: string
   createdAt: Timestamp
   updatedAt: Timestamp
 }
 
-export interface CampaignComment {
-  id: string
-  campaignId: string
-  authorId: string
-  content: string
-  mentionedUserIds?: string[]
-  createdAt: Timestamp
-}
-
 export interface CampaignFormValues {
   title: string
-  priority: CampaignPriority
-  status: CampaignStatus
-  assigneeId: string
-  dueDate: string
-  description: string
-  tags: string
+  month: string
 }

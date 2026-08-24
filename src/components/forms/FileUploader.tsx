@@ -2,15 +2,24 @@
 
 import * as React from "react"
 
-import { useAuth } from "@/context/AuthContext"
 import { Button } from "@/components/ui/button"
+import { cn } from "@/utils/cn"
 import {
-  deleteCampaignAttachment,
-  MAX_ATTACHMENT_BYTES,
-  uploadCampaignAttachment,
-} from "@/modules/campaigns/services/campaigns.service"
-import type { Attachment } from "@/modules/campaigns/types/campaign.types"
-import { PaperclipIcon, Trash2Icon, UploadIcon } from "lucide-react"
+  FileIcon,
+  FileSpreadsheetIcon,
+  FileTextIcon,
+  FileVideoIcon,
+  Trash2Icon,
+  UploadIcon,
+} from "lucide-react"
+
+export interface UploadedFile {
+  id: string
+  fileName: string
+  fileUrl: string
+  fileType: string
+  fileSizeBytes: number
+}
 
 function formatBytes(bytes: number) {
   if (bytes < 1024) return `${bytes} B`
@@ -18,14 +27,38 @@ function formatBytes(bytes: number) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
-export function CampaignAttachments({
-  campaignId,
+function FileTypeIcon({ fileType, className }: { fileType: string; className?: string }) {
+  if (fileType.startsWith("video/")) return <FileVideoIcon className={className} />
+  if (fileType.includes("spreadsheet") || fileType.includes("excel"))
+    return <FileSpreadsheetIcon className={className} />
+  if (fileType.includes("word") || fileType.includes("document"))
+    return <FileTextIcon className={className} />
+  return <FileIcon className={className} />
+}
+
+export function FileUploader({
+  label,
   attachments,
+  accept,
+  maxBytes,
+  multiple = true,
+  disabled,
+  onUpload,
+  onDelete,
+  emptyLabel = "Chưa có tệp.",
+  className,
 }: {
-  campaignId: string
-  attachments: Attachment[]
+  label: string
+  attachments: UploadedFile[]
+  accept?: string
+  maxBytes: number
+  multiple?: boolean
+  disabled?: boolean
+  onUpload: (file: File) => Promise<void>
+  onDelete: (attachment: UploadedFile) => Promise<void>
+  emptyLabel?: string
+  className?: string
 }) {
-  const { user } = useAuth()
   const inputRef = React.useRef<HTMLInputElement>(null)
   const [error, setError] = React.useState<string | null>(null)
   const [isUploading, setIsUploading] = React.useState(false)
@@ -33,17 +66,17 @@ export function CampaignAttachments({
   async function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0]
     event.target.value = ""
-    if (!file || !user) return
+    if (!file) return
 
-    if (file.size > MAX_ATTACHMENT_BYTES) {
-      setError("File vượt quá giới hạn 10MB.")
+    if (file.size > maxBytes) {
+      setError(`File vượt quá giới hạn ${formatBytes(maxBytes)}.`)
       return
     }
 
     setError(null)
     setIsUploading(true)
     try {
-      await uploadCampaignAttachment(campaignId, file, user.uid, attachments)
+      await onUpload(file)
     } catch {
       setError("Tải file lên thất bại, thử lại sau.")
     } finally {
@@ -51,30 +84,34 @@ export function CampaignAttachments({
     }
   }
 
-  async function handleDelete(attachment: Attachment) {
-    await deleteCampaignAttachment(campaignId, attachment, attachments)
-  }
-
   return (
-    <div className="flex flex-col gap-2">
+    <div className={cn("flex flex-col gap-2", className)}>
       <div className="flex items-center justify-between">
-        <p className="text-sm font-medium">Tệp đính kèm</p>
+        <p className="text-sm font-medium">{label}</p>
         <Button
+          type="button"
           variant="outline"
           size="sm"
-          disabled={isUploading}
+          disabled={disabled || isUploading}
           onClick={() => inputRef.current?.click()}
         >
           <UploadIcon />
           {isUploading ? "Đang tải..." : "Tải file lên"}
         </Button>
-        <input ref={inputRef} type="file" hidden onChange={handleFileChange} />
+        <input
+          ref={inputRef}
+          type="file"
+          hidden
+          accept={accept}
+          multiple={multiple}
+          onChange={handleFileChange}
+        />
       </div>
 
       {error && <p className="text-xs text-destructive">{error}</p>}
 
       {attachments.length === 0 ? (
-        <p className="text-xs text-muted-foreground">Chưa có tệp đính kèm.</p>
+        <p className="text-xs text-muted-foreground">{emptyLabel}</p>
       ) : (
         <ul className="flex flex-col gap-1.5">
           {attachments.map((attachment) => (
@@ -88,16 +125,17 @@ export function CampaignAttachments({
                 rel="noopener noreferrer"
                 className="flex min-w-0 items-center gap-1.5 hover:underline"
               >
-                <PaperclipIcon className="size-3.5 shrink-0" />
+                <FileTypeIcon fileType={attachment.fileType} className="size-3.5 shrink-0" />
                 <span className="truncate">{attachment.fileName}</span>
                 <span className="shrink-0 text-xs text-muted-foreground">
                   ({formatBytes(attachment.fileSizeBytes)})
                 </span>
               </a>
               <Button
+                type="button"
                 variant="ghost"
                 size="icon-sm"
-                onClick={() => handleDelete(attachment)}
+                onClick={() => onDelete(attachment)}
               >
                 <Trash2Icon />
                 <span className="sr-only">Xóa</span>

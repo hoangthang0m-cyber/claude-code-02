@@ -5,7 +5,8 @@ export function formatDate(timestamp?: Timestamp): string {
   return timestamp.toDate().toLocaleDateString("vi-VN")
 }
 
-export function isOverdue(dueDate: Timestamp | undefined, isDone: boolean): boolean {
-  if (!dueDate || isDone) return false
-  return dueDate.toMillis() < Date.now()
+export function formatMonth(month: string): string {
+  const [year, monthNumber] = month.split("-")
+  if (!year || !monthNumber) return month
+  return `Tháng ${Number(monthNumber)}/${year}`
 }

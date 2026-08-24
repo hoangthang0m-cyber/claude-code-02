@@ -4,6 +4,7 @@ import * as React from "react"
 import { onAuthStateChanged, type User } from "firebase/auth"
 
 import { auth } from "@/firebase/config"
+import { upsertUserProfile } from "@/services/users.service"
 
 type AuthContextValue = {
   user: User | null
@@ -23,6 +24,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return onAuthStateChanged(auth, (nextUser) => {
       setUser(nextUser)
       setLoading(false)
+      if (nextUser) {
+        upsertUserProfile(nextUser).catch(() => undefined)
+      }
     })
   }, [])
 

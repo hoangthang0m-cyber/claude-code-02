@@ -11,23 +11,30 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    // users/ — hồ sơ cá nhân: chỉ chính chủ được đọc/sửa/xóa
-    match /users/{userId} {
-      allow read, write: if isOwner(userId);
+    function isAdmin() {
+      return isSignedIn() &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin";
     }
 
-    // campaigns/ — thành viên đã đăng nhập được đọc, chỉ người tạo được sửa/xóa
+    // users/ — danh bạ nhân sự: mọi thành viên đăng nhập đọc được (dropdown nhân sự thực hiện...),
+    // chỉ chính chủ được sửa hồ sơ mình
+    match /users/{userId} {
+      allow read: if isSignedIn();
+      allow write: if isOwner(userId);
+    }
+
+    // campaigns/ — thành viên đã đăng nhập được đọc, người tạo hoặc admin được sửa/xóa
     match /campaigns/{campaignId} {
       allow read: if isSignedIn();
       allow create: if isSignedIn() && request.resource.data.createdBy == request.auth.uid;
-      allow update, delete: if isSignedIn() && resource.data.createdBy == request.auth.uid;
+      allow update, delete: if isSignedIn() && (resource.data.createdBy == request.auth.uid || isAdmin());
 
-      // campaigns/{campaignId}/comments — người đã đăng nhập đọc/bình luận được,
-      // chỉ tác giả bình luận được sửa/xóa bình luận của mình
-      match /comments/{commentId} {
+      // campaigns/{campaignId}/contentItems — mỗi dòng trong bảng theo dõi content;
+      // đọc: mọi thành viên; sửa/xóa: người tạo dòng đó hoặc admin
+      match /contentItems/{contentItemId} {
         allow read: if isSignedIn();
-        allow create: if isSignedIn() && request.resource.data.authorId == request.auth.uid;
-        allow update, delete: if isSignedIn() && resource.data.authorId == request.auth.uid;
+        allow create: if isSignedIn() && request.resource.data.createdBy == request.auth.uid;
+        allow update, delete: if isSignedIn() && (resource.data.createdBy == request.auth.uid || isAdmin());
       }
     }
 
