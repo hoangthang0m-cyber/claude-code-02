@@ -50,6 +50,22 @@ export function createContentItem(campaignId: string, createdBy: string) {
   })
 }
 
+export function importContentItem(
+  campaignId: string,
+  createdBy: string,
+  data: Partial<Omit<ContentItem, "id" | "campaignId" | "createdAt" | "createdBy" | "updatedAt">>
+) {
+  return addDoc(collectionRef(campaignId), {
+    scriptTitle: "",
+    status: "draft",
+    ...data,
+    campaignId,
+    createdBy,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  })
+}
+
 export function updateContentItem(
   campaignId: string,
   contentItemId: string,

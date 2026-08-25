@@ -35,6 +35,7 @@ import { ON_DEADLINE_STATUS_LABELS, ON_DEADLINE_STATUSES } from "@/constants/onD
 import { ContentDetailDrawer } from "@/modules/campaigns/components/ContentDetailDrawer"
 import { ContentRow } from "@/modules/campaigns/components/ContentRow"
 import { ContentRowGroupHeader } from "@/modules/campaigns/components/ContentRowGroupHeader"
+import { ImportContentCsvSheet } from "@/modules/campaigns/components/ImportContentCsvSheet"
 import { createContentItem } from "@/modules/campaigns/services/contentItems.service"
 import type { ContentItem } from "@/modules/campaigns/types/campaign.types"
 import { PlusIcon } from "lucide-react"
@@ -202,16 +203,19 @@ export function ContentTrackingTable({
         </Table>
       </div>
 
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        className="w-fit"
-        onClick={() => user && createContentItem(campaignId, user.uid)}
-      >
-        <PlusIcon />
-        Thêm content
-      </Button>
+      <div className="flex items-center gap-2">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="w-fit"
+          onClick={() => user && createContentItem(campaignId, user.uid)}
+        >
+          <PlusIcon />
+          Thêm content
+        </Button>
+        <ImportContentCsvSheet campaignId={campaignId} />
+      </div>
 
       <ContentDetailDrawer
         campaignId={campaignId}
