@@ -121,21 +121,34 @@ export function ImportContentCsvSheet({ campaignId }: { campaignId: string }) {
     }
 
     setProgress({ done: 0, total: rows.length })
-    for (const [index, row] of rows.entries()) {
-      const videoFile: Attachment | undefined = row.videoLabel
-        ? {
-            id: crypto.randomUUID(),
-            fileName: row.videoLabel,
-            fileUrl: "",
-            fileType: "link",
-            fileSizeBytes: 0,
-            uploadedBy: user.uid,
-            uploadedAt: Timestamp.now(),
-          }
-        : undefined
+    let done = 0
+    try {
+      for (const row of rows) {
+        const videoFile: Attachment | undefined = row.videoLabel
+          ? {
+              id: crypto.randomUUID(),
+              fileName: row.videoLabel,
+              fileUrl: "",
+              fileType: "link",
+              fileSizeBytes: 0,
+              uploadedBy: user.uid,
+              uploadedAt: Timestamp.now(),
+            }
+          : undefined
 
-      await importContentItem(campaignId, user.uid, { ...row.payload, videoFile })
-      setProgress({ done: index + 1, total: rows.length })
+        await importContentItem(campaignId, user.uid, { ...row.payload, videoFile })
+        done += 1
+        setProgress({ done, total: rows.length })
+      }
+    } catch (err) {
+      console.error("CSV import failed", err)
+      setError(
+        `Nhập dữ liệu thất bại ở dòng ${done + 1}: ${
+          err instanceof Error ? err.message : String(err)
+        }`
+      )
+      setProgress(null)
+      return
     }
 
     setCsvText("")
