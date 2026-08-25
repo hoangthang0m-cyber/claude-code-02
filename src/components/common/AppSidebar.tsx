@@ -33,24 +33,24 @@ import {
 const data = {
   navMain: [
     { title: "Chiến dịch", url: "/campaigns", icon: <MegaphoneIcon /> },
-    { title: "Risks", url: "/risks", icon: <ShieldAlertIcon /> },
-    { title: "Team", url: "/team", icon: <UsersIcon /> },
-    { title: "Budget", url: "/budget", icon: <WalletIcon /> },
-    { title: "Documents", url: "/documents", icon: <FileTextIcon /> },
-    { title: "Meetings", url: "/meetings", icon: <CalendarIcon /> },
-    { title: "Reports", url: "/reports", icon: <FileChartColumnIcon /> },
+    { title: "Rủi ro", url: "/risks", icon: <ShieldAlertIcon /> },
+    { title: "Nhân sự", url: "/team", icon: <UsersIcon /> },
+    { title: "Ngân sách", url: "/budget", icon: <WalletIcon /> },
+    { title: "Tài liệu", url: "/documents", icon: <FileTextIcon /> },
+    { title: "Cuộc họp", url: "/meetings", icon: <CalendarIcon /> },
+    { title: "Báo cáo", url: "/reports", icon: <FileChartColumnIcon /> },
   ],
   navSecondary: [
-    { title: "Settings", url: "#", icon: <Settings2Icon /> },
-    { title: "Get Help", url: "#", icon: <CircleHelpIcon /> },
-    { title: "Search", url: "#", icon: <SearchIcon /> },
+    { title: "Cài đặt", url: "#", icon: <Settings2Icon /> },
+    { title: "Trợ giúp", url: "#", icon: <CircleHelpIcon /> },
+    { title: "Tìm kiếm", url: "#", icon: <SearchIcon /> },
   ],
 }
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { user } = useAuth()
   const navUser = {
-    name: user?.displayName || user?.email?.split("@")[0] || "User",
+    name: user?.displayName || user?.email?.split("@")[0] || "Người dùng",
     email: user?.email ?? "",
     avatar: user?.photoURL ?? "",
   }
