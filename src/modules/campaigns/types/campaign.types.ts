@@ -40,6 +40,12 @@ export interface ContentItem {
   adsPerformanceReport?: string
   evaluationNote?: string
   productFiles?: Attachment[]
+  reportDate?: Timestamp
+  adSpend?: number
+  revenue?: number
+  purchases?: number
+  cpp?: number
+  roas?: number
   createdBy: string
   createdAt: Timestamp
   updatedAt: Timestamp
