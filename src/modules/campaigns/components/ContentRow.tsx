@@ -66,7 +66,7 @@ export function ContentRow({
   }
 
   return (
-    <TableRow>
+    <TableRow className="animate-in fade-in duration-300 fill-mode-both">
       <TableCell className={cn("min-w-32", deadlineCellClass(item))}>
         <Input
           type="date"

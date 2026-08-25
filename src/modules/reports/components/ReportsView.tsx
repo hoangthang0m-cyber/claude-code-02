@@ -56,7 +56,7 @@ export function ReportsView() {
   }
 
   return (
-    <div className="flex flex-col gap-4 px-4 py-4 md:px-6 md:py-6">
+    <div className="animate-in fade-in slide-in-from-bottom-2 flex flex-col gap-4 px-4 py-4 duration-300 md:px-6 md:py-6">
       <div className="flex items-center justify-between">
         <h1 className="text-lg font-semibold">Báo cáo hiệu quả quảng cáo</h1>
         <div className="flex items-center gap-2">

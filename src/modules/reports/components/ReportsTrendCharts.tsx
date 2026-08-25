@@ -44,7 +44,7 @@ export function ReportsTrendCharts({ records }: { records: PerformanceRecord[] }
 
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-      <Card>
+      <Card className="animate-in fade-in zoom-in-95 duration-300 fill-mode-both">
         <CardHeader>
           <CardTitle>Chi phí vs Doanh thu theo thời gian</CardTitle>
           <CardDescription>Tổng hợp theo ngày báo cáo</CardDescription>
@@ -86,7 +86,7 @@ export function ReportsTrendCharts({ records }: { records: PerformanceRecord[] }
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="animate-in fade-in zoom-in-95 duration-300 fill-mode-both delay-100">
         <CardHeader>
           <CardTitle>ROAS theo thời gian</CardTitle>
           <CardDescription>Tính theo tổng chi phí/doanh thu mỗi ngày</CardDescription>

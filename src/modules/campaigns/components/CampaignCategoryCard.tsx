@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react"
 import Link from "next/link"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -8,15 +9,21 @@ import { ChevronRightIcon, MegaphoneIcon } from "lucide-react"
 export function CampaignCategoryCard({
   category,
   stat,
+  style,
 }: {
   category: CampaignCategory
   stat?: CampaignOverviewStat
+  style?: CSSProperties
 }) {
   const postedAdsRate =
     !stat || stat.contentCount === 0 ? 0 : Math.round((stat.postedAdsCount / stat.contentCount) * 100)
 
   return (
-    <Link href={`/campaigns/${category.slug}`} className="block">
+    <Link
+      href={`/campaigns/${category.slug}`}
+      className="animate-in fade-in slide-in-from-bottom-2 block duration-300 fill-mode-both"
+      style={style}
+    >
       <Card className="h-full transition-colors hover:bg-muted/40">
         <CardHeader>
           <div className="flex items-center justify-between">

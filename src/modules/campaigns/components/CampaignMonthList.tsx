@@ -14,8 +14,13 @@ export function CampaignMonthList({
 
   return (
     <div className="flex flex-col gap-2">
-      {campaigns.map((campaign) => (
-        <CampaignMonthCard key={campaign.id} campaign={campaign} categorySlug={categorySlug} />
+      {campaigns.map((campaign, index) => (
+        <CampaignMonthCard
+          key={campaign.id}
+          campaign={campaign}
+          categorySlug={categorySlug}
+          style={{ animationDelay: `${index * 50}ms` }}
+        />
       ))}
     </div>
   )

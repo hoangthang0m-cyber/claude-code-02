@@ -31,7 +31,7 @@ export function ReportsCategoryBreakdown({ records }: { records: PerformanceReco
   const hasData = data.some((entry) => entry.adSpend > 0 || entry.revenue > 0)
 
   return (
-    <Card>
+    <Card className="animate-in fade-in zoom-in-95 duration-300 fill-mode-both">
       <CardHeader>
         <CardTitle>So sánh giữa các nhóm chiến dịch</CardTitle>
         <CardDescription>Chi phí quảng cáo và doanh thu theo nhóm</CardDescription>

@@ -56,19 +56,25 @@ export function CampaignSummaryStats({ contentItems }: { contentItems: ContentIt
   return (
     <div className="flex flex-col gap-4">
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <Card size="sm">
+        <Card size="sm" className="animate-in fade-in slide-in-from-bottom-2 duration-300 fill-mode-both">
           <CardHeader>
             <CardDescription>Tổng số content</CardDescription>
             <CardTitle className="text-2xl">{totalContent}</CardTitle>
           </CardHeader>
         </Card>
-        <Card size="sm">
+        <Card
+          size="sm"
+          className="animate-in fade-in slide-in-from-bottom-2 duration-300 fill-mode-both delay-75"
+        >
           <CardHeader>
             <CardDescription>Đã lên ads</CardDescription>
             <CardTitle className="text-2xl">{postedAdsCount}</CardTitle>
           </CardHeader>
         </Card>
-        <Card size="sm">
+        <Card
+          size="sm"
+          className="animate-in fade-in slide-in-from-bottom-2 duration-300 fill-mode-both delay-150"
+        >
           <CardHeader>
             <CardDescription>Tỉ lệ đúng deadline</CardDescription>
             <CardTitle className="text-2xl">{onTimeRate}%</CardTitle>
@@ -77,7 +83,7 @@ export function CampaignSummaryStats({ contentItems }: { contentItems: ContentIt
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <Card>
+        <Card className="animate-in fade-in zoom-in-95 duration-300 fill-mode-both">
           <CardHeader>
             <CardTitle>Phân bố trạng thái</CardTitle>
             <CardDescription>Theo số lượng content</CardDescription>
@@ -100,7 +106,7 @@ export function CampaignSummaryStats({ contentItems }: { contentItems: ContentIt
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="animate-in fade-in zoom-in-95 duration-300 fill-mode-both delay-100">
           <CardHeader>
             <CardTitle>Khối lượng công việc</CardTitle>
             <CardDescription>Số content theo nhân sự</CardDescription>

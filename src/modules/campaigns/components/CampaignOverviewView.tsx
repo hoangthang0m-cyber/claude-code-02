@@ -14,8 +14,13 @@ export function CampaignOverviewView() {
 
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-      {categories.map((category) => (
-        <CampaignCategoryCard key={category.id} category={category} stat={stats[category.id]} />
+      {categories.map((category, index) => (
+        <CampaignCategoryCard
+          key={category.id}
+          category={category}
+          stat={stats[category.id]}
+          style={{ animationDelay: `${index * 60}ms` }}
+        />
       ))}
     </div>
   )

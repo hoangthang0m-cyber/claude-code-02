@@ -91,7 +91,7 @@ export function ReportsDetailTable({ records }: { records: PerformanceRecord[] }
   }
 
   return (
-    <Card>
+    <Card className="animate-in fade-in zoom-in-95 duration-300 fill-mode-both delay-150">
       <CardHeader>
         <div className="flex items-center justify-between gap-2">
           <CardTitle>Chi tiết theo content</CardTitle>
@@ -142,7 +142,7 @@ export function ReportsDetailTable({ records }: { records: PerformanceRecord[] }
                 </TableRow>
               ) : (
                 filtered.map(({ item, campaign, categoryId, categoryName }) => (
-                  <TableRow key={item.id}>
+                  <TableRow key={item.id} className="animate-in fade-in duration-300 fill-mode-both">
                     <TableCell className="whitespace-nowrap">{formatDate(item.reportDate)}</TableCell>
                     <TableCell className="whitespace-nowrap">{categoryName}</TableCell>
                     <TableCell className="whitespace-nowrap">
