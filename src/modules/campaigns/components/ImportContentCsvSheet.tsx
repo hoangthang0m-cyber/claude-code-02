@@ -166,7 +166,7 @@ export function ImportContentCsvSheet({ campaignId }: { campaignId: string }) {
         <SheetHeader>
           <SheetTitle>Nhập content từ CSV</SheetTitle>
         </SheetHeader>
-        <div className="flex flex-1 flex-col gap-3 px-4">
+        <div className="flex flex-1 flex-col gap-3 overflow-y-auto px-4">
           <p className="text-xs text-muted-foreground">
             Dán dữ liệu CSV có dòng tiêu đề gồm các cột: Deadline, Nhân sự thực hiện, Kịch bản,
             Link video, Trạng thái, Chủ đề, Báo cáo hiệu quả ads, Đánh giá/Đề xuất (thứ tự cột không
@@ -174,7 +174,7 @@ export function ImportContentCsvSheet({ campaignId }: { campaignId: string }) {
           </p>
           <Textarea
             rows={14}
-            className="font-mono text-xs"
+            className="max-h-64 resize-none overflow-y-auto font-mono text-xs [field-sizing:fixed]"
             placeholder="Dán nội dung CSV vào đây..."
             value={csvText}
             onChange={(e) => setCsvText(e.target.value)}
