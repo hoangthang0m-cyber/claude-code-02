@@ -38,6 +38,13 @@ service cloud.firestore {
       }
     }
 
+    // contentItems (collection group) — rule lồng ở trên chỉ áp dụng cho truy vấn
+    // trực tiếp từng campaign; trang Reports dùng collectionGroup("contentItems")
+    // để gộp content từ mọi chiến dịch, Firestore yêu cầu 1 rule riêng cho việc đó.
+    match /{path=**}/contentItems/{contentItemId} {
+      allow read: if isSignedIn();
+    }
+
     // risks/ — người đã đăng nhập được đọc, chỉ người tạo được sửa/xóa
     match /risks/{riskId} {
       allow read: if isSignedIn();

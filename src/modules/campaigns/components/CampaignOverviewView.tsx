@@ -6,7 +6,11 @@ import { CampaignCategoryCard } from "@/modules/campaigns/components/CampaignCat
 
 export function CampaignOverviewView() {
   const categories = useCampaignCategories()
-  const { stats } = useCampaignOverviewStats()
+  const { stats, error } = useCampaignOverviewStats()
+
+  if (error) {
+    return <p className="text-sm text-destructive">Lỗi tải dữ liệu: {error}</p>
+  }
 
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">

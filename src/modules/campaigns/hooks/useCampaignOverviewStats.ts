@@ -24,6 +24,7 @@ export function useCampaignOverviewStats() {
     {} as Record<CampaignCategorySlug, CampaignOverviewStat>
   )
   const [loading, setLoading] = React.useState(true)
+  const [error, setError] = React.useState<string | null>(null)
 
   React.useEffect(() => {
     return subscribeToAllCampaigns((campaigns) => {
@@ -41,6 +42,9 @@ export function useCampaignOverviewStats() {
         }
         return next as Record<CampaignCategorySlug, CampaignOverviewStat>
       })
+    }, (err) => {
+      console.error("subscribeToAllCampaigns failed", err)
+      setError(err.message)
     })
   }, [])
 
@@ -71,9 +75,13 @@ export function useCampaignOverviewStats() {
         setLoading(false)
         return next as Record<CampaignCategorySlug, CampaignOverviewStat>
       })
+    }, (err) => {
+      console.error("collectionGroup(contentItems) failed", err)
+      setError(err.message)
+      setLoading(false)
     })
     return unsubscribe
   }, [campaignCategoryById])
 
-  return { stats, loading }
+  return { stats, loading, error }
 }
