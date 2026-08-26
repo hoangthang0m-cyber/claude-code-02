@@ -9,8 +9,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { Separator } from "@/components/ui/separator"
 import { CAMPAIGN_CATEGORIES, type CampaignCategorySlug } from "@/constants/campaignCategories"
 import { useContentPerformance } from "@/modules/reports/hooks/useContentPerformance"
+import { MetaAdsSummarySection } from "@/modules/reports/components/MetaAdsSummarySection"
 import { ReportsCategoryBreakdown } from "@/modules/reports/components/ReportsCategoryBreakdown"
 import { ReportsDetailTable } from "@/modules/reports/components/ReportsDetailTable"
 import { ReportsSummaryCards } from "@/modules/reports/components/ReportsSummaryCards"
@@ -56,9 +58,22 @@ export function ReportsView() {
   }
 
   return (
-    <div className="animate-in fade-in slide-in-from-bottom-2 flex flex-col gap-4 px-4 py-4 duration-300 md:px-6 md:py-6">
-      <div className="flex items-center justify-between">
+    <div className="animate-in fade-in slide-in-from-bottom-2 flex flex-col gap-6 px-4 py-4 duration-300 md:px-6 md:py-6">
+      <div>
         <h1 className="text-lg font-semibold">Báo cáo hiệu quả quảng cáo</h1>
+      </div>
+
+      <MetaAdsSummarySection />
+
+      <Separator />
+
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-base font-semibold">Số liệu nhập tay theo content</h2>
+          <p className="text-sm text-muted-foreground">
+            Do team nhập trong từng content — dùng để đối chiếu với số liệu Meta Ads ở trên.
+          </p>
+        </div>
         <div className="flex items-center gap-2">
           <Select value={categoryFilter} onValueChange={handleCategoryChange}>
             <SelectTrigger size="sm" className="w-48">
