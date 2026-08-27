@@ -754,7 +754,7 @@ Mỗi task đủ nhỏ để làm trong một phiên; kèm cách verify. Làm th
 ### 7.1 Nền tảng dữ liệu & phân quyền
 
 - [x] 1.1 Khởi tạo/khớp cấu trúc module theo tech stack hiện có; verify build/chạy được khung
-- [ ] 1.2 Schema/migration cho User, Project, ProjectMember, ContentItem, StatusHistory, Comment (mục 6.1); verify migration lên/xuống sạch
+- [x] 1.2 Schema/migration cho User, Project, ProjectMember, ContentItem, StatusHistory, Comment (mục 6.1); verify migration lên/xuống sạch
 - [ ] 1.3 Schema/migration cho AdAccountConnection, AdsBinding, AdsMetric, SheetSyncMapping, SyncRun, SyncConflict, Notification, NotificationPreference; verify migration sạch
 - [ ] 1.4 Xác thực người dùng + `system_role`; verify đăng nhập và đọc được vai trò trong request
 - [ ] 1.5 Hàm kiểm tra quyền dùng chung theo phạm vi dự án (mục 6.5); verify unit test manager/staff/không phải thành viên
