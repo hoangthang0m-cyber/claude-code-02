@@ -1,10 +1,7 @@
 import type { Timestamp } from "firebase/firestore"
 import { z } from "zod"
 
-import {
-  PROJECT_LIFECYCLES,
-  type ProjectLifecycle,
-} from "@/lib/domain/enums"
+import type { ProjectLifecycle } from "@/lib/domain/enums"
 import { looseLinkString } from "@/lib/domain/shared"
 
 // SPEC §6.1: Project (id, name, objective, description, scale,
@@ -12,7 +9,8 @@ import { looseLinkString } from "@/lib/domain/shared"
 //   lifecycle: running | done | archived, created_by)
 //
 // created_at / updated_at follow the ContentItem convention in §6.1 and are set
-// server-side.
+// server-side. updated_by is required by SPEC §5.1 R2 ("lưu kèm thời điểm +
+// người cập nhật") — the §6.1 sketch omits it.
 
 export interface Project {
   id: string
@@ -26,6 +24,7 @@ export interface Project {
   created_by: string
   created_at: Timestamp
   updated_at: Timestamp
+  updated_by?: string
 }
 
 // Create: name + objective required (SPEC §5.1 R1). lifecycle defaults to
@@ -42,9 +41,9 @@ export const projectCreateSchema = z.object({
 
 export type ProjectCreate = z.infer<typeof projectCreateSchema>
 
-// Edit: every form field editable after creation (SPEC §5.1 R2), all optional.
-export const projectUpdateSchema = projectCreateSchema.partial().extend({
-  lifecycle: z.enum(PROJECT_LIFECYCLES).optional(),
-})
+// Edit the standard form (SPEC §5.1 R2): every field optional. Does NOT include
+// `lifecycle` — lifecycle transitions have their own validated path (§5.1 R3,
+// task 2.3).
+export const projectFormUpdateSchema = projectCreateSchema.partial()
 
-export type ProjectUpdate = z.infer<typeof projectUpdateSchema>
+export type ProjectFormUpdate = z.infer<typeof projectFormUpdateSchema>
