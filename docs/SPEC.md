@@ -757,7 +757,7 @@ Mỗi task đủ nhỏ để làm trong một phiên; kèm cách verify. Làm th
 - [x] 1.2 Schema/migration cho User, Project, ProjectMember, ContentItem, StatusHistory, Comment (mục 6.1); verify migration lên/xuống sạch
 - [x] 1.3 Schema/migration cho AdAccountConnection, AdsBinding, AdsMetric, SheetSyncMapping, SyncRun, SyncConflict, Notification, NotificationPreference; verify migration sạch
 - [x] 1.4 Xác thực người dùng + `system_role`; verify đăng nhập và đọc được vai trò trong request
-- [ ] 1.5 Hàm kiểm tra quyền dùng chung theo phạm vi dự án (mục 6.5); verify unit test manager/staff/không phải thành viên
+- [x] 1.5 Hàm kiểm tra quyền dùng chung theo phạm vi dự án (mục 6.5); verify unit test manager/staff/không phải thành viên
 - [ ] 1.6 Seed một tài khoản Trưởng phòng khởi tạo; verify đăng nhập + tạo dự án được
 
 ### 7.2 Project workspace
