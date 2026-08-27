@@ -36,7 +36,16 @@ function getAdmin() {
     getApps()[0] ??
     initializeApp({ credential: cert({ projectId, clientEmail, privateKey }) })
 
-  cached = { app, db: getFirestore(app), auth: getAuth(app) }
+  const db = getFirestore(app)
+  // Optional form fields arrive as `undefined`; drop them instead of throwing
+  // (mirrors the client config). Must run before the first Firestore call.
+  try {
+    db.settings({ ignoreUndefinedProperties: true })
+  } catch {
+    // already initialised (hot reload) — settings can only be applied once
+  }
+
+  cached = { app, db, auth: getAuth(app) }
   return cached
 }
 

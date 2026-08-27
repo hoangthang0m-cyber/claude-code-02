@@ -762,7 +762,7 @@ Mỗi task đủ nhỏ để làm trong một phiên; kèm cách verify. Làm th
 
 ### 7.2 Project workspace
 
-- [ ] 2.1 API tạo dự án với form chuẩn (name, objective bắt buộc); verify test từ chối khi thiếu name/objective
+- [x] 2.1 API tạo dự án với form chuẩn (name, objective bắt buộc); verify test từ chối khi thiếu name/objective
 - [ ] 2.2 API sửa dự án (mọi trường form) + cập nhật `retrospective`; verify lưu kèm người/thời điểm
 - [ ] 2.3 API vòng đời running → done → archived; verify archived chỉ đọc + dừng job nền của dự án
 - [ ] 2.4 API quản lý thành viên (thêm/bớt, `project_role`, `skill_tag`); verify chặn gỡ thành viên còn là assignee của hạng mục chưa xong
