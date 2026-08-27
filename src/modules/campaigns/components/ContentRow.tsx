@@ -15,12 +15,14 @@ import { TableCell, TableRow } from "@/components/ui/table"
 import { cn } from "@/utils/cn"
 import { AssigneeSelect } from "@/modules/campaigns/components/AssigneeSelect"
 import { OnDeadlineSelect } from "@/modules/campaigns/components/OnDeadlineSelect"
+import { PrioritySelect } from "@/modules/campaigns/components/PrioritySelect"
 import { StatusSelect } from "@/modules/campaigns/components/StatusSelect"
 import { VideoLinkUploader } from "@/modules/campaigns/components/VideoLinkUploader"
 import {
   deleteContentItem,
   updateContentItem,
 } from "@/modules/campaigns/services/contentItems.service"
+import { isContentOverdue } from "@/modules/campaigns/utils/contentOverdue"
 import type { ContentItem } from "@/modules/campaigns/types/campaign.types"
 import { FileVideoIcon, Trash2Icon } from "lucide-react"
 
@@ -31,8 +33,7 @@ function toDateInputValue(timestamp?: Timestamp) {
 
 function deadlineCellClass(item: ContentItem) {
   if (!item.deadline) return ""
-  const isOverdue = item.deadline.toMillis() < Date.now() && item.status !== "posted_ads"
-  return isOverdue
+  return isContentOverdue(item)
     ? "bg-destructive/10 text-destructive"
     : "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
 }
@@ -122,6 +123,9 @@ export function ContentRow({
       </TableCell>
       <TableCell className="min-w-36">
         <StatusSelect value={item.status} onChange={(status) => update({ status })} />
+      </TableCell>
+      <TableCell className="min-w-32">
+        <PrioritySelect value={item.priority} onChange={(priority) => update({ priority })} />
       </TableCell>
       <TableCell className="min-w-36">
         <Input

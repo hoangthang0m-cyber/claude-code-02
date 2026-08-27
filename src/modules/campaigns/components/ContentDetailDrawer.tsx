@@ -15,6 +15,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet"
 import { Textarea } from "@/components/ui/textarea"
+import { PrioritySelect } from "@/modules/campaigns/components/PrioritySelect"
 import { ProductFileUploader } from "@/modules/campaigns/components/ProductFileUploader"
 import { updateContentItem } from "@/modules/campaigns/services/contentItems.service"
 import type { ContentItem } from "@/modules/campaigns/types/campaign.types"
@@ -49,6 +50,7 @@ export function ContentDetailDrawer({
   const [purchases, setPurchases] = React.useState(toNumberInputValue(item?.purchases))
   const [cpp, setCpp] = React.useState(toNumberInputValue(item?.cpp))
   const [roas, setRoas] = React.useState(toNumberInputValue(item?.roas))
+  const [progress, setProgress] = React.useState(toNumberInputValue(item?.progress))
   const [syncedItemId, setSyncedItemId] = React.useState(item?.id)
 
   if (item?.id !== syncedItemId) {
@@ -61,6 +63,7 @@ export function ContentDetailDrawer({
     setPurchases(toNumberInputValue(item?.purchases))
     setCpp(toNumberInputValue(item?.cpp))
     setRoas(toNumberInputValue(item?.roas))
+    setProgress(toNumberInputValue(item?.progress))
   }
 
   if (!item) return null
@@ -86,6 +89,34 @@ export function ContentDetailDrawer({
           <SheetTitle>{item.scriptTitle || "Content chưa đặt tên"}</SheetTitle>
         </SheetHeader>
         <div className="flex flex-1 flex-col gap-4 overflow-y-auto px-4">
+          <FieldGroup>
+            <p className="text-sm font-medium">Thông tin công việc</p>
+            <div className="grid grid-cols-2 gap-3">
+              <Field>
+                <FieldLabel htmlFor="priority">Mức ưu tiên</FieldLabel>
+                <PrioritySelect
+                  value={item.priority}
+                  onChange={(priority) => updateContentItem(campaignId, item.id, { priority })}
+                />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="progress">Tiến độ (%)</FieldLabel>
+                <Input
+                  id="progress"
+                  type="number"
+                  min={0}
+                  max={100}
+                  value={progress}
+                  onChange={(e) => setProgress(e.target.value)}
+                  onBlur={() =>
+                    updateContentItem(campaignId, item.id, {
+                      progress: progress ? Number(progress) : undefined,
+                    })
+                  }
+                />
+              </Field>
+            </div>
+          </FieldGroup>
           <FieldGroup>
             <p className="text-sm font-medium">Hiệu quả quảng cáo</p>
             <div className="grid grid-cols-2 gap-3">

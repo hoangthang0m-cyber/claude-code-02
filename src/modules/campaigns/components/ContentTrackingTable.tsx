@@ -40,7 +40,7 @@ import { createContentItem } from "@/modules/campaigns/services/contentItems.ser
 import type { ContentItem } from "@/modules/campaigns/types/campaign.types"
 import { PlusIcon } from "lucide-react"
 
-const COLUMN_COUNT = 10
+const COLUMN_COUNT = 11
 
 const features = tableFeatures({
   columnFilteringFeature,
@@ -168,6 +168,7 @@ export function ContentTrackingTable({
               <TableHead>Kịch bản</TableHead>
               <TableHead>Link video</TableHead>
               <TableHead>Trạng thái</TableHead>
+              <TableHead>Mức ưu tiên</TableHead>
               <TableHead>Chủ đề</TableHead>
               <TableHead>Đúng deadline</TableHead>
               <TableHead>Báo cáo hiệu quả ads</TableHead>

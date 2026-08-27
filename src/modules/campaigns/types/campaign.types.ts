@@ -3,8 +3,9 @@ import type { Timestamp } from "firebase/firestore"
 import type { CampaignCategorySlug } from "@/constants/campaignCategories"
 import type { ContentStatus } from "@/constants/contentStatus"
 import type { OnDeadlineStatus } from "@/constants/onDeadlineStatus"
+import type { PriorityLevel } from "@/constants/priority"
 
-export type { CampaignCategorySlug, ContentStatus, OnDeadlineStatus }
+export type { CampaignCategorySlug, ContentStatus, OnDeadlineStatus, PriorityLevel }
 export type { CampaignCategory } from "@/constants/campaignCategories"
 
 export interface Attachment {
@@ -35,6 +36,8 @@ export interface ContentItem {
   scriptGroupLabel?: string
   videoFile?: Attachment
   status: ContentStatus
+  priority?: PriorityLevel
+  progress?: number
   topic?: string
   onDeadlineStatus?: OnDeadlineStatus
   adsPerformanceReport?: string

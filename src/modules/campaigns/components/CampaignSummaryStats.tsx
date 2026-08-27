@@ -6,18 +6,11 @@ import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, XAxis } from "rechar
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart"
 import { useUsers } from "@/hooks/useUsers"
-import { CONTENT_STATUS_LABELS, CONTENT_STATUSES } from "@/constants/contentStatus"
+import { CONTENT_STATUS_ACCENT, CONTENT_STATUS_LABELS, CONTENT_STATUSES } from "@/constants/contentStatus"
 import type { ContentItem } from "@/modules/campaigns/types/campaign.types"
 
-const STATUS_COLORS: Record<string, string> = {
-  draft: "var(--muted-foreground)",
-  recording: "var(--secondary)",
-  ready_to_post: "var(--primary)",
-  posted_ads: "var(--destructive)",
-}
-
 const statusChartConfig = CONTENT_STATUSES.reduce((config, status) => {
-  config[status] = { label: CONTENT_STATUS_LABELS[status], color: STATUS_COLORS[status] }
+  config[status] = { label: CONTENT_STATUS_LABELS[status], color: CONTENT_STATUS_ACCENT[status] }
   return config
 }, {} as ChartConfig)
 
@@ -97,7 +90,7 @@ export function CampaignSummaryStats({ contentItems }: { contentItems: ContentIt
                   <ChartTooltip content={<ChartTooltipContent hideLabel />} />
                   <Pie data={statusData} dataKey="count" nameKey="label" innerRadius={50} outerRadius={80}>
                     {statusData.map((entry) => (
-                      <Cell key={entry.status} fill={STATUS_COLORS[entry.status]} />
+                      <Cell key={entry.status} fill={CONTENT_STATUS_ACCENT[entry.status]} />
                     ))}
                   </Pie>
                 </PieChart>
