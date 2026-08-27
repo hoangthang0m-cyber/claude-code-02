@@ -12,11 +12,18 @@ what they are for; it is updated as each checklist group introduces new ones.
 
 ## Firebase — Admin SDK (group 7.1)
 
-Server-side writes go through route handlers using `firebase-admin`.
+Server-side auth (`/api/me`, group 1.4) and every mutation from group 7.2 on go
+through route handlers using `firebase-admin`. **Required** — without these,
+`/api/*` handlers return 500.
+
+Get the key from the Firebase console → Project Settings → Service Accounts →
+"Generate new private key". This is a **different** credential from the existing
+`GOOGLE_*` service account (that one is a different GCP project and is being
+replaced by manager OAuth per SPEC §6.3).
 
 | Key | Purpose |
 |---|---|
-| `FIREBASE_ADMIN_PROJECT_ID` | Service-account project id (same Firebase project). |
+| `FIREBASE_ADMIN_PROJECT_ID` | Must equal `NEXT_PUBLIC_FIREBASE_PROJECT_ID`. |
 | `FIREBASE_ADMIN_CLIENT_EMAIL` | Service-account client email. |
 | `FIREBASE_ADMIN_PRIVATE_KEY` | Service-account private key. Newlines may be `\n`-escaped. |
 
