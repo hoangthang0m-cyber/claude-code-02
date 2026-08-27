@@ -57,7 +57,10 @@ const manager: AuthedUser = { uid: "u-mgr", email: null, system_role: "staff" }
 beforeEach(() => {
   fx.memberDocs = [{ project_role: "manager", skill_tag: null }]
   fx.projectExists = true
-  fx.projectData = { progress_sheet_url: "https://old.example/sheet" }
+  fx.projectData = {
+    lifecycle: "running",
+    progress_sheet_url: "https://old.example/sheet",
+  }
   fx.mappingRefs = []
   fx.batchUpdate.mockReset()
   fx.batchDelete.mockReset()
@@ -90,6 +93,13 @@ describe("updateProject (SPEC §5.1 R2)", () => {
     await expect(updateProject(manager, "p1", {})).rejects.toMatchObject({
       status: 400,
     })
+  })
+
+  it("rejects editing an archived (read-only) project with 409 (SPEC §5.1 R3)", async () => {
+    fx.projectData = { lifecycle: "archived" }
+    await expect(
+      updateProject(manager, "p1", { name: "đổi tên" })
+    ).rejects.toMatchObject({ status: 409 })
   })
 
   it("saves retrospective with updated_at + updated_by (SPEC §5.1 R2)", async () => {

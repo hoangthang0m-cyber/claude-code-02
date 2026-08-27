@@ -4,9 +4,12 @@ import {
   CONTENT_ITEM_INITIAL_STATUS,
   CONTENT_STATUSES,
   COLLECTIONS,
+  canChangeLifecycle,
   commentWriteSchema,
   contentItemCreateSchema,
   contentItemUpdateSchema,
+  isBackgroundSyncActive,
+  isProjectWritable,
   projectCreateSchema,
   projectMemberWriteSchema,
   statusHistoryWriteSchema,
@@ -69,6 +72,34 @@ describe("userWriteSchema", () => {
     expect(
       userWriteSchema.safeParse({ name: "Thắng", system_role: "staff" }).success
     ).toBe(false)
+  })
+})
+
+describe("project lifecycle (SPEC §5.1 R3)", () => {
+  it("allows running→done, running→archived, done→archived, and restores", () => {
+    expect(canChangeLifecycle("running", "done")).toBe(true)
+    expect(canChangeLifecycle("running", "archived")).toBe(true)
+    expect(canChangeLifecycle("done", "archived")).toBe(true)
+    expect(canChangeLifecycle("done", "running")).toBe(true)
+    expect(canChangeLifecycle("archived", "running")).toBe(true)
+  })
+
+  it("blocks archived→done and any same-state move", () => {
+    expect(canChangeLifecycle("archived", "done")).toBe(false)
+    expect(canChangeLifecycle("running", "running")).toBe(false)
+    expect(canChangeLifecycle("archived", "archived")).toBe(false)
+  })
+
+  it("marks only an archived project read-only", () => {
+    expect(isProjectWritable("running")).toBe(true)
+    expect(isProjectWritable("done")).toBe(true)
+    expect(isProjectWritable("archived")).toBe(false)
+  })
+
+  it("runs background sync only for a running project (Q5 pending for done)", () => {
+    expect(isBackgroundSyncActive("running")).toBe(true)
+    expect(isBackgroundSyncActive("done")).toBe(false)
+    expect(isBackgroundSyncActive("archived")).toBe(false)
   })
 })
 

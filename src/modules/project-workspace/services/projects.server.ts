@@ -2,8 +2,13 @@ import { FieldValue } from "firebase-admin/firestore"
 
 import {
   COLLECTIONS,
+  canChangeLifecycle,
+  isBackgroundSyncActive,
+  isProjectWritable,
   projectCreateSchema,
   projectFormUpdateSchema,
+  projectLifecycleSchema,
+  type ProjectLifecycle,
 } from "@/lib/domain"
 import {
   requireProjectManager,
@@ -86,6 +91,11 @@ export async function updateProject(
   }
 
   const current = snap.data() ?? {}
+  // SPEC §5.1 R3: an archived project is read-only.
+  if (!isProjectWritable(current.lifecycle as ProjectLifecycle)) {
+    throw new HttpError(409, "Dự án đã lưu trữ — chỉ đọc")
+  }
+
   const sheetUrlChanged =
     input.progress_sheet_url !== undefined &&
     input.progress_sheet_url !== current.progress_sheet_url
@@ -107,4 +117,57 @@ export async function updateProject(
 
   await batch.commit()
   return { id: projectId, sheet_mapping_reset: sheetUrlChanged }
+}
+
+export interface ChangeLifecycleResult {
+  id: string
+  lifecycle: ProjectLifecycle
+  /** SPEC §5.1 R3: prompt to fill the retrospective when completing */
+  retrospective_reminder: boolean
+  /** SPEC §5.1 R3 / §6.3: archiving stops background sync */
+  background_sync_active: boolean
+}
+
+// SPEC §5.1 R3: move a project through running / done / archived. Only the
+// project's manager. Archiving makes it read-only and stops background sync
+// (the sync jobs filter on lifecycle).
+export async function changeProjectLifecycle(
+  actor: AuthedUser,
+  projectId: string,
+  body: unknown
+): Promise<ChangeLifecycleResult> {
+  const scope = await requireProjectScope(actor.uid, projectId)
+  requireProjectManager(scope)
+
+  const { lifecycle: target } = parseOrThrow(projectLifecycleSchema, body)
+
+  const db = getAdminDb()
+  const ref = db.collection(COLLECTIONS.projects).doc(projectId)
+  const snap = await ref.get()
+  if (!snap.exists) {
+    throw new HttpError(404, "Không tìm thấy dự án")
+  }
+
+  const current = snap.data() ?? {}
+  const from = current.lifecycle as ProjectLifecycle
+
+  if (from === target) {
+    throw new HttpError(400, `Dự án đã ở trạng thái "${target}"`)
+  }
+  if (!canChangeLifecycle(from, target)) {
+    throw new HttpError(409, `Không thể chuyển vòng đời "${from}" → "${target}"`)
+  }
+
+  await ref.update({
+    lifecycle: target,
+    updated_at: FieldValue.serverTimestamp(),
+    updated_by: actor.uid,
+  })
+
+  return {
+    id: projectId,
+    lifecycle: target,
+    retrospective_reminder: target === "done" && !current.retrospective,
+    background_sync_active: isBackgroundSyncActive(target),
+  }
 }

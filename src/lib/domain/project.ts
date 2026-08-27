@@ -1,7 +1,7 @@
 import type { Timestamp } from "firebase/firestore"
 import { z } from "zod"
 
-import type { ProjectLifecycle } from "@/lib/domain/enums"
+import { PROJECT_LIFECYCLES, type ProjectLifecycle } from "@/lib/domain/enums"
 import { looseLinkString } from "@/lib/domain/shared"
 
 // SPEC §6.1: Project (id, name, objective, description, scale,
@@ -42,8 +42,43 @@ export const projectCreateSchema = z.object({
 export type ProjectCreate = z.infer<typeof projectCreateSchema>
 
 // Edit the standard form (SPEC §5.1 R2): every field optional. Does NOT include
-// `lifecycle` — lifecycle transitions have their own validated path (§5.1 R3,
-// task 2.3).
+// `lifecycle` — lifecycle transitions have their own validated path (§5.1 R3).
 export const projectFormUpdateSchema = projectCreateSchema.partial()
 
 export type ProjectFormUpdate = z.infer<typeof projectFormUpdateSchema>
+
+// ── Lifecycle (SPEC §5.1 R3) ────────────────────────────────────────────────
+
+export const projectLifecycleSchema = z.object({
+  lifecycle: z.enum(PROJECT_LIFECYCLES),
+})
+
+// running → done → archived is the forward path; done can reopen to running, and
+// an archived project can be restored to running.
+export const PROJECT_LIFECYCLE_TRANSITIONS: Record<
+  ProjectLifecycle,
+  readonly ProjectLifecycle[]
+> = {
+  running: ["done", "archived"],
+  done: ["running", "archived"],
+  archived: ["running"],
+}
+
+export function canChangeLifecycle(
+  from: ProjectLifecycle,
+  to: ProjectLifecycle
+): boolean {
+  return PROJECT_LIFECYCLE_TRANSITIONS[from].includes(to)
+}
+
+// SPEC §5.1 R3: an archived project is read-only.
+export function isProjectWritable(lifecycle: ProjectLifecycle): boolean {
+  return lifecycle !== "archived"
+}
+
+// SPEC §6.3: background sync runs for `running` projects; §5.1 R3: archiving
+// stops all background sync. Whether a `done` project keeps syncing Ads is
+// Open Question Q5 (§8) — treated as inactive until answered.
+export function isBackgroundSyncActive(lifecycle: ProjectLifecycle): boolean {
+  return lifecycle === "running"
+}
