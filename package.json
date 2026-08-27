@@ -10,7 +10,9 @@
     "lint": "eslint",
     "format": "prettier --write \"**/*.{ts,tsx}\"",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "users:list": "node scripts/list-users.mjs",
+    "seed:manager": "node scripts/seed-manager.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",
