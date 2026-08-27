@@ -32,8 +32,8 @@ describe("domain: enum wiring (SPEC §5.3 / §6.1)", () => {
     expect(CONTENT_ITEM_INITIAL_STATUS).toBe("chua_bat_dau")
   })
 
-  it("collection ids match §6.1 entity names", () => {
-    expect(COLLECTIONS).toEqual({
+  it("has the 6 foundation collection ids (§6.1)", () => {
+    expect(COLLECTIONS).toMatchObject({
       users: "users",
       projects: "projects",
       projectMembers: "projectMembers",

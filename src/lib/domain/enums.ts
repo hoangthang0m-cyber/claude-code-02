@@ -2,8 +2,7 @@
 // Values are the literal strings stored in Firestore — the server rejects
 // anything outside these sets (same treatment as `status`, SPEC §5.5 R1).
 //
-// This file covers checklist group 7.1 tasks 1.2. Ads / sheets-sync /
-// notification enums are added in task 1.3.
+// This file covers checklist group 7.1 tasks 1.2 and 1.3.
 
 export const SYSTEM_ROLES = ["manager", "staff"] as const
 export type SystemRole = (typeof SYSTEM_ROLES)[number]
@@ -49,4 +48,79 @@ export const CONTENT_FORMAT_LABELS: Record<ContentFormat, string> = {
   reels: "Reels",
   tvc: "TVC",
   photo: "Photo",
+}
+
+// ── Ads performance (SPEC §6.1, group 7.1 task 1.3) ───────────────────────────
+
+export const AD_ACCOUNT_STATES = ["connected", "needs_reconnect"] as const
+export type AdAccountState = (typeof AD_ACCOUNT_STATES)[number]
+
+export const ADS_OBJECT_LEVELS = ["campaign", "adset", "ad"] as const
+export type AdsObjectLevel = (typeof ADS_OBJECT_LEVELS)[number]
+
+export const ADS_METRIC_SOURCES = ["synced", "manual"] as const
+export type AdsMetricSource = (typeof ADS_METRIC_SOURCES)[number]
+
+export const ADS_DELIVERY_STATUSES = [
+  "active",
+  "paused",
+  "completed",
+  "unknown",
+] as const
+export type AdsDeliveryStatus = (typeof ADS_DELIVERY_STATUSES)[number]
+
+// ── Sheets sync (SPEC §6.1, group 7.1 task 1.3) ──────────────────────────────
+
+export const SYNC_KINDS = ["sheets", "ads"] as const
+export type SyncKind = (typeof SYNC_KINDS)[number]
+
+export const SYNC_RESULTS = ["ok", "warning", "error"] as const
+export type SyncResult = (typeof SYNC_RESULTS)[number]
+
+export const SYNC_CONFLICT_RULES = ["system_wins", "sheet_wins"] as const
+export type SyncConflictRule = (typeof SYNC_CONFLICT_RULES)[number]
+
+export const SYNC_CONFLICT_SIDES = ["system", "sheet"] as const
+export type SyncConflictSide = (typeof SYNC_CONFLICT_SIDES)[number]
+
+// ── Notifications (SPEC §5.7, group 7.1 task 1.3) ────────────────────────────
+
+// Preference groups the user can toggle (SPEC §5.7 R4).
+export const NOTIFICATION_GROUPS = [
+  "assignment",
+  "approval",
+  "overdue",
+  "ads",
+  "comment_mention",
+  "sync",
+] as const
+export type NotificationGroup = (typeof NOTIFICATION_GROUPS)[number]
+
+// Event types (SPEC §5.7 R1 event → recipient table).
+export const NOTIFICATION_TYPES = [
+  "content_assigned",
+  "review_requested",
+  "review_approved",
+  "review_returned",
+  "content_overdue",
+  "ads_stopped",
+  "comment_added",
+  "comment_mention",
+  "sync_issue",
+] as const
+export type NotificationType = (typeof NOTIFICATION_TYPES)[number]
+
+export const NOTIFICATION_TYPE_GROUP: Record<
+  NotificationType,
+  NotificationGroup
+> = {
+  content_assigned: "assignment",
+  review_requested: "approval",
+  review_approved: "approval",
+  review_returned: "approval",
+  content_overdue: "overdue",
+  ads_stopped: "ads",
+  comment_added: "comment_mention",
+  comment_mention: "comment_mention",
+  sync_issue: "sync",
 }

@@ -52,12 +52,6 @@ service cloud.firestore {
       allow update, delete: if isSignedIn() && resource.data.createdBy == request.auth.uid;
     }
 
-    // notifications/ — chỉ chính chủ (userId trên document) được đọc/sửa/xóa
-    match /notifications/{notificationId} {
-      allow create: if isOwner(request.resource.data.userId);
-      allow read, update, delete: if isOwner(resource.data.userId);
-    }
-
     // === Content Performance Tracker (docs/SPEC.md) ===
     // Mọi ghi vào các collection này đi qua route handler + firebase-admin
     // (SPEC §2, §5.3: chặn ở tầng server, không chỉ ẩn ở UI). Client chỉ đọc,
@@ -87,6 +81,51 @@ service cloud.firestore {
     match /comments/{commentId} {
       allow read: if isSignedIn();
       allow write: if false;
+    }
+
+    // Chứa token_encrypted — client KHÔNG được đọc (SPEC §1.5). Toàn bộ qua server.
+    match /adAccountConnections/{connectionId} {
+      allow read, write: if false;
+    }
+
+    match /adsBindings/{bindingId} {
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
+
+    match /adsMetrics/{metricId} {
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
+
+    match /sheetSyncMappings/{mappingId} {
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
+
+    match /syncRuns/{runId} {
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
+
+    match /syncConflicts/{conflictId} {
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
+
+    // notifications/ — chủ nhân (recipient_id) đọc + đánh dấu đã đọc; engine
+    // tạo/xoá qua server (SPEC §5.7 R1/R2).
+    match /notifications/{notificationId} {
+      allow read, update: if isOwner(resource.data.recipient_id);
+      allow create, delete: if false;
+    }
+
+    // notificationPreferences/ — mỗi người tự bật/tắt nhóm của mình (SPEC §5.7 R4).
+    match /notificationPreferences/{preferenceId} {
+      allow read, delete: if isOwner(resource.data.user_id);
+      allow create: if isOwner(request.resource.data.user_id);
+      allow update: if isOwner(resource.data.user_id)
+        && isOwner(request.resource.data.user_id);
     }
   }
 }

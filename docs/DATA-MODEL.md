@@ -35,9 +35,28 @@ All top-level, linked by id fields (§6.1's flat model):
 `contentItems` adds `content_format` (`reels | tvc | photo`, optional) per
 SPEC §8 Q3.
 
-Group 7.1 task 1.3 adds: `adAccountConnections`, `adsBindings`, `adsMetrics`,
-`sheetSyncMappings`, `syncRuns`, `syncConflicts`, `notifications`,
-`notificationPreferences`.
+## Collections (group 7.1 task 1.3)
+
+| Collection | Entity | Key links |
+|---|---|---|
+| `adAccountConnections` | AdAccountConnection | `project_owner_id` → users |
+| `adsBindings` | AdsBinding | `content_item_id`, `ad_account_id` |
+| `adsMetrics` | AdsMetric | `content_item_id` |
+| `sheetSyncMappings` | SheetSyncMapping | `project_id` |
+| `syncRuns` | SyncRun | `project_id` |
+| `syncConflicts` | SyncConflict | `project_id`, `content_item_id` |
+| `notifications` | Notification | `recipient_id`, `content_item_id?`, `project_id?` |
+| `notificationPreferences` | NotificationPreference | `user_id` |
+
+Access:
+
+- `adAccountConnections` holds `token_encrypted` → **no client read at all**
+  (`allow read, write: if false`); the "connected" state reaches the UI through
+  a server response.
+- `notifications` — recipient reads and marks read; the engine creates/deletes
+  server-side.
+- `notificationPreferences` — each user reads/writes their own rows.
+- Everything else — client read, no client write.
 
 ## Representation notes (field names unchanged from §6.1)
 
@@ -49,6 +68,14 @@ Group 7.1 task 1.3 adds: `adAccountConnections`, `adsBindings`, `adsMetrics`,
   docs); §6.1 writes it as `User[]`.
 - `Project` carries `created_at` / `updated_at` (the ContentItem convention in
   §6.1); the sketch omits them for Project.
+- `AdAccountConnection.project_owner_id` is read as the **user id of the manager
+  who ran the Meta OAuth** (SPEC §5.4 R1, §6.4).
+- `SyncConflict.system_value` / `sheet_value` store the **serialised string**
+  form of each side's value, for the log (§5.5 R3).
+- `Notification` uses `recipient_id` (per §6.1). The pre-existing, unused
+  `notifications` rule keyed on `userId` has been replaced.
+- `AdsBinding` per §6.1 has no soft-delete field yet; the "stopped updating"
+  state after an unlink (§5.4 R2) is added in task 5.3.
 
 ## Transitional note
 
