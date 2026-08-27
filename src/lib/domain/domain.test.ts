@@ -11,7 +11,8 @@ import {
   isBackgroundSyncActive,
   isProjectWritable,
   projectCreateSchema,
-  projectMemberWriteSchema,
+  projectMemberAddSchema,
+  projectMemberUpdateSchema,
   statusHistoryWriteSchema,
   userWriteSchema,
 } from "@/lib/domain"
@@ -133,11 +134,10 @@ describe("projectCreateSchema (SPEC §5.1 R1)", () => {
   })
 })
 
-describe("projectMemberWriteSchema", () => {
+describe("projectMemberAddSchema (SPEC §5.1 R4)", () => {
   it("accepts a member with a skill tag", () => {
     expect(
-      projectMemberWriteSchema.safeParse({
-        project_id: "p1",
+      projectMemberAddSchema.safeParse({
         user_id: "u1",
         project_role: "staff",
         skill_tag: "content",
@@ -146,8 +146,7 @@ describe("projectMemberWriteSchema", () => {
   })
 
   it("defaults skill_tag to null when omitted", () => {
-    const r = projectMemberWriteSchema.safeParse({
-      project_id: "p1",
+    const r = projectMemberAddSchema.safeParse({
       user_id: "u1",
       project_role: "manager",
     })
@@ -157,11 +156,27 @@ describe("projectMemberWriteSchema", () => {
 
   it("rejects a project_role outside the enum", () => {
     expect(
-      projectMemberWriteSchema.safeParse({
-        project_id: "p1",
-        user_id: "u1",
-        project_role: "owner",
-      }).success
+      projectMemberAddSchema.safeParse({ user_id: "u1", project_role: "owner" })
+        .success
+    ).toBe(false)
+  })
+})
+
+describe("projectMemberUpdateSchema", () => {
+  it("accepts a role-only change", () => {
+    expect(
+      projectMemberUpdateSchema.safeParse({ project_role: "manager" }).success
+    ).toBe(true)
+  })
+
+  it("accepts clearing the skill tag to null", () => {
+    const r = projectMemberUpdateSchema.safeParse({ skill_tag: null })
+    expect(r.success).toBe(true)
+  })
+
+  it("rejects a skill_tag outside the enum", () => {
+    expect(
+      projectMemberUpdateSchema.safeParse({ skill_tag: "design" }).success
     ).toBe(false)
   })
 })

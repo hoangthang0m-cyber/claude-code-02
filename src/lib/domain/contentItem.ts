@@ -62,3 +62,9 @@ export const contentItemUpdateSchema = z.object({
 export type ContentItemUpdate = z.infer<typeof contentItemUpdateSchema>
 
 export const CONTENT_ITEM_INITIAL_STATUS: ContentStatus = CONTENT_STATUSES[0]
+
+// A content item is "finished" only at the terminal state (SPEC §3 frames
+// `da_len_ads` as the end; the overdue flag is also defined against it).
+export function isContentItemDone(status: ContentStatus): boolean {
+  return status === "da_len_ads"
+}

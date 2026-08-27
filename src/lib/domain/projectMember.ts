@@ -19,12 +19,20 @@ export interface ProjectMember {
   skill_tag: SkillTag | null
 }
 
-export const projectMemberWriteSchema = z.object({
-  project_id: idString,
+// Add a member (SPEC §5.1 R4): project_id comes from the URL, not the body.
+export const projectMemberAddSchema = z.object({
   user_id: idString,
   project_role: z.enum(PROJECT_ROLES),
   // Explicitly nullable per §6.1 (optional label).
   skill_tag: z.enum(SKILL_TAGS).nullable().default(null),
 })
 
-export type ProjectMemberWrite = z.infer<typeof projectMemberWriteSchema>
+export type ProjectMemberAdd = z.infer<typeof projectMemberAddSchema>
+
+// Change a member's role or skill tag (SPEC §5.1 R4). Both optional.
+export const projectMemberUpdateSchema = z.object({
+  project_role: z.enum(PROJECT_ROLES).optional(),
+  skill_tag: z.enum(SKILL_TAGS).nullable().optional(),
+})
+
+export type ProjectMemberUpdate = z.infer<typeof projectMemberUpdateSchema>
