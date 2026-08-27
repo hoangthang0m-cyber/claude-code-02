@@ -8,6 +8,7 @@ import {
   projectCreateSchema,
   projectFormUpdateSchema,
   projectLifecycleSchema,
+  projectMemberDocId,
   type ProjectLifecycle,
 } from "@/lib/domain"
 import {
@@ -39,7 +40,9 @@ export async function createProject(
   const db = getAdminDb()
 
   const projectRef = db.collection(COLLECTIONS.projects).doc()
-  const memberRef = db.collection(COLLECTIONS.projectMembers).doc()
+  const memberRef = db
+    .collection(COLLECTIONS.projectMembers)
+    .doc(projectMemberDocId(projectRef.id, actor.uid))
 
   const batch = db.batch()
   batch.set(projectRef, {

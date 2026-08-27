@@ -19,6 +19,13 @@ export interface ProjectMember {
   skill_tag: SkillTag | null
 }
 
+// Deterministic document id so firestore.rules can check membership with a
+// single exists() — `${projectId}__${userId}`. Firestore auto-ids and Firebase
+// UIDs are alphanumeric, so `__` is a safe separator.
+export function projectMemberDocId(projectId: string, userId: string): string {
+  return `${projectId}__${userId}`
+}
+
 // Add a member (SPEC §5.1 R4): project_id comes from the URL, not the body.
 export const projectMemberAddSchema = z.object({
   user_id: idString,

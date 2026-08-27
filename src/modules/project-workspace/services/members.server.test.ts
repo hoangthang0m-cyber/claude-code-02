@@ -76,10 +76,12 @@ vi.mock("@/lib/server/firebaseAdmin", () => {
         }
       }
       if (collection === "projectMembers") {
-        return {
-          exists: fx.member != null,
-          data: () => fx.member,
+        // Deterministic id (contains "__") = the add-duplicate probe; a plain id
+        // = the member being updated / removed.
+        if (id?.includes("__")) {
+          return { exists: fx.targetAlreadyMember }
         }
+        return { exists: fx.member != null, data: () => fx.member }
       }
       return { exists: false, data: () => undefined }
     },

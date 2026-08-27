@@ -16,6 +16,13 @@ service cloud.firestore {
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin";
     }
 
+    // Content Performance Tracker: membership is a projectMembers/ doc whose id
+    // is `${projectId}__${uid}` (see projectMemberDocId).
+    function isProjectMember(projectId) {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/projectMembers/$(projectId + '__' + request.auth.uid));
+    }
+
     // users/ — danh bạ nhân sự: mọi thành viên đăng nhập đọc được (dropdown nhân sự thực hiện...),
     // chỉ chính chủ được sửa hồ sơ mình
     match /users/{userId} {
@@ -56,18 +63,21 @@ service cloud.firestore {
     // Mọi ghi vào các collection này đi qua route handler + firebase-admin
     // (SPEC §2, §5.3: chặn ở tầng server, không chỉ ẩn ở UI). Client chỉ đọc,
     // qua Firebase Web SDK / onSnapshot, để có realtime (SPEC §6.6).
-    // Phạm vi đọc theo ProjectMember được siết ở task 1.5.
+    // Đọc giới hạn cho thành viên dự án (SPEC §5.1 R4 "không phải thành viên
+    // cố mở ... từ chối").
 
     match /projects/{projectId} {
-      allow read: if isSignedIn();
+      allow read: if isProjectMember(projectId);
       allow write: if false;
     }
 
     match /projectMembers/{memberId} {
-      allow read: if isSignedIn();
+      allow read: if isProjectMember(memberId.split('__')[0]);
       allow write: if false;
     }
 
+    // contentItems đọc-scoping siết ở nhóm 7.3 (còn vướng rule collectionGroup
+    // của /campaigns cũ ở trên).
     match /contentItems/{contentItemId} {
       allow read: if isSignedIn();
       allow write: if false;

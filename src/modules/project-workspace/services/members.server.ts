@@ -3,6 +3,7 @@ import {
   isContentItemDone,
   isProjectWritable,
   projectMemberAddSchema,
+  projectMemberDocId,
   projectMemberUpdateSchema,
   type ContentStatus,
   type ProjectLifecycle,
@@ -71,17 +72,13 @@ export async function addProjectMember(
     throw new HttpError(404, "Không tìm thấy người dùng này")
   }
 
-  const existing = await db
+  const ref = db
     .collection(COLLECTIONS.projectMembers)
-    .where("project_id", "==", projectId)
-    .where("user_id", "==", input.user_id)
-    .limit(1)
-    .get()
-  if (!existing.empty) {
+    .doc(projectMemberDocId(projectId, input.user_id))
+  if ((await ref.get()).exists) {
     throw new HttpError(409, "Người này đã là thành viên dự án")
   }
 
-  const ref = db.collection(COLLECTIONS.projectMembers).doc()
   await ref.set({
     project_id: projectId,
     user_id: input.user_id,
