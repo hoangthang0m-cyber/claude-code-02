@@ -35,3 +35,22 @@ export const adAccountConnectionWriteSchema = z.object({
 export type AdAccountConnectionWrite = z.infer<
   typeof adAccountConnectionWriteSchema
 >
+
+// The manager picks one ad account from the list the OAuth grant can reach
+// (SPEC §5.4 R1: "chọn một Ad Account → lưu kết nối"). The long-lived token is
+// pulled from the sealed pending-connection cookie, not this body.
+export const pickAdAccountSchema = z.object({
+  ad_account_id: idString,
+  name: z.string().trim().min(1),
+})
+
+export type PickAdAccount = z.infer<typeof pickAdAccountSchema>
+
+// What the client is allowed to see about a connection — never the token.
+export interface AdAccountConnectionView {
+  id: string
+  ad_account_id: string
+  name: string
+  state: AdAccountState
+  token_expires_at: number | null
+}

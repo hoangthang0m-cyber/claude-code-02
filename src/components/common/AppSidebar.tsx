@@ -41,7 +41,7 @@ const data = {
     { title: "Báo cáo", url: "/reports", icon: <FileChartColumnIcon /> },
   ],
   navSecondary: [
-    { title: "Cài đặt", url: "#", icon: <Settings2Icon /> },
+    { title: "Cài đặt", url: "/ad-accounts", icon: <Settings2Icon /> },
     { title: "Trợ giúp", url: "#", icon: <CircleHelpIcon /> },
     { title: "Tìm kiếm", url: "#", icon: <SearchIcon /> },
   ],

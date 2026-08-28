@@ -29,14 +29,38 @@ replaced by manager OAuth per SPEC §6.3).
 
 ## Token encryption (group 7.1)
 
+**Required from group 7.5 on.** Without it, connecting an ad account (and later
+Google Sheets) fails at the encrypt step.
+
 | Key | Purpose |
 |---|---|
-| `TOKEN_ENC_KEY` | Base64 of a 32-byte key for AES-256-GCM encryption of third-party tokens at rest (SPEC §1.5). Generate: `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"`. |
+| `TOKEN_ENC_KEY` | Base64 of a 32-byte key for AES-256-GCM encryption of third-party tokens at rest (SPEC §1.5). Generate: `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"`. **Set a different value on Vercel** — rotating it makes every stored token undecryptable, so pick once per environment. |
+
+## Meta Ads OAuth (group 7.5, task 5.1)
+
+The Ad Account connect flow (`/ad-accounts`) reuses the Facebook app credentials
+already in `.env.local`. The OAuth redirect URI is derived from the request
+origin at runtime — there is no env var for it — so **register both of these in
+the Meta app** (App Dashboard → Facebook Login → Settings → *Valid OAuth Redirect
+URIs*):
+
+- `http://localhost:3000/api/ad-accounts/meta/callback`
+- `https://claude-code-02.vercel.app/api/ad-accounts/meta/callback`
+
+The app also needs the **`ads_read`** permission (App Review, or add the manager
+as a test user / app role while unreviewed).
+
+| Key | Purpose |
+|---|---|
+| `FACEBOOK_APP_ID` | Meta app id — the OAuth `client_id`. |
+| `FACEBOOK_APP_SECRET` | Meta app secret — used server-side for the code→token and long-lived-token exchanges. |
+
+`FACEBOOK_ACCESS_TOKEN` (a single static token) belongs to the old `/reports`
+screen and is removed when group 7.8 replaces it.
 
 ## Later groups (not yet wired)
 
 | Key | Introduced in | Purpose |
 |---|---|---|
-| `CRON_SECRET` | 7.6 / 7.5 | Shared secret guarding `/api/jobs/**` cron endpoints. |
-| `META_APP_ID`, `META_APP_SECRET`, `META_OAUTH_REDIRECT_URI` | 7.5 | Meta OAuth for per-project Ad Account connections (replaces the single static `FACEBOOK_ACCESS_TOKEN`). |
-| `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET`, `GOOGLE_OAUTH_REDIRECT_URI` | 7.6 | Google OAuth using the manager's refresh token for Sheets — **not** a service account (SPEC §6.3). Replaces `GOOGLE_SERVICE_ACCOUNT_EMAIL` / `GOOGLE_PRIVATE_KEY`. |
+| `CRON_SECRET` | 7.5 / 7.6 | Shared secret guarding `/api/jobs/**` cron endpoints (Meta token refresh, Ads + Sheets sync). |
+| `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET` | 7.6 | Google OAuth using the manager's refresh token for Sheets — **not** a service account (SPEC §6.3). Replaces `GOOGLE_SERVICE_ACCOUNT_EMAIL` / `GOOGLE_PRIVATE_KEY`. |
