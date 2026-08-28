@@ -1,5 +1,7 @@
 import {
   COLLECTIONS,
+  isProjectWritable,
+  type ProjectLifecycle,
   type ProjectRole,
   type SkillTag,
 } from "@/lib/domain"
@@ -70,5 +72,22 @@ export function requireProjectManager(scope: ProjectScope): void {
 export function requireSystemManager(user: AuthedUser): void {
   if (user.system_role !== "manager") {
     throw new HttpError(403, "Chỉ Trưởng phòng được tạo dự án")
+  }
+}
+
+// Loads the project and rejects if it is missing (404) or archived / read-only
+// (409, SPEC §5.1 R3). Call after requireProjectScope on any mutation of a
+// project-owned object.
+export async function assertProjectWritable(projectId: string): Promise<void> {
+  const snap = await getAdminDb()
+    .collection(COLLECTIONS.projects)
+    .doc(projectId)
+    .get()
+  if (!snap.exists) {
+    throw new HttpError(404, "Không tìm thấy dự án")
+  }
+  const lifecycle = (snap.data()?.lifecycle as ProjectLifecycle) ?? "running"
+  if (!isProjectWritable(lifecycle)) {
+    throw new HttpError(409, "Dự án đã lưu trữ — chỉ đọc")
   }
 }

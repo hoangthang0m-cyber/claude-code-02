@@ -182,17 +182,13 @@ describe("projectMemberUpdateSchema", () => {
 })
 
 describe("contentItemCreateSchema (SPEC §5.2 R1)", () => {
-  it("accepts code + project_id only", () => {
-    expect(
-      contentItemCreateSchema.safeParse({ project_id: "p1", code: "V001" })
-        .success
-    ).toBe(true)
+  it("accepts just a code (project_id comes from the URL)", () => {
+    expect(contentItemCreateSchema.safeParse({ code: "V001" }).success).toBe(true)
   })
 
-  it("rejects a missing code", () => {
-    expect(
-      contentItemCreateSchema.safeParse({ project_id: "p1" }).success
-    ).toBe(false)
+  it("rejects a missing / empty code", () => {
+    expect(contentItemCreateSchema.safeParse({}).success).toBe(false)
+    expect(contentItemCreateSchema.safeParse({ code: "  " }).success).toBe(false)
   })
 })
 

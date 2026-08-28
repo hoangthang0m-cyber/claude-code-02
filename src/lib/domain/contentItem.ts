@@ -34,10 +34,9 @@ export interface ContentItem {
   updated_at: Timestamp
 }
 
-// Create: only code + project_id required (SPEC §5.2 R1). status defaults to the
-// first state of the machine, `chua_bat_dau`.
+// Create: only `code` in the body (SPEC §5.2 R1) — project_id comes from the URL.
+// status defaults to the first state of the machine, `chua_bat_dau`.
 export const contentItemCreateSchema = z.object({
-  project_id: idString,
   code: z.string().trim().min(1),
 })
 
