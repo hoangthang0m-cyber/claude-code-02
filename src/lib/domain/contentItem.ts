@@ -7,7 +7,7 @@ import {
   type ContentFormat,
   type ContentStatus,
 } from "@/lib/domain/enums"
-import { isoDateString, urlString } from "@/lib/domain/shared"
+import { idString, isoDateString, urlString } from "@/lib/domain/shared"
 
 // SPEC §6.1 + §4: ContentItem
 //   (id, project_id, code, deadline nullable, assignee_id nullable,
@@ -59,6 +59,11 @@ export const contentFieldUpdateSchema = z.object({
 })
 
 export type ContentFieldUpdate = z.infer<typeof contentFieldUpdateSchema>
+
+// Assign / claim / unassign (SPEC §5.2 R2). `null` = unassign (manager only).
+export const assigneeUpdateSchema = z.object({
+  assignee_id: idString.nullable(),
+})
 
 export const CONTENT_ITEM_INITIAL_STATUS: ContentStatus = CONTENT_STATUSES[0]
 

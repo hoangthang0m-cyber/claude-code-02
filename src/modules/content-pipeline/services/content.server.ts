@@ -3,8 +3,10 @@ import { FieldValue, Timestamp } from "firebase-admin/firestore"
 import {
   COLLECTIONS,
   CONTENT_ITEM_INITIAL_STATUS,
+  assigneeUpdateSchema,
   contentFieldUpdateSchema,
   contentItemCreateSchema,
+  projectMemberDocId,
 } from "@/lib/domain"
 import {
   assertProjectWritable,
@@ -14,6 +16,7 @@ import type { AuthedUser } from "@/lib/server/auth"
 import { getAdminDb } from "@/lib/server/firebaseAdmin"
 import { HttpError } from "@/lib/server/http"
 import { parseOrThrow } from "@/lib/server/validate"
+import { queueNotification } from "@/modules/notifications/services/notify.server"
 
 // Server-side content-pipeline operations (SPEC §5.2).
 
@@ -27,7 +30,11 @@ async function loadContentItem(contentItemId: string) {
   }
   return {
     ref,
-    data: snap.data() as { project_id: string } & Record<string, unknown>,
+    data: snap.data() as {
+      project_id: string
+      code?: string
+      assignee_id?: string | null
+    } & Record<string, unknown>,
   }
 }
 
@@ -85,4 +92,62 @@ export async function updateContentItemFields(
 
   await ref.update(patch)
   return { id: contentItemId }
+}
+
+// SPEC §5.2 R2: assign a content item to exactly one project member.
+// Manager: assign anyone (or null to unassign). Staff: only self-claim, and only
+// while the item is unassigned. The assignee is notified (unless they claimed it
+// themselves).
+export async function assignContentItem(
+  actor: AuthedUser,
+  contentItemId: string,
+  body: unknown
+): Promise<{ id: string; assignee_id: string | null }> {
+  const { ref, data } = await loadContentItem(contentItemId)
+  const projectId = data.project_id
+  const scope = await requireProjectScope(actor.uid, projectId)
+  await assertProjectWritable(projectId)
+
+  const { assignee_id: target } = parseOrThrow(assigneeUpdateSchema, body)
+  const db = getAdminDb()
+
+  if (!scope.is_manager) {
+    // Staff: self-claim only, only when currently unassigned.
+    if (target !== actor.uid) {
+      throw new HttpError(403, "Nhân sự chỉ được tự nhận việc")
+    }
+    if (data.assignee_id) {
+      throw new HttpError(409, "Hạng mục đã có người thực hiện")
+    }
+  }
+
+  if (target !== null) {
+    const member = await db
+      .collection(COLLECTIONS.projectMembers)
+      .doc(projectMemberDocId(projectId, target))
+      .get()
+    if (!member.exists) {
+      throw new HttpError(400, "Người được giao không phải thành viên dự án")
+    }
+  }
+
+  const batch = db.batch()
+  batch.update(ref, {
+    assignee_id: target,
+    updated_at: FieldValue.serverTimestamp(),
+    updated_by: actor.uid,
+  })
+  // SPEC §5.7 R1: notify the assignee — but not when they claimed it themselves.
+  if (target !== null && target !== actor.uid) {
+    queueNotification(db, batch, {
+      recipient_id: target,
+      type: "content_assigned",
+      content_item_id: contentItemId,
+      project_id: projectId,
+      message: `Bạn được giao hạng mục ${data.code ?? contentItemId}`,
+    })
+  }
+  await batch.commit()
+
+  return { id: contentItemId, assignee_id: target }
 }
