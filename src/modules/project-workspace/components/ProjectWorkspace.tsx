@@ -9,6 +9,7 @@ import {
 } from "@/lib/domain"
 import { useMyProjectRole } from "@/modules/project-workspace/hooks/useMyProjectRole"
 import { useProject } from "@/modules/project-workspace/hooks/useProject"
+import { ContentTable } from "@/modules/content-pipeline/components/ContentTable"
 import { LifecycleControl } from "@/modules/project-workspace/components/LifecycleControl"
 import { ProjectFormSheet } from "@/modules/project-workspace/components/ProjectFormSheet"
 import { ProjectMembersPanel } from "@/modules/project-workspace/components/ProjectMembersPanel"
@@ -94,6 +95,11 @@ export function ProjectWorkspace({ projectId }: { projectId: string }) {
       </dl>
 
       <LifecycleControl project={project} canManage={Boolean(isManager)} />
+
+      <ContentTable
+        projectId={projectId}
+        editable={isProjectWritable(project.lifecycle)}
+      />
 
       <ProjectMembersPanel projectId={projectId} canManage={canEdit} />
     </div>
