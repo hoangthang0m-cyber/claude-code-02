@@ -24,7 +24,7 @@ import { queueNotification } from "@/modules/notifications/services/notify.serve
 
 // Server-side content-pipeline operations (SPEC §5.2).
 
-async function loadContentItem(contentItemId: string) {
+export async function loadContentItem(contentItemId: string) {
   const ref = getAdminDb()
     .collection(COLLECTIONS.contentItems)
     .doc(contentItemId)

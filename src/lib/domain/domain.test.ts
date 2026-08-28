@@ -5,7 +5,7 @@ import {
   CONTENT_STATUSES,
   COLLECTIONS,
   canChangeLifecycle,
-  commentWriteSchema,
+  commentCreateSchema,
   contentItemCreateSchema,
   contentFieldUpdateSchema,
   contentListFiltersSchema,
@@ -327,10 +327,9 @@ describe("statusHistoryWriteSchema (SPEC §5.3 R5)", () => {
   })
 })
 
-describe("commentWriteSchema (SPEC §5.2 R5)", () => {
+describe("commentCreateSchema (SPEC §5.2 R5)", () => {
   it("accepts a comment with mentions", () => {
-    const r = commentWriteSchema.safeParse({
-      content_item_id: "c1",
+    const r = commentCreateSchema.safeParse({
       body: "@thang xem lại giúp",
       mentions: ["u-thang"],
     })
@@ -338,17 +337,12 @@ describe("commentWriteSchema (SPEC §5.2 R5)", () => {
   })
 
   it("defaults mentions to an empty array", () => {
-    const r = commentWriteSchema.safeParse({
-      content_item_id: "c1",
-      body: "ok",
-    })
+    const r = commentCreateSchema.safeParse({ body: "ok" })
     expect(r.success).toBe(true)
     if (r.success) expect(r.data.mentions).toEqual([])
   })
 
   it("rejects an empty body", () => {
-    expect(
-      commentWriteSchema.safeParse({ content_item_id: "c1", body: "" }).success
-    ).toBe(false)
+    expect(commentCreateSchema.safeParse({ body: "" }).success).toBe(false)
   })
 })

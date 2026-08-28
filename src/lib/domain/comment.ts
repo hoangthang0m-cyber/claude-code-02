@@ -17,10 +17,12 @@ export interface Comment {
   created_at: Timestamp
 }
 
-export const commentWriteSchema = z.object({
-  content_item_id: idString,
+// Create a comment (SPEC §5.2 R5) — content_item_id comes from the URL.
+// `mentions` are user ids the client resolved from @names; each must be a
+// project member (SPEC §8 Q2, answered) — enforced in the handler.
+export const commentCreateSchema = z.object({
   body: z.string().trim().min(1),
   mentions: z.array(idString).default([]),
 })
 
-export type CommentWrite = z.infer<typeof commentWriteSchema>
+export type CommentCreate = z.infer<typeof commentCreateSchema>
