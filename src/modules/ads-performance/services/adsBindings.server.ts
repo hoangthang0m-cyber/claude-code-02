@@ -109,20 +109,23 @@ export async function listAdsBindings(
     .where("content_item_id", "==", contentItemId)
     .get()
 
+  const ms = (v: unknown): number | null => {
+    const t = v as { toMillis?: () => number } | undefined
+    return typeof t?.toMillis === "function" ? t.toMillis() : null
+  }
   const bindings = snap.docs
-    .map((d) => {
-      const b = d.data()
-      const unbound = b.unbound_at as { toMillis?: () => number } | undefined
-      return {
-        id: d.id,
-        ad_account_id: String(b.ad_account_id ?? ""),
-        object_level: b.object_level,
-        object_id: String(b.object_id ?? ""),
-        active: b.active !== false,
-        unbound_at:
-          typeof unbound?.toMillis === "function" ? unbound.toMillis() : null,
-      } as AdsBindingView
-    })
+    .map(
+      (d) =>
+        ({
+          id: d.id,
+          ad_account_id: String(d.data().ad_account_id ?? ""),
+          object_level: d.data().object_level,
+          object_id: String(d.data().object_id ?? ""),
+          active: d.data().active !== false,
+          unbound_at: ms(d.data().unbound_at),
+          sync_error_since: ms(d.data().sync_error_since),
+        }) as AdsBindingView
+    )
     .sort((a, b) => Number(b.active) - Number(a.active))
 
   return { bindings }

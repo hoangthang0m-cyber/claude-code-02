@@ -802,7 +802,7 @@ Mỗi task đủ nhỏ để làm trong một phiên; kèm cách verify. Làm th
 - [x] 5.3 API gắn/gỡ AdsBinding (campaign/adset/ad); verify gỡ giữ lại AdsMetric lịch sử đánh dấu ngừng cập nhật
 - [x] 5.4 Job đồng bộ Insights (mục 6.4), chu kỳ ≤ 6h khi active; verify ghi AdsMetric `source=synced` kèm `data_as_of`
 - [x] 5.5 Tổng hợp số liệu khi nhiều AdsBinding (cộng spend/messages, tính lại CPP/ROAS/CTR có trọng số); verify unit test công thức
-- [ ] 5.6 Xử lý lỗi Ads API (retry lùi dần, giữ số liệu gần nhất, chỉ báo lỗi khi fail > 24h); verify test mô phỏng rate limit + lỗi mạng
+- [x] 5.6 Xử lý lỗi Ads API (retry lùi dần, giữ số liệu gần nhất, chỉ báo lỗi khi fail > 24h); verify test mô phỏng rate limit + lỗi mạng
 - [ ] 5.7 Phát hiện ad chuyển paused/completed → cập nhật trạng thái ads hạng mục + phát sự kiện "ads đã dừng"; verify test đổi delivery_status
 - [ ] 5.8 API nhập tay AdsMetric (`source=manual`) với nhãn phân biệt; verify test thứ tự ưu tiên hiển thị synced > manual
 - [ ] 5.9 Trường `evaluation` chỉ manager ghi; verify hiển thị ở cột bảng

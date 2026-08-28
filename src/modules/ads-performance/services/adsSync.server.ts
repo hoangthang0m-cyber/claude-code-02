@@ -1,4 +1,8 @@
-import { FieldValue, Timestamp } from "firebase-admin/firestore"
+import {
+  FieldValue,
+  Timestamp,
+  type DocumentReference,
+} from "firebase-admin/firestore"
 
 import {
   COLLECTIONS,
@@ -7,6 +11,7 @@ import {
 } from "@/lib/domain"
 import { decryptSecret } from "@/lib/server/crypto"
 import { getAdminDb } from "@/lib/server/firebaseAdmin"
+import { MetaGraphError } from "@/lib/server/meta/errors"
 import {
   fetchAdObjectInsights,
   fetchDeliveryStatus,
@@ -18,8 +23,15 @@ import { aggregateMetrics } from "@/modules/ads-performance/services/metricsAggr
 // content item with an active AdsBinding and appends an AdsMetric
 // (`source=synced`). Runs hourly from Vercel Cron; the per-item cadence is
 // decided here from the project lifecycle and the last delivery status (Q5).
+//
+// Error handling (SPEC §5.4 R3, task 5.6): rate-limit / network / 5xx errors are
+// retried with exponential backoff; a persistent failure keeps the last
+// AdsMetric untouched and stamps `AdsBinding.sync_error_since` so an alert can
+// fire only after > 24h. A dead token (auth error) marks the
+// AdAccountConnection `needs_reconnect` and stops syncing that account.
 
 const HOUR = 3_600_000
+const STALE_ALERT_MS = 24 * HOUR
 
 // SPEC §6.4 / Q5: running + active → ≤ 6h; running + paused/completed → 12h
 // ("giãn ra"); done → 24h; archived → not synced at all.
@@ -39,17 +51,32 @@ export interface AdsSyncSummary {
   skipped_archived: number
   skipped_no_account: number
   object_errors: number
+  retries: number
+  accounts_disabled: number
+  bindings_erroring: number
+  bindings_stale_over_24h: number
+}
+
+export interface AdsSyncOptions {
+  /** base backoff between retries; 3 attempts total (base, 2·base, 4·base). */
+  retryBaseMs?: number
 }
 
 interface ConnLookup {
+  ref: DocumentReference | null
   token: string | null
   broken: boolean
 }
 
+const sleep = (ms: number) =>
+  new Promise((r) => setTimeout(r, Math.max(0, ms)))
+
 export async function syncDueAdsMetrics(
-  nowMs: number = Date.now()
+  nowMs: number = Date.now(),
+  options: AdsSyncOptions = {}
 ): Promise<AdsSyncSummary> {
   const db = getAdminDb()
+  const retryBaseMs = options.retryBaseMs ?? 500
 
   const summary: AdsSyncSummary = {
     items_scanned: 0,
@@ -58,6 +85,10 @@ export async function syncDueAdsMetrics(
     skipped_archived: 0,
     skipped_no_account: 0,
     object_errors: 0,
+    retries: 0,
+    accounts_disabled: 0,
+    bindings_erroring: 0,
+    bindings_stale_over_24h: 0,
   }
 
   const bindingsSnap = await db
@@ -65,13 +96,20 @@ export async function syncDueAdsMetrics(
     .where("active", "==", true)
     .get()
 
-  // group active bindings by content item
-  const byItem = new Map<string, Array<Record<string, unknown>>>()
+  // group active bindings by content item (keep the ref so we can stamp
+  // sync_error_since)
+  const byItem = new Map<
+    string,
+    Array<{ ref: DocumentReference; data: Record<string, unknown> }>
+  >()
   for (const d of bindingsSnap.docs) {
-    const b = d.data()
-    const key = String(b.content_item_id ?? "")
+    const data = d.data()
+    const key = String(data.content_item_id ?? "")
     if (!key) continue
-    ;(byItem.get(key) ?? byItem.set(key, []).get(key)!).push(b)
+    ;(byItem.get(key) ?? byItem.set(key, []).get(key)!).push({
+      ref: d.ref,
+      data,
+    })
   }
   summary.items_scanned = byItem.size
 
@@ -87,19 +125,59 @@ export async function syncDueAdsMetrics(
       .get()
     let lookup: ConnLookup
     if (snap.empty || snap.docs[0].data().state === "needs_reconnect") {
-      lookup = { token: null, broken: true }
+      lookup = { ref: null, token: null, broken: true }
     } else {
       try {
         lookup = {
-          token: decryptSecret(String(snap.docs[0].data().token_encrypted ?? "")),
+          ref: snap.docs[0].ref,
+          token: decryptSecret(
+            String(snap.docs[0].data().token_encrypted ?? "")
+          ),
           broken: false,
         }
       } catch {
-        lookup = { token: null, broken: true }
+        lookup = { ref: snap.docs[0].ref, token: null, broken: true }
       }
     }
     connCache.set(adAccountId, lookup)
     return lookup
+  }
+
+  // SPEC §5.4 R1 / §6.4: a dead token stops the whole account.
+  const disableAccount = async (adAccountId: string, conn: ConnLookup) => {
+    if (conn.ref) {
+      await conn.ref.update({ state: "needs_reconnect" })
+      summary.accounts_disabled++
+    }
+    connCache.set(adAccountId, { ref: conn.ref, token: null, broken: true })
+  }
+
+  // retry rate-limit / transient errors; give up on auth / fatal immediately.
+  const fetchObject = async (
+    objectId: string,
+    token: string
+  ): Promise<{
+    insights: AdObjectInsights
+    delivery_status: AdsDeliveryStatus
+  }> => {
+    let lastErr: unknown
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        const [insights, delivery_status] = await Promise.all([
+          fetchAdObjectInsights(objectId, token),
+          fetchDeliveryStatus(objectId, token),
+        ])
+        return { insights, delivery_status }
+      } catch (e) {
+        lastErr = e
+        if (e instanceof MetaGraphError && !e.retryable) throw e
+        if (attempt < 2) {
+          summary.retries++
+          await sleep(retryBaseMs * 2 ** attempt)
+        }
+      }
+    }
+    throw lastErr
   }
 
   for (const [contentItemId, bindings] of byItem) {
@@ -114,7 +192,8 @@ export async function syncDueAdsMetrics(
       .collection(COLLECTIONS.projects)
       .doc(projectId)
       .get()
-    const lifecycle = (projSnap.data()?.lifecycle as ProjectLifecycle) ?? "running"
+    const lifecycle =
+      (projSnap.data()?.lifecycle as ProjectLifecycle) ?? "running"
     if (lifecycle === "archived") {
       summary.skipped_archived++
       continue
@@ -129,7 +208,7 @@ export async function syncDueAdsMetrics(
     let lastStatus: AdsDeliveryStatus | null = null
     for (const m of metricsSnap.docs) {
       const md = m.data()
-      const cap = (md.captured_at as { toMillis?: () => number } | undefined)
+      const cap = md.captured_at as { toMillis?: () => number } | undefined
       const capMs = typeof cap?.toMillis === "function" ? cap.toMillis() : 0
       if (md.source === "synced" && capMs > lastCapturedMs) {
         lastCapturedMs = capMs
@@ -150,17 +229,31 @@ export async function syncDueAdsMetrics(
       delivery_status: AdsDeliveryStatus
     }> = []
     for (const b of bindings) {
-      const conn = await resolveConn(String(b.ad_account_id ?? ""))
+      const adAccountId = String(b.data.ad_account_id ?? "")
+      const conn = await resolveConn(adAccountId)
       if (conn.broken || !conn.token) continue
-      const objectId = String(b.object_id ?? "")
+
+      const objectId = String(b.data.object_id ?? "")
       try {
-        const [insights, delivery_status] = await Promise.all([
-          fetchAdObjectInsights(objectId, conn.token),
-          fetchDeliveryStatus(objectId, conn.token),
-        ])
-        parts.push({ insights, delivery_status })
-      } catch {
+        parts.push(await fetchObject(objectId, conn.token))
+        // recovered — clear any error marker (SPEC §5.4 R3)
+        if (b.data.sync_error_since) {
+          await b.ref.update({ sync_error_since: null })
+        }
+      } catch (e) {
+        if (e instanceof MetaGraphError && e.kind === "auth") {
+          await disableAccount(adAccountId, conn)
+          continue
+        }
+        // SPEC §5.4 R3: keep the last data, remember since when it's failing.
         summary.object_errors++
+        summary.bindings_erroring++
+        const since = tsMs(b.data.sync_error_since)
+        if (since == null) {
+          await b.ref.update({ sync_error_since: Timestamp.fromMillis(nowMs) })
+        } else if (nowMs - since > STALE_ALERT_MS) {
+          summary.bindings_stale_over_24h++
+        }
       }
     }
 
@@ -189,4 +282,9 @@ export async function syncDueAdsMetrics(
   }
 
   return summary
+}
+
+function tsMs(value: unknown): number | null {
+  const t = value as { toMillis?: () => number } | undefined
+  return typeof t?.toMillis === "function" ? t.toMillis() : null
 }

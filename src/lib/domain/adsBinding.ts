@@ -22,6 +22,9 @@ export interface AdsBinding {
   active: boolean
   created_at: Timestamp
   unbound_at?: Timestamp | null
+  // SPEC §5.4 R3: set when Insights fetches for this object have been failing;
+  // cleared on the next success. Used to raise an alert only after > 24h.
+  sync_error_since?: Timestamp | null
 }
 
 // Bind request (SPEC §5.4 R2). `content_item_id` comes from the URL.
@@ -41,6 +44,7 @@ export interface AdsBindingView {
   object_id: string
   active: boolean
   unbound_at: number | null
+  sync_error_since: number | null
 }
 
 export function adsBindingDocId(

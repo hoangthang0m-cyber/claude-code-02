@@ -82,13 +82,22 @@ describe("fetchAdObjectInsights (SPEC §5.4 R3, Q1)", () => {
     expect(r).toMatchObject({ spend: 0, messages: 0, purchases: 0, roas: 0 })
   })
 
-  it("throws 502 on a Meta error", async () => {
+  it("throws a classified MetaGraphError on a Meta error", async () => {
     const fetchImpl = vi.fn(async () =>
-      jsonRes({ error: { message: "bad" } }, false, 400)
+      jsonRes({ error: { code: 190, type: "OAuthException", message: "bad" } }, false, 400)
     )
     await expect(
       fetchAdObjectInsights("x", "t", fetchImpl as never)
-    ).rejects.toMatchObject({ status: 502 })
+    ).rejects.toMatchObject({ name: "MetaGraphError", kind: "auth" })
+  })
+
+  it("classifies a rate-limit error as retryable", async () => {
+    const fetchImpl = vi.fn(async () =>
+      jsonRes({ error: { code: 4, message: "limit" } }, false, 400)
+    )
+    await expect(
+      fetchAdObjectInsights("x", "t", fetchImpl as never)
+    ).rejects.toMatchObject({ kind: "rate_limit", retryable: true })
   })
 })
 

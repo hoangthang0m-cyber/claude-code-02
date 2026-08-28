@@ -1,5 +1,8 @@
 import type { AdsDeliveryStatus } from "@/lib/domain"
-import { HttpError } from "@/lib/server/http"
+import {
+  classifyMetaError,
+  metaNetworkError,
+} from "@/lib/server/meta/errors"
 import { META_GRAPH_VERSION } from "@/lib/server/meta/graph"
 
 // Meta Insights + delivery status for one ad object (SPEC §5.4 R3, §6.4). Q1
@@ -57,16 +60,17 @@ async function graphGet(
   try {
     res = await fetchImpl(url, { cache: "no-store" })
   } catch {
-    throw new HttpError(502, `Không gọi được Meta (${context})`)
+    throw metaNetworkError(context)
   }
   const json = (await res.json().catch(() => null)) as Record<
     string,
     unknown
   > | null
-  if (!json) throw new HttpError(502, `Meta trả về không hợp lệ (${context})`)
-  if (json.error) {
-    const e = json.error as { message?: string }
-    throw new HttpError(502, `Meta lỗi (${context}): ${e.message ?? "unknown"}`)
+  if (!res.ok || (json && json.error)) {
+    throw classifyMetaError(json, res.status, context)
+  }
+  if (!json) {
+    throw classifyMetaError(null, res.status || 502, context)
   }
   return json
 }

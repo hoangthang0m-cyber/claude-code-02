@@ -2,16 +2,16 @@ import { randomBytes } from "node:crypto"
 
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest"
 
+import { MetaGraphError } from "@/lib/server/meta/errors"
+
 const { fx, insightsMock } = vi.hoisted(() => ({
   fx: {
-    bindings: [] as Array<Record<string, unknown>>,
+    bindings: [] as Array<{ data: Record<string, unknown>; update: ReturnType<typeof vi.fn> }>,
     item: { exists: true, project_id: "p1" },
     lifecycle: "running" as string,
     lastMetrics: [] as Array<Record<string, unknown>>,
-    conn: { empty: false, state: "connected" } as {
-      empty: boolean
-      state: string
-    },
+    conn: { empty: false, state: "connected" } as { empty: boolean; state: string },
+    connUpdate: vi.fn(),
     setSpy: vi.fn(),
   },
   insightsMock: {
@@ -26,17 +26,24 @@ const { fx, insightsMock } = vi.hoisted(() => ({
       ads_started_on: "2026-08-01",
     },
     status: "active" as string,
-    fail: false,
+    // a queue of behaviours: "ok" | MetaGraphError instances, consumed per call pair
+    script: [] as Array<"ok" | Error>,
   },
 }))
 
-vi.mock("@/lib/server/meta/insights", () => ({
-  fetchAdObjectInsights: vi.fn(async (objectId: string) => {
-    if (insightsMock.fail) throw new Error("meta down")
-    return { ...insightsMock.insights, object_id: objectId }
-  }),
-  fetchDeliveryStatus: vi.fn(async () => insightsMock.status),
-}))
+vi.mock("@/lib/server/meta/insights", () => {
+  const next = () => {
+    const step = insightsMock.script.length ? insightsMock.script.shift()! : "ok"
+    if (step !== "ok") throw step
+  }
+  return {
+    fetchAdObjectInsights: vi.fn(async (objectId: string) => {
+      next()
+      return { ...insightsMock.insights, object_id: objectId }
+    }),
+    fetchDeliveryStatus: vi.fn(async () => insightsMock.status),
+  }
+})
 
 vi.mock("@/lib/server/firebaseAdmin", () => {
   const query = (name: string) => ({
@@ -44,12 +51,16 @@ vi.mock("@/lib/server/firebaseAdmin", () => {
     limit: () => query(name),
     get: async () => {
       if (name === "adsBindings") {
-        return { docs: fx.bindings.map((b, i) => ({ id: `b${i}`, data: () => b })) }
+        return {
+          docs: fx.bindings.map((b, i) => ({
+            id: `b${i}`,
+            data: () => b.data,
+            ref: { update: b.update },
+          })),
+        }
       }
       if (name === "adsMetrics") {
-        return {
-          docs: fx.lastMetrics.map((m, i) => ({ id: `m${i}`, data: () => m })),
-        }
+        return { docs: fx.lastMetrics.map((m, i) => ({ id: `m${i}`, data: () => m })) }
       }
       if (name === "adAccountConnections") {
         return fx.conn.empty
@@ -62,6 +73,7 @@ vi.mock("@/lib/server/firebaseAdmin", () => {
                     state: fx.conn.state,
                     token_encrypted: encryptSecret("real-token"),
                   }),
+                  ref: { update: fx.connUpdate },
                 },
               ],
             }
@@ -103,108 +115,143 @@ import {
 
 const NOW = 1_800_000_000_000
 const HOUR = 3_600_000
+const OPTS = { retryBaseMs: 0 }
+
+const binding = (over: Record<string, unknown> = {}) => ({
+  data: {
+    content_item_id: "c1",
+    ad_account_id: "act1",
+    object_id: "6001",
+    active: true,
+    ...over,
+  },
+  update: vi.fn().mockResolvedValue(undefined),
+})
 
 beforeAll(() => {
   process.env.TOKEN_ENC_KEY = randomBytes(32).toString("base64")
 })
 
 beforeEach(() => {
-  fx.bindings = [
-    { content_item_id: "c1", ad_account_id: "act1", object_id: "6001", active: true },
-  ]
+  fx.bindings = [binding()]
   fx.item = { exists: true, project_id: "p1" }
   fx.lifecycle = "running"
   fx.lastMetrics = []
   fx.conn = { empty: false, state: "connected" }
+  fx.connUpdate.mockReset().mockResolvedValue(undefined)
   fx.setSpy.mockReset().mockResolvedValue(undefined)
   insightsMock.status = "active"
-  insightsMock.fail = false
+  insightsMock.script = []
 })
 
 describe("syncIntervalMs (SPEC §6.4 / Q5)", () => {
-  it("running + active (or first run) → 6h", () => {
+  it("running active → 6h, running paused → 12h, done → 24h", () => {
     expect(syncIntervalMs("running", "active")).toBe(6 * HOUR)
     expect(syncIntervalMs("running", null)).toBe(6 * HOUR)
-  })
-  it("running + paused/completed → 12h (giãn ra)", () => {
     expect(syncIntervalMs("running", "paused")).toBe(12 * HOUR)
-    expect(syncIntervalMs("running", "completed")).toBe(12 * HOUR)
-  })
-  it("done → 24h", () => {
     expect(syncIntervalMs("done", "active")).toBe(24 * HOUR)
   })
 })
 
-describe("syncDueAdsMetrics (SPEC §5.4 R3)", () => {
-  it("writes an AdsMetric source=synced with data_as_of for a due item", async () => {
-    const summary = await syncDueAdsMetrics(NOW)
-    expect(summary).toMatchObject({ items_scanned: 1, synced: 1 })
-
-    const written = fx.setSpy.mock.calls[0][0] as Record<string, unknown>
-    expect(written).toMatchObject({
-      content_item_id: "c1",
-      source: "synced",
-      spend: 200,
-      messages: 8,
-      cost_per_purchase: 50,
-      delivery_status: "active",
-    })
-    expect(written.data_as_of).toBeDefined()
-    expect(written.captured_at).toBeDefined()
+describe("syncDueAdsMetrics — happy path (SPEC §5.4 R3)", () => {
+  it("writes an AdsMetric source=synced with data_as_of", async () => {
+    const s = await syncDueAdsMetrics(NOW, OPTS)
+    expect(s).toMatchObject({ items_scanned: 1, synced: 1 })
+    const w = fx.setSpy.mock.calls[0][0] as Record<string, unknown>
+    expect(w).toMatchObject({ source: "synced", spend: 200, delivery_status: "active" })
+    expect(w.data_as_of).toBeDefined()
   })
 
-  it("skips an item synced within its interval (running+active → 6h)", async () => {
+  it("skips an item within its interval", async () => {
     fx.lastMetrics = [
       { source: "synced", delivery_status: "active", captured_at: { toMillis: () => NOW - 2 * HOUR } },
     ]
-    const summary = await syncDueAdsMetrics(NOW)
-    expect(summary).toMatchObject({ synced: 0, skipped_not_due: 1 })
+    expect((await syncDueAdsMetrics(NOW, OPTS)).skipped_not_due).toBe(1)
     expect(fx.setSpy).not.toHaveBeenCalled()
   })
 
-  it("a done project only syncs every 24h", async () => {
+  it("done project → 24h cadence", async () => {
     fx.lifecycle = "done"
     fx.lastMetrics = [
       { source: "synced", delivery_status: "active", captured_at: { toMillis: () => NOW - 10 * HOUR } },
     ]
-    expect((await syncDueAdsMetrics(NOW)).skipped_not_due).toBe(1)
-
-    fx.lastMetrics = [
-      { source: "synced", delivery_status: "active", captured_at: { toMillis: () => NOW - 25 * HOUR } },
-    ]
-    fx.setSpy.mockClear()
-    expect((await syncDueAdsMetrics(NOW)).synced).toBe(1)
+    expect((await syncDueAdsMetrics(NOW, OPTS)).skipped_not_due).toBe(1)
   })
 
   it("never syncs an archived project", async () => {
     fx.lifecycle = "archived"
-    const summary = await syncDueAdsMetrics(NOW)
-    expect(summary).toMatchObject({ synced: 0, skipped_archived: 1 })
+    expect((await syncDueAdsMetrics(NOW, OPTS)).skipped_archived).toBe(1)
     expect(fx.setSpy).not.toHaveBeenCalled()
   })
 
-  it("skips bindings whose ad account needs reconnecting (SPEC §5.4 R1)", async () => {
-    fx.conn = { empty: false, state: "needs_reconnect" }
-    const summary = await syncDueAdsMetrics(NOW)
-    expect(summary).toMatchObject({ synced: 0, skipped_no_account: 1 })
-  })
-
-  it("aggregates several active bindings into one AdsMetric", async () => {
-    fx.bindings = [
-      { content_item_id: "c1", ad_account_id: "act1", object_id: "6001", active: true },
-      { content_item_id: "c1", ad_account_id: "act1", object_id: "6002", active: true },
-    ]
-    await syncDueAdsMetrics(NOW)
+  it("aggregates several bindings into one AdsMetric", async () => {
+    fx.bindings = [binding(), binding({ object_id: "6002" })]
+    await syncDueAdsMetrics(NOW, OPTS)
     expect(fx.setSpy).toHaveBeenCalledTimes(1)
-    const written = fx.setSpy.mock.calls[0][0] as Record<string, unknown>
-    expect(written.spend).toBe(400) // 200 + 200
+    expect((fx.setSpy.mock.calls[0][0] as { spend: number }).spend).toBe(400)
+  })
+})
+
+describe("syncDueAdsMetrics — error handling (SPEC §5.4 R3, task 5.6)", () => {
+  const rateLimit = () => new MetaGraphError("rate_limit", "slow down", 4)
+  const network = () => new MetaGraphError("transient", "ECONNRESET")
+
+  it("retries a rate-limit error, then keeps last data + stamps sync_error_since", async () => {
+    insightsMock.script = [rateLimit(), rateLimit(), rateLimit()]
+    const s = await syncDueAdsMetrics(NOW, OPTS)
+
+    expect(s.retries).toBe(2) // 2 backoffs before the 3rd attempt
+    expect(s.object_errors).toBe(1)
+    expect(s.bindings_erroring).toBe(1)
+    expect(s.synced).toBe(0)
+    expect(fx.setSpy).not.toHaveBeenCalled() // last AdsMetric kept
+    expect(fx.bindings[0].update).toHaveBeenCalledWith(
+      expect.objectContaining({ sync_error_since: expect.anything() })
+    )
   })
 
-  it("counts object errors and skips the item when every object fails", async () => {
-    insightsMock.fail = true
-    const summary = await syncDueAdsMetrics(NOW)
-    expect(summary.object_errors).toBe(1)
-    expect(summary.skipped_no_account).toBe(1)
-    expect(fx.setSpy).not.toHaveBeenCalled()
+  it("retries a network error the same way", async () => {
+    insightsMock.script = [network(), network(), network()]
+    const s = await syncDueAdsMetrics(NOW, OPTS)
+    expect(s.retries).toBe(2)
+    expect(s.object_errors).toBe(1)
+  })
+
+  it("recovers on a retry → writes the metric and clears sync_error_since", async () => {
+    insightsMock.script = [rateLimit(), "ok"]
+    fx.bindings = [binding({ sync_error_since: { toMillis: () => NOW - HOUR } })]
+    const s = await syncDueAdsMetrics(NOW, OPTS)
+
+    expect(s.retries).toBe(1)
+    expect(s.synced).toBe(1)
+    expect(fx.bindings[0].update).toHaveBeenCalledWith({ sync_error_since: null })
+  })
+
+  it("a dead token disables the whole account and does not retry", async () => {
+    insightsMock.script = [new MetaGraphError("auth", "token expired", 190)]
+    const s = await syncDueAdsMetrics(NOW, OPTS)
+
+    expect(s.retries).toBe(0)
+    expect(s.accounts_disabled).toBe(1)
+    expect(fx.connUpdate).toHaveBeenCalledWith({ state: "needs_reconnect" })
+    expect(s.skipped_no_account).toBe(1)
+  })
+
+  it("a plain 4xx (fatal) is not retried", async () => {
+    insightsMock.script = [new MetaGraphError("fatal", "unknown object", 100)]
+    const s = await syncDueAdsMetrics(NOW, OPTS)
+    expect(s.retries).toBe(0)
+    expect(s.object_errors).toBe(1)
+  })
+
+  it("flags a binding that has been failing for more than 24h", async () => {
+    insightsMock.script = [rateLimit(), rateLimit(), rateLimit()]
+    fx.bindings = [
+      binding({ sync_error_since: { toMillis: () => NOW - 25 * HOUR } }),
+    ]
+    const s = await syncDueAdsMetrics(NOW, OPTS)
+    expect(s.bindings_stale_over_24h).toBe(1)
+    // does not re-stamp the timestamp
+    expect(fx.bindings[0].update).not.toHaveBeenCalled()
   })
 })

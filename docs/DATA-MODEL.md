@@ -74,8 +74,11 @@ Access:
   form of each side's value, for the log (§5.5 R3).
 - `Notification` uses `recipient_id` (per §6.1). The pre-existing, unused
   `notifications` rule keyed on `userId` has been replaced.
-- `AdsBinding` carries two fields beyond the §6.1 sketch: `active` (bool) and
-  `unbound_at` (nullable Timestamp). Unbinding (task 5.3) is a soft delete —
+- `AdsBinding` carries three fields beyond the §6.1 sketch: `active` (bool),
+  `unbound_at` (nullable Timestamp), and `sync_error_since` (nullable Timestamp —
+  set by the sync job when Insights fetches for this object keep failing, cleared
+  on the next success; an alert fires only after > 24h, SPEC §5.4 R3). Unbinding
+  (task 5.3) is a soft delete —
   `active` → false, `unbound_at` stamped — so the sync job skips it (SPEC §5.4
   R2: "dừng đồng bộ phần đó") while the row and its append-only `AdsMetric`
   history stay ("giữ số liệu lịch sử, đánh dấu đã ngừng cập nhật"). Doc id is
