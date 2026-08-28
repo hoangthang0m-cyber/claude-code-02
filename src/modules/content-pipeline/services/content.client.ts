@@ -66,3 +66,11 @@ export function assignContent(
     { method: "PUT", body: JSON.stringify({ assignee_id }) }
   )
 }
+
+// SPEC §5.4 R5: manager-only "đánh giá / đề xuất" note.
+export function setEvaluation(contentItemId: string, evaluation: string | null) {
+  return authedJson<{ id: string }>(
+    `/api/content/${contentItemId}/evaluation`,
+    { method: "PATCH", body: JSON.stringify({ evaluation }) }
+  )
+}

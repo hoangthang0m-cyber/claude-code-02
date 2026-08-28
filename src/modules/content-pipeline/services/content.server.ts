@@ -7,6 +7,7 @@ import {
   contentFieldUpdateSchema,
   contentItemCreateSchema,
   contentListFiltersSchema,
+  evaluationUpdateSchema,
   isOverdue,
   projectMemberDocId,
   type ContentListFilters,
@@ -14,6 +15,7 @@ import {
 } from "@/lib/domain"
 import {
   assertProjectWritable,
+  requireProjectManager,
   requireProjectScope,
 } from "@/lib/permissions/projectScope"
 import type { AuthedUser } from "@/lib/server/auth"
@@ -95,6 +97,31 @@ export async function updateContentItemFields(
   }
 
   await ref.update(patch)
+  return { id: contentItemId }
+}
+
+// SPEC §5.4 R5: the "đánh giá / đề xuất" note is manager-only, and the write
+// records who wrote it and when (`evaluation_by` / `evaluation_updated_at`,
+// beyond the §6.1 sketch — same reason `updated_by` was added).
+export async function setEvaluation(
+  actor: AuthedUser,
+  contentItemId: string,
+  body: unknown
+): Promise<{ id: string }> {
+  const { ref, data } = await loadContentItem(contentItemId)
+  const scope = await requireProjectScope(actor.uid, data.project_id)
+  requireProjectManager(scope)
+  await assertProjectWritable(data.project_id)
+
+  const { evaluation } = parseOrThrow(evaluationUpdateSchema, body)
+
+  await ref.update({
+    evaluation,
+    evaluation_by: actor.uid,
+    evaluation_updated_at: FieldValue.serverTimestamp(),
+    updated_at: FieldValue.serverTimestamp(),
+    updated_by: actor.uid,
+  })
   return { id: contentItemId }
 }
 

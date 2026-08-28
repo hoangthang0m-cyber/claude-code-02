@@ -53,7 +53,10 @@ vi.mock("@/lib/server/firebaseAdmin", () => {
 })
 
 import type { AuthedUser } from "@/lib/server/auth"
-import { updateContentItemFields } from "@/modules/content-pipeline/services/content.server"
+import {
+  setEvaluation,
+  updateContentItemFields,
+} from "@/modules/content-pipeline/services/content.server"
 
 const actor: AuthedUser = { uid: "u1", email: null, system_role: "staff" }
 
@@ -136,5 +139,59 @@ describe("updateContentItemFields (SPEC §5.2 R1)", () => {
     await expect(
       updateContentItemFields(actor, "c1", { code: "V002" })
     ).resolves.toEqual({ id: "c1" })
+  })
+})
+
+describe("setEvaluation (SPEC §5.4 R5)", () => {
+  beforeEach(() => {
+    fx.actorRole = "manager"
+  })
+
+  it("403 for a non-manager (staff)", async () => {
+    fx.actorRole = "staff"
+    await expect(
+      setEvaluation(actor, "c1", { evaluation: "duy trì" })
+    ).rejects.toMatchObject({ status: 403 })
+  })
+
+  it("403 for a non-member", async () => {
+    fx.actorRole = null
+    await expect(
+      setEvaluation(actor, "c1", { evaluation: "x" })
+    ).rejects.toMatchObject({ status: 403 })
+  })
+
+  it("409 when the project is archived", async () => {
+    fx.projectLifecycle = "archived"
+    await expect(
+      setEvaluation(actor, "c1", { evaluation: "x" })
+    ).rejects.toMatchObject({ status: 409 })
+  })
+
+  it("saves the note with who wrote it and when (§5.4 R5)", async () => {
+    await setEvaluation(actor, "c1", {
+      evaluation: "  Duy trì, tăng ngân sách 20%  ",
+    })
+    const [patch] = fx.updateSpy.mock.calls[0]
+    expect(patch.evaluation).toBe("Duy trì, tăng ngân sách 20%")
+    expect(patch.evaluation_by).toBe("u1")
+    expect(patch.evaluation_updated_at).toBeDefined()
+    expect(patch.updated_by).toBe("u1")
+  })
+
+  it("clears the note when given an empty string", async () => {
+    await setEvaluation(actor, "c1", { evaluation: "" })
+    expect(fx.updateSpy.mock.calls[0][0].evaluation).toBeNull()
+  })
+
+  it("clears the note when given null", async () => {
+    await setEvaluation(actor, "c1", { evaluation: null })
+    expect(fx.updateSpy.mock.calls[0][0].evaluation).toBeNull()
+  })
+
+  it("400 when the note exceeds the length cap", async () => {
+    await expect(
+      setEvaluation(actor, "c1", { evaluation: "x".repeat(4001) })
+    ).rejects.toMatchObject({ status: 400 })
   })
 })

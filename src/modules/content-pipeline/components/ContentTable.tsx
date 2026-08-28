@@ -51,9 +51,12 @@ const COLUMNS = [
 export function ContentTable({
   projectId,
   editable,
+  canEvaluate,
 }: {
   projectId: string
   editable: boolean
+  /** SPEC §5.4 R5: only a project manager writes the evaluation note. */
+  canEvaluate: boolean
 }) {
   const [view, setView] = React.useState<"table" | "board">("table")
   const [assignee, setAssignee] = React.useState<string>("all")
@@ -206,6 +209,7 @@ export function ContentTable({
                     item={item}
                     members={memberOptions}
                     editable={editable}
+                    canEvaluate={canEvaluate}
                     onChanged={refresh}
                   />
                 ))

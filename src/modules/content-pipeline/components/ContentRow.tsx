@@ -10,6 +10,7 @@ import {
 } from "@/lib/domain"
 import {
   assignContent,
+  setEvaluation,
   updateContentFields,
   type ContentListRow,
 } from "@/modules/content-pipeline/services/content.client"
@@ -45,11 +46,14 @@ export function ContentRow({
   item,
   members,
   editable,
+  canEvaluate,
   onChanged,
 }: {
   item: ContentListRow
   members: Member[]
   editable: boolean
+  /** SPEC §5.4 R5: the evaluation note is manager-only. */
+  canEvaluate: boolean
   onChanged: () => void
 }) {
   async function patch(field: keyof ContentFieldUpdate, value: string | null) {
@@ -58,6 +62,15 @@ export function ContentRow({
       onChanged()
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Không lưu được")
+    }
+  }
+
+  async function saveEvaluation(value: string | null) {
+    try {
+      await setEvaluation(item.id, value)
+      onChanged()
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Không lưu được đánh giá")
     }
   }
 
@@ -185,10 +198,13 @@ export function ContentRow({
         Chưa có dữ liệu ads
       </TableCell>
 
-      {/* Evaluation — manager-only write (SPEC §5.4 R5 / task 5.9), read-only here */}
-      <TableCell className="min-w-40 text-xs whitespace-normal text-muted-foreground">
-        {(item.evaluation as string) || "—"}
-      </TableCell>
+      {/* Evaluation — manager-only free-text note (SPEC §5.4 R5) */}
+      <TextCell
+        value={item.evaluation as string | undefined}
+        editable={canEvaluate}
+        placeholder="Đánh giá / đề xuất"
+        onSave={saveEvaluation}
+      />
     </TableRow>
   )
 }
@@ -196,10 +212,12 @@ export function ContentRow({
 function TextCell({
   value,
   editable,
+  placeholder,
   onSave,
 }: {
   value?: string
   editable: boolean
+  placeholder?: string
   onSave: (v: string | null) => void
 }) {
   const [v, setV] = React.useState(value ?? "")
@@ -208,6 +226,7 @@ function TextCell({
       <Input
         className="h-7"
         disabled={!editable}
+        placeholder={placeholder}
         value={v}
         onChange={(e) => setV(e.target.value)}
         onBlur={() => {

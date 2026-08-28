@@ -60,6 +60,19 @@ export const contentFieldUpdateSchema = z.object({
 
 export type ContentFieldUpdate = z.infer<typeof contentFieldUpdateSchema>
 
+// SPEC §5.4 R5: the free-text "đánh giá / đề xuất" note. Manager-only; the
+// handler also stamps `evaluation_by` + `evaluation_updated_at`. Empty → null.
+export const evaluationUpdateSchema = z.object({
+  evaluation: z
+    .string()
+    .trim()
+    .max(4000)
+    .nullable()
+    .transform((v) => v || null),
+})
+
+export type EvaluationUpdate = z.infer<typeof evaluationUpdateSchema>
+
 // Assign / claim / unassign (SPEC §5.2 R2). `null` = unassign (manager only).
 export const assigneeUpdateSchema = z.object({
   assignee_id: idString.nullable(),

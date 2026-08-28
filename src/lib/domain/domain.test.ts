@@ -8,6 +8,7 @@ import {
   commentCreateSchema,
   contentItemCreateSchema,
   contentFieldUpdateSchema,
+  evaluationUpdateSchema,
   contentListFiltersSchema,
   isBackgroundSyncActive,
   isOverdue,
@@ -244,6 +245,26 @@ describe("contentFieldUpdateSchema (SPEC §5.2 R1)", () => {
     )
   })
 
+})
+
+describe("evaluationUpdateSchema (SPEC §5.4 R5)", () => {
+  it("trims text and turns empty into null", () => {
+    expect(evaluationUpdateSchema.parse({ evaluation: "  duy trì  " })).toEqual({
+      evaluation: "duy trì",
+    })
+    expect(evaluationUpdateSchema.parse({ evaluation: "" })).toEqual({
+      evaluation: null,
+    })
+    expect(evaluationUpdateSchema.parse({ evaluation: null })).toEqual({
+      evaluation: null,
+    })
+  })
+
+  it("rejects an over-long note", () => {
+    expect(
+      evaluationUpdateSchema.safeParse({ evaluation: "x".repeat(4001) }).success
+    ).toBe(false)
+  })
 })
 
 describe("isOverdue (SPEC §3 / §6.7: deadline < now() AND status != da_len_ads)", () => {

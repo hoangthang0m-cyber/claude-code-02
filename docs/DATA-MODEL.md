@@ -68,6 +68,10 @@ Access:
   docs); §6.1 writes it as `User[]`.
 - `Project` carries `created_at` / `updated_at` (the ContentItem convention in
   §6.1); the sketch omits them for Project.
+- `ContentItem.evaluation` (SPEC §5.4 R5) is manager-only, set via its own
+  endpoint `PATCH /api/content/[id]/evaluation`; the write also stamps
+  `evaluation_by` + `evaluation_updated_at` (§6.1 sketches only `evaluation`, but
+  R5 requires "kèm thời điểm + người ghi" — same reason `updated_by` was added).
 - `AdAccountConnection.project_owner_id` is read as the **user id of the manager
   who ran the Meta OAuth** (SPEC §5.4 R1, §6.4).
 - `SyncConflict.system_value` / `sheet_value` store the **serialised string**

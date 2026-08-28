@@ -99,6 +99,7 @@ export function ProjectWorkspace({ projectId }: { projectId: string }) {
       <ContentTable
         projectId={projectId}
         editable={isProjectWritable(project.lifecycle)}
+        canEvaluate={canEdit}
       />
 
       <ProjectMembersPanel projectId={projectId} canManage={canEdit} />
