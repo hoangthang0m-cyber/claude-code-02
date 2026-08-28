@@ -136,6 +136,26 @@ describe("listContentItems (SPEC §5.2 R4)", () => {
     expect(items.map((i) => i.code)).toEqual(["V3"])
   })
 
+  it("is_overdue recomputes when the deadline moves (§5.3 R6, task 4.8)", async () => {
+    const overdueItem = fx.docs[0] as { deadline: unknown }
+    expect(
+      (await listContentItems(actor, "p1", {})).items.find((i) => i.code === "V0")
+        ?.is_overdue
+    ).toBe(true)
+
+    // push the deadline a week out — nothing else changes
+    overdueItem.deadline = ts(now + 7 * 86_400_000)
+    expect(
+      (await listContentItems(actor, "p1", {})).items.find((i) => i.code === "V0")
+        ?.is_overdue
+    ).toBe(false)
+    expect(
+      (await listContentItems(actor, "p1", { overdue: "true" })).items.map(
+        (i) => i.code
+      )
+    ).toEqual([])
+  })
+
   it("sorts by deadline ascending, no-deadline last", async () => {
     const { items } = await listContentItems(actor, "p1", { sort: "deadline" })
     expect(items.map((i) => i.code)).toEqual(["V1", "V0", "V2", "V3"])

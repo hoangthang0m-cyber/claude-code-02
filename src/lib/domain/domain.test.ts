@@ -246,24 +246,42 @@ describe("contentFieldUpdateSchema (SPEC §5.2 R1)", () => {
 
 })
 
-describe("isOverdue (SPEC §3 / §6.7)", () => {
+describe("isOverdue (SPEC §3 / §6.7: deadline < now() AND status != da_len_ads)", () => {
   const now = 1_000_000
 
-  it("past deadline + not da_len_ads → overdue", () => {
+  it("quá hạn: past deadline + not da_len_ads → overdue", () => {
     expect(isOverdue(now - 1, "quay_dung", now)).toBe(true)
+    expect(isOverdue(now - 86_400_000, "chua_bat_dau", now)).toBe(true)
   })
 
-  it("past deadline but da_len_ads → not overdue", () => {
-    expect(isOverdue(now - 1, "da_len_ads", now)).toBe(false)
+  it("đúng hạn: deadline exactly == now → not overdue (strict <)", () => {
+    expect(isOverdue(now, "quay_dung", now)).toBe(false)
   })
 
-  it("future deadline → not overdue", () => {
+  it("chưa tới hạn: future deadline → not overdue", () => {
     expect(isOverdue(now + 1, "quay_dung", now)).toBe(false)
   })
 
-  it("no deadline → not overdue", () => {
+  it("đã lên ads: past deadline but da_len_ads → not overdue", () => {
+    expect(isOverdue(now - 1, "da_len_ads", now)).toBe(false)
+    expect(isOverdue(now - 999_999, "da_len_ads", now)).toBe(false)
+  })
+
+  it("no deadline → not overdue at any status", () => {
     expect(isOverdue(null, "quay_dung", now)).toBe(false)
     expect(isOverdue(undefined, "chua_bat_dau", now)).toBe(false)
+  })
+
+  it("đổi deadline: recomputing with a future deadline clears the flag", () => {
+    // same item, same status — only the deadline moved
+    expect(isOverdue(now - 1, "cho_duyet_video", now)).toBe(true)
+    expect(isOverdue(now + 7 * 86_400_000, "cho_duyet_video", now)).toBe(false)
+  })
+
+  it("is purely a function of its inputs — nothing is stored", () => {
+    // the same deadline is overdue relative to a later 'now' and not to an earlier one
+    expect(isOverdue(500, "quay_dung", 400)).toBe(false)
+    expect(isOverdue(500, "quay_dung", 600)).toBe(true)
   })
 })
 
