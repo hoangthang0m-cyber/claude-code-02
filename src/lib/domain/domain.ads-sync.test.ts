@@ -5,7 +5,7 @@ import {
   NOTIFICATION_TYPE_GROUP,
   NOTIFICATION_TYPES,
   adAccountConnectionWriteSchema,
-  adsBindingWriteSchema,
+  adsBindingCreateSchema,
   adsMetricWriteSchema,
   notificationPreferenceWriteSchema,
   notificationWriteSchema,
@@ -62,11 +62,10 @@ describe("adAccountConnectionWriteSchema (SPEC §5.4 R1)", () => {
   })
 })
 
-describe("adsBindingWriteSchema (SPEC §5.4 R2)", () => {
-  it("accepts a campaign/adset/ad binding", () => {
+describe("adsBindingCreateSchema (SPEC §5.4 R2)", () => {
+  it("accepts a campaign/adset/ad binding (content_item_id comes from the URL)", () => {
     expect(
-      adsBindingWriteSchema.safeParse({
-        content_item_id: "c1",
+      adsBindingCreateSchema.safeParse({
         ad_account_id: "act_1",
         object_level: "ad",
         object_id: "6123",
@@ -76,8 +75,7 @@ describe("adsBindingWriteSchema (SPEC §5.4 R2)", () => {
 
   it("rejects an object_level outside the enum", () => {
     expect(
-      adsBindingWriteSchema.safeParse({
-        content_item_id: "c1",
+      adsBindingCreateSchema.safeParse({
         ad_account_id: "act_1",
         object_level: "post",
         object_id: "6123",

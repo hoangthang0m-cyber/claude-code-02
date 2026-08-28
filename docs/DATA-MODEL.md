@@ -74,8 +74,13 @@ Access:
   form of each side's value, for the log (§5.5 R3).
 - `Notification` uses `recipient_id` (per §6.1). The pre-existing, unused
   `notifications` rule keyed on `userId` has been replaced.
-- `AdsBinding` per §6.1 has no soft-delete field yet; the "stopped updating"
-  state after an unlink (§5.4 R2) is added in task 5.3.
+- `AdsBinding` carries two fields beyond the §6.1 sketch: `active` (bool) and
+  `unbound_at` (nullable Timestamp). Unbinding (task 5.3) is a soft delete —
+  `active` → false, `unbound_at` stamped — so the sync job skips it (SPEC §5.4
+  R2: "dừng đồng bộ phần đó") while the row and its append-only `AdsMetric`
+  history stay ("giữ số liệu lịch sử, đánh dấu đã ngừng cập nhật"). Doc id is
+  `${content_item_id}__${object_id}` so re-binding the same object reactivates
+  the existing row.
 
 ## Transitional note
 
