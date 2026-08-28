@@ -12,7 +12,9 @@ const { fx, insightsMock } = vi.hoisted(() => ({
     lastMetrics: [] as Array<Record<string, unknown>>,
     conn: { empty: false, state: "connected" } as { empty: boolean; state: string },
     connUpdate: vi.fn(),
-    setSpy: vi.fn(),
+    managerUids: ["u-mgr"] as string[],
+    batchSet: vi.fn(),
+    batchCommit: vi.fn(),
   },
   insightsMock: {
     insights: {
@@ -62,6 +64,9 @@ vi.mock("@/lib/server/firebaseAdmin", () => {
       if (name === "adsMetrics") {
         return { docs: fx.lastMetrics.map((m, i) => ({ id: `m${i}`, data: () => m })) }
       }
+      if (name === "projectMembers") {
+        return { docs: fx.managerUids.map((u) => ({ data: () => ({ user_id: u }) })) }
+      }
       if (name === "adAccountConnections") {
         return fx.conn.empty
           ? { empty: true, docs: [] }
@@ -84,6 +89,7 @@ vi.mock("@/lib/server/firebaseAdmin", () => {
   return {
     getAdminAuth: () => ({}),
     getAdminDb: () => ({
+      batch: () => ({ set: fx.batchSet, commit: fx.batchCommit }),
       collection: (name: string) => ({
         ...query(name),
         doc: (id?: string) => ({
@@ -92,7 +98,10 @@ vi.mock("@/lib/server/firebaseAdmin", () => {
             if (name === "contentItems") {
               return {
                 exists: fx.item.exists,
-                data: () => ({ project_id: fx.item.project_id }),
+                data: () => ({
+                  project_id: fx.item.project_id,
+                  code: "V-CODE",
+                }),
               }
             }
             if (name === "projects") {
@@ -100,7 +109,6 @@ vi.mock("@/lib/server/firebaseAdmin", () => {
             }
             return { exists: false }
           },
-          set: fx.setSpy,
         }),
       }),
     }),
@@ -139,10 +147,17 @@ beforeEach(() => {
   fx.lastMetrics = []
   fx.conn = { empty: false, state: "connected" }
   fx.connUpdate.mockReset().mockResolvedValue(undefined)
-  fx.setSpy.mockReset().mockResolvedValue(undefined)
+  fx.managerUids = ["u-mgr"]
+  fx.batchSet.mockReset()
+  fx.batchCommit.mockReset().mockResolvedValue(undefined)
   insightsMock.status = "active"
   insightsMock.script = []
 })
+
+// batch.set(ref, data) → the AdsMetric doc is the first set call's 2nd arg
+const metricWrite = () => fx.batchSet.mock.calls[0]?.[1] as Record<string, unknown>
+const notifications = () =>
+  fx.batchSet.mock.calls.slice(1).map((c) => c[1] as Record<string, unknown>)
 
 describe("syncIntervalMs (SPEC §6.4 / Q5)", () => {
   it("running active → 6h, running paused → 12h, done → 24h", () => {
@@ -157,9 +172,13 @@ describe("syncDueAdsMetrics — happy path (SPEC §5.4 R3)", () => {
   it("writes an AdsMetric source=synced with data_as_of", async () => {
     const s = await syncDueAdsMetrics(NOW, OPTS)
     expect(s).toMatchObject({ items_scanned: 1, synced: 1 })
-    const w = fx.setSpy.mock.calls[0][0] as Record<string, unknown>
-    expect(w).toMatchObject({ source: "synced", spend: 200, delivery_status: "active" })
-    expect(w.data_as_of).toBeDefined()
+    expect(metricWrite()).toMatchObject({
+      source: "synced",
+      spend: 200,
+      delivery_status: "active",
+    })
+    expect(metricWrite().data_as_of).toBeDefined()
+    expect(fx.batchCommit).toHaveBeenCalled()
   })
 
   it("skips an item within its interval", async () => {
@@ -167,7 +186,7 @@ describe("syncDueAdsMetrics — happy path (SPEC §5.4 R3)", () => {
       { source: "synced", delivery_status: "active", captured_at: { toMillis: () => NOW - 2 * HOUR } },
     ]
     expect((await syncDueAdsMetrics(NOW, OPTS)).skipped_not_due).toBe(1)
-    expect(fx.setSpy).not.toHaveBeenCalled()
+    expect(fx.batchSet).not.toHaveBeenCalled()
   })
 
   it("done project → 24h cadence", async () => {
@@ -181,14 +200,74 @@ describe("syncDueAdsMetrics — happy path (SPEC §5.4 R3)", () => {
   it("never syncs an archived project", async () => {
     fx.lifecycle = "archived"
     expect((await syncDueAdsMetrics(NOW, OPTS)).skipped_archived).toBe(1)
-    expect(fx.setSpy).not.toHaveBeenCalled()
+    expect(fx.batchSet).not.toHaveBeenCalled()
   })
 
   it("aggregates several bindings into one AdsMetric", async () => {
     fx.bindings = [binding(), binding({ object_id: "6002" })]
     await syncDueAdsMetrics(NOW, OPTS)
-    expect(fx.setSpy).toHaveBeenCalledTimes(1)
-    expect((fx.setSpy.mock.calls[0][0] as { spend: number }).spend).toBe(400)
+    expect(fx.batchSet).toHaveBeenCalledTimes(1)
+    expect((metricWrite() as { spend: number }).spend).toBe(400)
+  })
+})
+
+describe("syncDueAdsMetrics — ads stopped (SPEC §5.4 R3 / §5.7 R1, task 5.7)", () => {
+  const wasActive = {
+    source: "synced",
+    delivery_status: "active",
+    captured_at: { toMillis: () => NOW - 20 * HOUR },
+  }
+
+  it("active → paused notifies every project manager", async () => {
+    fx.lastMetrics = [wasActive]
+    insightsMock.status = "paused"
+    fx.managerUids = ["u-mgr-1", "u-mgr-2"]
+
+    const s = await syncDueAdsMetrics(NOW, OPTS)
+    expect(s.ads_stopped_events).toBe(1)
+    expect(s.synced).toBe(1)
+
+    const n = notifications()
+    expect(n).toHaveLength(2)
+    expect(n[0]).toMatchObject({
+      recipient_id: "u-mgr-1",
+      type: "ads_stopped",
+      content_item_id: "c1",
+    })
+    expect(n[0].message).toContain("tạm dừng")
+  })
+
+  it("active → completed notifies with 'hoàn tất'", async () => {
+    fx.lastMetrics = [wasActive]
+    insightsMock.status = "completed"
+    const s = await syncDueAdsMetrics(NOW, OPTS)
+    expect(s.ads_stopped_events).toBe(1)
+    expect(notifications()[0].message).toContain("hoàn tất")
+  })
+
+  it("active → active does not notify", async () => {
+    fx.lastMetrics = [wasActive]
+    insightsMock.status = "active"
+    const s = await syncDueAdsMetrics(NOW, OPTS)
+    expect(s.ads_stopped_events).toBe(0)
+    expect(notifications()).toHaveLength(0)
+  })
+
+  it("paused → paused does not notify (already stopped)", async () => {
+    fx.lastMetrics = [
+      { source: "synced", delivery_status: "paused", captured_at: { toMillis: () => NOW - 20 * HOUR } },
+    ]
+    insightsMock.status = "paused"
+    const s = await syncDueAdsMetrics(NOW, OPTS)
+    expect(s.ads_stopped_events).toBe(0)
+  })
+
+  it("first sync (no prior metric) does not notify even if paused", async () => {
+    fx.lastMetrics = []
+    insightsMock.status = "paused"
+    const s = await syncDueAdsMetrics(NOW, OPTS)
+    expect(s.synced).toBe(1)
+    expect(s.ads_stopped_events).toBe(0)
   })
 })
 
@@ -204,7 +283,7 @@ describe("syncDueAdsMetrics — error handling (SPEC §5.4 R3, task 5.6)", () =>
     expect(s.object_errors).toBe(1)
     expect(s.bindings_erroring).toBe(1)
     expect(s.synced).toBe(0)
-    expect(fx.setSpy).not.toHaveBeenCalled() // last AdsMetric kept
+    expect(fx.batchSet).not.toHaveBeenCalled() // last AdsMetric kept
     expect(fx.bindings[0].update).toHaveBeenCalledWith(
       expect.objectContaining({ sync_error_since: expect.anything() })
     )

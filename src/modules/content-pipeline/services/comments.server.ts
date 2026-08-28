@@ -15,7 +15,10 @@ import { getAdminDb } from "@/lib/server/firebaseAdmin"
 import { HttpError } from "@/lib/server/http"
 import { parseOrThrow } from "@/lib/server/validate"
 import { loadContentItem } from "@/modules/content-pipeline/services/content.server"
-import { queueNotification } from "@/modules/notifications/services/notify.server"
+import {
+  projectManagerUids,
+  queueNotification,
+} from "@/modules/notifications/services/notify.server"
 
 // SPEC §5.2 R5: free-text comments on a content item, separate from
 // StatusHistory. Commenters = the assignee, project managers, or anyone
@@ -34,15 +37,6 @@ async function priorMentionUids(
     for (const uid of (d.data().mentions as string[]) ?? []) uids.add(uid)
   })
   return uids
-}
-
-async function projectManagerUids(projectId: string): Promise<string[]> {
-  const snap = await getAdminDb()
-    .collection(COLLECTIONS.projectMembers)
-    .where("project_id", "==", projectId)
-    .where("project_role", "==", "manager")
-    .get()
-  return snap.docs.map((d) => d.data().user_id as string)
 }
 
 export async function listComments(
@@ -130,7 +124,7 @@ export async function createComment(
 
   // New comment → people involved with the item, minus the author and anyone
   // already notified via a mention (SPEC §5.7 R1).
-  const involved = new Set<string>(await projectManagerUids(projectId))
+  const involved = new Set<string>(await projectManagerUids(db, projectId))
   if (item.assignee_id) involved.add(item.assignee_id)
   involved.delete(actor.uid)
   for (const uid of mentionSet) involved.delete(uid)

@@ -18,6 +18,10 @@ import {
   type AdObjectInsights,
 } from "@/lib/server/meta/insights"
 import { aggregateMetrics } from "@/modules/ads-performance/services/metricsAggregate"
+import {
+  projectManagerUids,
+  queueNotification,
+} from "@/modules/notifications/services/notify.server"
 
 // SPEC §5.4 R3 / §6.4: the background job that pulls Meta Insights for every
 // content item with an active AdsBinding and appends an AdsMetric
@@ -29,6 +33,10 @@ import { aggregateMetrics } from "@/modules/ads-performance/services/metricsAggr
 // AdsMetric untouched and stamps `AdsBinding.sync_error_since` so an alert can
 // fire only after > 24h. A dead token (auth error) marks the
 // AdAccountConnection `needs_reconnect` and stops syncing that account.
+//
+// Delivery changes (SPEC §5.4 R3 / §5.7 R1, task 5.7): when the item's combined
+// delivery goes active → paused/completed, an `ads_stopped` notification is
+// queued for the project managers in the same batch as the AdsMetric write.
 
 const HOUR = 3_600_000
 const STALE_ALERT_MS = 24 * HOUR
@@ -55,6 +63,7 @@ export interface AdsSyncSummary {
   accounts_disabled: number
   bindings_erroring: number
   bindings_stale_over_24h: number
+  ads_stopped_events: number
 }
 
 export interface AdsSyncOptions {
@@ -89,6 +98,7 @@ export async function syncDueAdsMetrics(
     accounts_disabled: 0,
     bindings_erroring: 0,
     bindings_stale_over_24h: 0,
+    ads_stopped_events: 0,
   }
 
   const bindingsSnap = await db
@@ -263,7 +273,8 @@ export async function syncDueAdsMetrics(
     }
 
     const agg = aggregateMetrics(parts)
-    await db.collection(COLLECTIONS.adsMetrics).doc().set({
+    const batch = db.batch()
+    batch.set(db.collection(COLLECTIONS.adsMetrics).doc(), {
       content_item_id: contentItemId,
       source: "synced",
       spend: agg.spend,
@@ -278,6 +289,29 @@ export async function syncDueAdsMetrics(
       data_as_of: Timestamp.fromMillis(nowMs),
       captured_at: FieldValue.serverTimestamp(),
     })
+
+    // SPEC §5.4 R3 / §5.7 R1: the item's ads went from running to stopped —
+    // notify the project managers ("ads đã dừng").
+    const stopped =
+      lastStatus === "active" &&
+      (agg.delivery_status === "paused" || agg.delivery_status === "completed")
+    if (stopped) {
+      const code = String(itemSnap.data()?.code ?? contentItemId)
+      for (const uid of await projectManagerUids(db, projectId)) {
+        queueNotification(db, batch, {
+          recipient_id: uid,
+          type: "ads_stopped",
+          content_item_id: contentItemId,
+          project_id: projectId,
+          message: `Ads của hạng mục ${code} đã ${
+            agg.delivery_status === "paused" ? "tạm dừng" : "hoàn tất"
+          }`,
+        })
+      }
+      summary.ads_stopped_events++
+    }
+
+    await batch.commit()
     summary.synced++
   }
 
