@@ -4,6 +4,9 @@ const { fx } = vi.hoisted(() => ({
   fx: {
     itemExists: true,
     status: "chua_bat_dau" as string,
+    assigneeId: "u1" as string | null,
+    scriptUrl: "https://docs.google.com/document/d/s1" as string | null,
+    videoUrl: "https://drive.google.com/file/d/v1" as string | null,
     actorRole: "staff" as "manager" | "staff" | null,
     lifecycle: "running" as "running" | "done" | "archived" | null,
     updateSpy: vi.fn(),
@@ -37,7 +40,14 @@ vi.mock("@/lib/server/firebaseAdmin", () => {
             if (name === "contentItems") {
               return {
                 exists: fx.itemExists,
-                data: () => ({ project_id: "p1", code: "V1", status: fx.status }),
+                data: () => ({
+                  project_id: "p1",
+                  code: "V1",
+                  status: fx.status,
+                  assignee_id: fx.assigneeId,
+                  script_url: fx.scriptUrl,
+                  video_url: fx.videoUrl,
+                }),
               }
             }
             return {
@@ -60,6 +70,9 @@ const actor: AuthedUser = { uid: "u1", email: null, system_role: "staff" }
 beforeEach(() => {
   fx.itemExists = true
   fx.status = "chua_bat_dau"
+  fx.assigneeId = "u1"
+  fx.scriptUrl = "https://docs.google.com/document/d/s1"
+  fx.videoUrl = "https://drive.google.com/file/d/v1"
   fx.actorRole = "manager"
   fx.lifecycle = "running"
   fx.updateSpy.mockReset().mockResolvedValue(undefined)
@@ -132,5 +145,68 @@ describe("executeTransition — state-machine gate (SPEC §5.3 R1)", () => {
       reason: "Âm thanh chưa đạt",
     })
     expect(r.to).toBe("quay_dung")
+  })
+})
+
+describe("executeTransition — work step ownership + link (SPEC §2, §5.3 R2, task 4.3)", () => {
+  it("rejects a work step by someone who is not the assignee (403, no write)", async () => {
+    fx.status = "chua_bat_dau"
+    fx.assigneeId = "u2"
+    await expect(
+      executeTransition(actor, "c1", { to: "viet_kich_ban" })
+    ).rejects.toMatchObject({ status: 403 })
+    expect(fx.updateSpy).not.toHaveBeenCalled()
+  })
+
+  it("rejects a work step on an unassigned item (403)", async () => {
+    fx.status = "chua_bat_dau"
+    fx.assigneeId = null
+    await expect(
+      executeTransition(actor, "c1", { to: "viet_kich_ban" })
+    ).rejects.toMatchObject({ status: 403 })
+  })
+
+  it("lets the assignee run a work step", async () => {
+    fx.status = "chua_bat_dau"
+    fx.assigneeId = "u1"
+    const r = await executeTransition(actor, "c1", { to: "viet_kich_ban" })
+    expect(r.to).toBe("viet_kich_ban")
+  })
+
+  it("rejects a script submit when script_url is missing (400, no write)", async () => {
+    fx.status = "viet_kich_ban"
+    fx.scriptUrl = null
+    await expect(
+      executeTransition(actor, "c1", { to: "cho_duyet_kich_ban" })
+    ).rejects.toMatchObject({ status: 400 })
+    expect(fx.updateSpy).not.toHaveBeenCalled()
+  })
+
+  it("rejects a video submit when video_url is blank whitespace (400)", async () => {
+    fx.status = "quay_dung"
+    fx.videoUrl = "   "
+    await expect(
+      executeTransition(actor, "c1", { to: "cho_duyet_video" })
+    ).rejects.toMatchObject({ status: 400 })
+  })
+
+  it("allows a script submit when script_url is present", async () => {
+    fx.status = "viet_kich_ban"
+    fx.scriptUrl = "https://docs.google.com/document/d/abc"
+    const r = await executeTransition(actor, "c1", {
+      to: "cho_duyet_kich_ban",
+    })
+    expect(r).toEqual({
+      id: "c1",
+      from: "viet_kich_ban",
+      to: "cho_duyet_kich_ban",
+    })
+  })
+
+  it("allows a video submit when video_url is present", async () => {
+    fx.status = "quay_dung"
+    fx.videoUrl = "https://drive.google.com/file/d/xyz"
+    const r = await executeTransition(actor, "c1", { to: "cho_duyet_video" })
+    expect(r.to).toBe("cho_duyet_video")
   })
 })
