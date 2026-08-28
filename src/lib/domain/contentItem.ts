@@ -66,10 +66,13 @@ export const assigneeUpdateSchema = z.object({
 })
 
 // Status transition request (SPEC §5.3). `reason` is required only for a return
-// — enforced against the state machine, not here.
+// and `confirm` only matters for da_duyet → da_len_ads without an ads binding
+// (SPEC §5.3 R4: the manager confirms manually) — both enforced against the
+// state machine, not here.
 export const contentTransitionSchema = z.object({
   to: z.enum(CONTENT_STATUSES),
   reason: z.string().trim().min(1).optional(),
+  confirm: z.boolean().optional(),
 })
 
 export const CONTENT_ITEM_INITIAL_STATUS: ContentStatus = CONTENT_STATUSES[0]

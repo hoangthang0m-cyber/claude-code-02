@@ -9,6 +9,7 @@ const { fx } = vi.hoisted(() => ({
     videoUrl: "https://drive.google.com/file/d/v1" as string | null,
     actorRole: "staff" as "manager" | "staff" | null,
     lifecycle: "running" as "running" | "done" | "archived" | null,
+    hasBinding: false,
     updateSpy: vi.fn(),
   },
 }))
@@ -25,6 +26,11 @@ vi.mock("@/lib/server/firebaseAdmin", () => {
               empty: false,
               docs: [{ data: () => ({ project_role: fx.actorRole }) }],
             }
+      }
+      if (collection === "adsBindings") {
+        return fx.hasBinding
+          ? { empty: false, docs: [{ id: "b1" }] }
+          : { empty: true, docs: [] }
       }
       return { empty: true, docs: [] }
     },
@@ -75,6 +81,7 @@ beforeEach(() => {
   fx.videoUrl = "https://drive.google.com/file/d/v1"
   fx.actorRole = "manager"
   fx.lifecycle = "running"
+  fx.hasBinding = false
   fx.updateSpy.mockReset().mockResolvedValue(undefined)
 })
 
@@ -298,5 +305,51 @@ describe("executeTransition — return is manager-only + reason required (SPEC �
     await expect(
       executeTransition(actor, "c1", { to: "quay_dung", reason: "làm lại" })
     ).rejects.toMatchObject({ status: 403 })
+  })
+})
+
+describe("executeTransition — publish da_duyet → da_len_ads (SPEC §5.3 R4, task 4.6)", () => {
+  it("path A: allows a manager when the item has an ads binding (no confirm needed)", async () => {
+    fx.status = "da_duyet"
+    fx.actorRole = "manager"
+    fx.hasBinding = true
+    const r = await executeTransition(actor, "c1", { to: "da_len_ads" })
+    expect(r).toEqual({ id: "c1", from: "da_duyet", to: "da_len_ads" })
+  })
+
+  it("path B: allows a manager with confirm:true when there is no binding, and returns the reminder", async () => {
+    fx.status = "da_duyet"
+    fx.actorRole = "manager"
+    fx.hasBinding = false
+    const r = await executeTransition(actor, "c1", {
+      to: "da_len_ads",
+      confirm: true,
+    })
+    expect(r).toEqual({
+      id: "c1",
+      from: "da_duyet",
+      to: "da_len_ads",
+      reminder: "attach_campaign",
+    })
+  })
+
+  it("rejects a manager with no binding and no confirm (400, no write)", async () => {
+    fx.status = "da_duyet"
+    fx.actorRole = "manager"
+    fx.hasBinding = false
+    await expect(
+      executeTransition(actor, "c1", { to: "da_len_ads" })
+    ).rejects.toMatchObject({ status: 400 })
+    expect(fx.updateSpy).not.toHaveBeenCalled()
+  })
+
+  it("rejects a staff member even with a binding and confirm (403, no write)", async () => {
+    fx.status = "da_duyet"
+    fx.actorRole = "staff"
+    fx.hasBinding = true
+    await expect(
+      executeTransition(actor, "c1", { to: "da_len_ads", confirm: true })
+    ).rejects.toMatchObject({ status: 403 })
+    expect(fx.updateSpy).not.toHaveBeenCalled()
   })
 })

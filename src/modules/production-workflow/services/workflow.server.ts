@@ -1,6 +1,6 @@
 import { FieldValue } from "firebase-admin/firestore"
 
-import { contentTransitionSchema, type ContentStatus } from "@/lib/domain"
+import { COLLECTIONS, contentTransitionSchema, type ContentStatus } from "@/lib/domain"
 import {
   assertProjectWritable,
   requireProjectManager,
@@ -8,6 +8,7 @@ import {
 } from "@/lib/permissions/projectScope"
 import { WORK_STEP_KINDS, findTransition } from "@/lib/workflow/stateMachine"
 import type { AuthedUser } from "@/lib/server/auth"
+import { getAdminDb } from "@/lib/server/firebaseAdmin"
 import { HttpError } from "@/lib/server/http"
 import { parseOrThrow } from "@/lib/server/validate"
 import { loadContentItem } from "@/modules/content-pipeline/services/content.server"
@@ -16,11 +17,26 @@ export interface TransitionResult {
   id: string
   from: ContentStatus
   to: ContentStatus
+  /** SPEC §5.3 R4: set when "đã lên ads" was confirmed manually with no ads
+   *  binding — the UI nudges the manager to attach a campaign for auto metrics. */
+  reminder?: "attach_campaign"
 }
 
 const LINK_LABEL: Record<"script_url" | "video_url", string> = {
   script_url: "link kịch bản",
   video_url: "link video",
+}
+
+// Does this content item have at least one ads binding? (SPEC §5.3 R4 path A.)
+// AdsBinding has no state field yet — task 5.3 adds the "stopped updating"
+// marker, at which point this should exclude stopped bindings.
+async function hasAdsBinding(contentItemId: string): Promise<boolean> {
+  const snap = await getAdminDb()
+    .collection(COLLECTIONS.adsBindings)
+    .where("content_item_id", "==", contentItemId)
+    .limit(1)
+    .get()
+  return !snap.empty
 }
 
 // SPEC §5.3 R1: every status change goes through here and is validated against
@@ -36,10 +52,12 @@ const LINK_LABEL: Record<"script_url" | "video_url", string> = {
 //  - approve (cho_duyet_* → bước sau) and return (cho_duyet_* → bước trước)
 //    are project-manager actions only, and a return needs a reason
 //    (SPEC §2 role table, §5.3 R3) — tasks 4.4 / 4.5
+//  - publish (da_duyet → da_len_ads) is a manager action allowed when the item
+//    has an ads binding OR the manager confirms manually (SPEC §5.3 R4) —
+//    task 4.6
 //
-// The "đã lên ads" special case (task 4.6), StatusHistory logging — where the
-// return reason is persisted (task 4.7) — and event notifications (group 7.7)
-// layer on next.
+// StatusHistory logging — where the return reason is persisted (task 4.7) —
+// and event notifications (group 7.7) layer on next.
 export async function executeTransition(
   actor: AuthedUser,
   contentItemId: string,
@@ -94,11 +112,31 @@ export async function executeTransition(
     throw new HttpError(400, "Trả lại cần nhập lý do")
   }
 
+  // SPEC §5.3 R4: "đã lên ads" is a manager action, allowed either because the
+  // item is bound to a Meta campaign/ad or because the manager confirms it by
+  // hand (`confirm: true`). Confirming without a binding returns a reminder to
+  // attach a campaign so metrics sync automatically.
+  let reminder: TransitionResult["reminder"]
+  if (transition.kind === "publish") {
+    requireProjectManager(scope)
+    if (!(await hasAdsBinding(contentItemId))) {
+      if (input.confirm !== true) {
+        throw new HttpError(
+          400,
+          "Hạng mục chưa gắn campaign/ad Meta — gắn campaign hoặc xác nhận thủ công (confirm: true)"
+        )
+      }
+      reminder = "attach_campaign"
+    }
+  }
+
   await ref.update({
     status: to,
     updated_at: FieldValue.serverTimestamp(),
     updated_by: actor.uid,
   })
 
-  return { id: contentItemId, from, to }
+  return reminder
+    ? { id: contentItemId, from, to, reminder }
+    : { id: contentItemId, from, to }
 }
