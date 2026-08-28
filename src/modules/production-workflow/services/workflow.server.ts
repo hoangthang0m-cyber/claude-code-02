@@ -3,6 +3,7 @@ import { FieldValue } from "firebase-admin/firestore"
 import { contentTransitionSchema, type ContentStatus } from "@/lib/domain"
 import {
   assertProjectWritable,
+  requireProjectManager,
   requireProjectScope,
 } from "@/lib/permissions/projectScope"
 import { WORK_STEP_KINDS, findTransition } from "@/lib/workflow/stateMachine"
@@ -32,9 +33,12 @@ const LINK_LABEL: Record<"script_url" | "video_url", string> = {
 //    R1/R2) — task 4.3
 //  - a submit for review needs the matching link (script_url / video_url)
 //    already filled (SPEC §5.3 R2) — task 4.3
+//  - an approve (cho_duyet_* → bước sau) is a project-manager action only
+//    (SPEC §2 role table, §5.3 R3) — task 4.4
 //
-// Manager approve/return role checks (task 4.4-4.5), the "đã lên ads" special
-// case (task 4.6) and StatusHistory logging (task 4.7) layer on next.
+// The manager return role check (task 4.5), the "đã lên ads" special case
+// (task 4.6), StatusHistory logging (task 4.7) and event notifications
+// (group 7.7) layer on next.
 export async function executeTransition(
   actor: AuthedUser,
   contentItemId: string,
@@ -42,7 +46,7 @@ export async function executeTransition(
 ): Promise<TransitionResult> {
   const { ref, data } = await loadContentItem(contentItemId)
   const projectId = data.project_id
-  await requireProjectScope(actor.uid, projectId)
+  const scope = await requireProjectScope(actor.uid, projectId)
   await assertProjectWritable(projectId)
 
   const input = parseOrThrow(contentTransitionSchema, body)
@@ -65,6 +69,12 @@ export async function executeTransition(
       403,
       "Chỉ người thực hiện hạng mục mới được chuyển bước làm việc này"
     )
+  }
+
+  // SPEC §2 role table / §5.3 R3: only a project manager approves a pending
+  // item (duyệt kịch bản / video).
+  if (transition.kind === "approve") {
+    requireProjectManager(scope)
   }
 
   // SPEC §5.3 R2: a submit for review needs the matching link already filled.

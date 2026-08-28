@@ -210,3 +210,40 @@ describe("executeTransition — work step ownership + link (SPEC §2, §5.3 R2, 
     expect(r.to).toBe("cho_duyet_video")
   })
 })
+
+describe("executeTransition — approve is manager-only (SPEC §2, §5.3 R3, task 4.4)", () => {
+  it("lets a project manager approve a script (cho_duyet_kich_ban → quay_dung)", async () => {
+    fx.status = "cho_duyet_kich_ban"
+    fx.actorRole = "manager"
+    const r = await executeTransition(actor, "c1", { to: "quay_dung" })
+    expect(r).toEqual({
+      id: "c1",
+      from: "cho_duyet_kich_ban",
+      to: "quay_dung",
+    })
+  })
+
+  it("lets a project manager approve a video (cho_duyet_video → da_duyet)", async () => {
+    fx.status = "cho_duyet_video"
+    fx.actorRole = "manager"
+    const r = await executeTransition(actor, "c1", { to: "da_duyet" })
+    expect(r.to).toBe("da_duyet")
+  })
+
+  it("rejects a staff member approving a script (403, no write)", async () => {
+    fx.status = "cho_duyet_kich_ban"
+    fx.actorRole = "staff"
+    await expect(
+      executeTransition(actor, "c1", { to: "quay_dung" })
+    ).rejects.toMatchObject({ status: 403 })
+    expect(fx.updateSpy).not.toHaveBeenCalled()
+  })
+
+  it("rejects a staff member approving a video (403)", async () => {
+    fx.status = "cho_duyet_video"
+    fx.actorRole = "staff"
+    await expect(
+      executeTransition(actor, "c1", { to: "da_duyet" })
+    ).rejects.toMatchObject({ status: 403 })
+  })
+})
