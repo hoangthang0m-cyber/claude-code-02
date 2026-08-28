@@ -782,7 +782,7 @@ Mỗi task đủ nhỏ để làm trong một phiên; kèm cách verify. Làm th
 ### 7.4 Production workflow
 
 - [x] 4.1 State machine 7 trạng thái + các bước hợp lệ (mục 5.3); verify unit test mọi chuyển hợp lệ/không hợp lệ
-- [ ] 4.2 Chặn chuyển trạng thái không hợp lệ ở tầng server; verify gọi API trực tiếp bị từ chối
+- [x] 4.2 Chặn chuyển trạng thái không hợp lệ ở tầng server; verify gọi API trực tiếp bị từ chối
 - [ ] 4.3 API staff chuyển bước làm việc với ràng buộc link tương ứng đã có; verify thiếu link bị chặn
 - [ ] 4.4 API manager duyệt (cho_duyet_* → bước sau); verify chỉ manager dự án làm được
 - [ ] 4.5 API manager trả lại về bước trước với lý do bắt buộc; verify trả lại thiếu lý do bị từ chối

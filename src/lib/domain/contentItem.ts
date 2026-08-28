@@ -65,6 +65,13 @@ export const assigneeUpdateSchema = z.object({
   assignee_id: idString.nullable(),
 })
 
+// Status transition request (SPEC §5.3). `reason` is required only for a return
+// — enforced against the state machine, not here.
+export const contentTransitionSchema = z.object({
+  to: z.enum(CONTENT_STATUSES),
+  reason: z.string().trim().min(1).optional(),
+})
+
 export const CONTENT_ITEM_INITIAL_STATUS: ContentStatus = CONTENT_STATUSES[0]
 
 // A content item is "finished" only at the terminal state (SPEC §3 frames
