@@ -12,7 +12,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "users:list": "node scripts/list-users.mjs",
-    "seed:manager": "node scripts/seed-manager.mjs"
+    "seed:manager": "node scripts/seed-manager.mjs",
+    "rules:deploy": "npx --yes firebase-tools deploy --only firestore:rules --project hem-manager --non-interactive"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",
