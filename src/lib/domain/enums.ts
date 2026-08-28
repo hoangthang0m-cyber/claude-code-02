@@ -99,6 +99,15 @@ export type SyncConflictRule = (typeof SYNC_CONFLICT_RULES)[number]
 export const SYNC_CONFLICT_SIDES = ["system", "sheet"] as const
 export type SyncConflictSide = (typeof SYNC_CONFLICT_SIDES)[number]
 
+// A manager's Google OAuth connection (SPEC §6.3, task 6.1). Same two states as
+// an ad-account connection.
+export const GOOGLE_CONNECTION_STATES = [
+  "connected",
+  "needs_reconnect",
+] as const
+export type GoogleConnectionState =
+  (typeof GOOGLE_CONNECTION_STATES)[number]
+
 // ── Notifications (SPEC §5.7, group 7.1 task 1.3) ────────────────────────────
 
 // Preference groups the user can toggle (SPEC §5.7 R4).

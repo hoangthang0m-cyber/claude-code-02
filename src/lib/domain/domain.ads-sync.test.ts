@@ -10,6 +10,7 @@ import {
   adsMetricWriteSchema,
   notificationPreferenceWriteSchema,
   notificationWriteSchema,
+  parseSheetUrl,
   sheetSyncMappingWriteSchema,
   syncConflictWriteSchema,
   syncRunWriteSchema,
@@ -19,8 +20,8 @@ import {
 // entities (SPEC §6.1). Same "clean" check as task 1.2: accept a valid body,
 // reject a bad enum or a missing required field.
 
-describe("collection registry now covers all 14 entities", () => {
-  it("includes the task 1.3 collections", () => {
+describe("collection registry", () => {
+  it("includes the task 1.3 collections plus googleConnections (task 6.1)", () => {
     expect(Object.keys(COLLECTIONS)).toEqual([
       "users",
       "projects",
@@ -34,6 +35,7 @@ describe("collection registry now covers all 14 entities", () => {
       "sheetSyncMappings",
       "syncRuns",
       "syncConflicts",
+      "googleConnections",
       "notifications",
       "notificationPreferences",
     ])
@@ -187,6 +189,39 @@ describe("sheetSyncMappingWriteSchema (SPEC §5.5 R1)", () => {
         conflict_rule: "latest_wins",
       }).success
     ).toBe(false)
+  })
+})
+
+describe("parseSheetUrl (SPEC §5.1 R1 / §5.5 R1, task 6.1)", () => {
+  it("pulls the spreadsheet id and gid from a full edit URL", () => {
+    expect(
+      parseSheetUrl(
+        "https://docs.google.com/spreadsheets/d/1A2b3C_d-EF/edit#gid=123456"
+      )
+    ).toEqual({ spreadsheet_id: "1A2b3C_d-EF", sheet_gid: 123456 })
+  })
+
+  it("handles ?gid= and &gid= too", () => {
+    expect(
+      parseSheetUrl("https://docs.google.com/spreadsheets/d/XYZ/edit?gid=7")
+    ).toEqual({ spreadsheet_id: "XYZ", sheet_gid: 7 })
+    expect(
+      parseSheetUrl(
+        "https://docs.google.com/spreadsheets/d/XYZ/edit?usp=sharing&gid=9"
+      )
+    ).toEqual({ spreadsheet_id: "XYZ", sheet_gid: 9 })
+  })
+
+  it("returns null gid when the URL has no tab", () => {
+    expect(
+      parseSheetUrl("https://docs.google.com/spreadsheets/d/ABC/edit")
+    ).toEqual({ spreadsheet_id: "ABC", sheet_gid: null })
+  })
+
+  it("returns null for a non-Sheets URL", () => {
+    expect(parseSheetUrl("https://docs.google.com/document/d/ABC/edit")).toBeNull()
+    expect(parseSheetUrl("not a url")).toBeNull()
+    expect(parseSheetUrl("")).toBeNull()
   })
 })
 

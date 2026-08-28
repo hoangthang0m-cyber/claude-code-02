@@ -106,6 +106,11 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // Chứa refresh_token_encrypted của Google (SPEC §6.3). Toàn bộ qua server.
+    match /googleConnections/{uid} {
+      allow read, write: if false;
+    }
+
     match /adsBindings/{bindingId} {
       allow read: if isSignedIn();
       allow write: if false;

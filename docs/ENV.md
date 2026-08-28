@@ -70,8 +70,29 @@ Cron jobs so far:
 - `ads-sync` — hourly; appends an `AdsMetric` (`source=synced`) per content item
   with an active AdsBinding that is due (6h / 12h / 24h cadence).
 
-## Later groups (not yet wired)
+## Google Sheets OAuth (group 7.6, task 6.1)
 
-| Key | Introduced in | Purpose |
-|---|---|---|
-| `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET` | 7.6 | Google OAuth using the manager's refresh token for Sheets — **not** a service account (SPEC §6.3). Replaces `GOOGLE_SERVICE_ACCOUNT_EMAIL` / `GOOGLE_PRIVATE_KEY`. |
+The manager connects their own Google account (SPEC §6.3 — **not** a service
+account). Refresh token stored AES-256-GCM encrypted in `googleConnections/{uid}`.
+The redirect URI is derived from the request origin at runtime, so **register
+both of these** in the Google Cloud OAuth client (Web application):
+
+- `http://localhost:3000/api/google/connect/callback`
+- `https://claude-code-02.vercel.app/api/google/connect/callback`
+
+Enable **Google Sheets API** + **Google Drive API** on the project, and add the
+manager as a **Test user** on the OAuth consent screen (scopes: `spreadsheets`,
+`drive.metadata.readonly`, `openid`, `email`).
+
+| Key | Purpose |
+|---|---|
+| `GOOGLE_OAUTH_CLIENT_ID` | OAuth 2.0 Web client id. |
+| `GOOGLE_OAUTH_CLIENT_SECRET` | OAuth 2.0 Web client secret (server-side token exchange). |
+
+`GOOGLE_SERVICE_ACCOUNT_EMAIL` / `GOOGLE_PRIVATE_KEY` / `GOOGLE_PROJECT_ID` belong
+to the old service-account approach and are removed when group 7.8 lands.
+
+## `firestore.rules`
+
+Task 6.1 adds a locked `match /googleConnections/{uid}` block (`read, write: if
+false`) — **redeploy the rules** (`npm run rules:deploy` or paste in the console).

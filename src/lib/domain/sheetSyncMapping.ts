@@ -35,3 +35,23 @@ export const sheetSyncMappingWriteSchema = z.object({
 })
 
 export type SheetSyncMappingWrite = z.infer<typeof sheetSyncMappingWriteSchema>
+
+// SPEC §5.1 R1 / §5.5 R1, task 6.1: pull the spreadsheet id (and the tab gid,
+// when present) out of a Google Sheets URL. The tab *name* is resolved later
+// from the Sheets API — the URL only carries the numeric gid.
+export interface ParsedSheetUrl {
+  spreadsheet_id: string
+  sheet_gid: number | null
+}
+
+export function parseSheetUrl(url: string): ParsedSheetUrl | null {
+  const trimmed = (url ?? "").trim()
+  const idMatch = /\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/.exec(trimmed)
+  if (!idMatch) return null
+
+  const gidMatch = /[#?&]gid=([0-9]+)/.exec(trimmed)
+  return {
+    spreadsheet_id: idMatch[1],
+    sheet_gid: gidMatch ? Number(gidMatch[1]) : null,
+  }
+}

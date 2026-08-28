@@ -17,6 +17,9 @@ export const COLLECTIONS = {
   sheetSyncMappings: "sheetSyncMappings",
   syncRuns: "syncRuns",
   syncConflicts: "syncConflicts",
+  // group 7.6 task 6.1 — Google refresh token per manager (SPEC §6.3; not in
+  // the §6.1 sketch, which has no store for it)
+  googleConnections: "googleConnections",
   notifications: "notifications",
   notificationPreferences: "notificationPreferences",
 } as const

@@ -74,6 +74,12 @@ Access:
   R5 requires "kèm thời điểm + người ghi" — same reason `updated_by` was added).
 - `AdAccountConnection.project_owner_id` is read as the **user id of the manager
   who ran the Meta OAuth** (SPEC §5.4 R1, §6.4).
+- `googleConnections` (task 6.1) is a collection NOT in the §6.1 sketch — §6.3
+  mandates storing the manager's Google refresh token but §6.1 gives it no home.
+  Doc id = the manager's user id; `{ user_id, email, refresh_token_encrypted,
+  scopes[], state: connected|needs_reconnect, connected_at }`. Client has no
+  access (firestore.rules `read, write: if false`); the Sheets sync reads it
+  server-side and refreshes the access token per run.
 - `SyncConflict.system_value` / `sheet_value` store the **serialised string**
   form of each side's value, for the log (§5.5 R3).
 - `Notification` uses `recipient_id` (per §6.1). The pre-existing, unused
