@@ -16,6 +16,22 @@ export type SkillTag = (typeof SKILL_TAGS)[number]
 export const PROJECT_LIFECYCLES = ["running", "done", "archived"] as const
 export type ProjectLifecycle = (typeof PROJECT_LIFECYCLES)[number]
 
+export const PROJECT_LIFECYCLE_LABELS: Record<ProjectLifecycle, string> = {
+  running: "Đang chạy",
+  done: "Hoàn thành",
+  archived: "Lưu trữ",
+}
+
+export const SKILL_TAG_LABELS: Record<SkillTag, string> = {
+  content: "Content",
+  ads: "Ads",
+}
+
+export const PROJECT_ROLE_LABELS: Record<ProjectRole, string> = {
+  manager: "Trưởng phòng",
+  staff: "Nhân sự",
+}
+
 // Production status machine, in order (SPEC §5.3). Transitions live in
 // src/lib/workflow/ (task 4.1), not here.
 export const CONTENT_STATUSES = [

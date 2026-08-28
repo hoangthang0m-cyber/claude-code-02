@@ -32,7 +32,7 @@ import {
 
 const data = {
   navMain: [
-    { title: "Chiến dịch", url: "/campaigns", icon: <MegaphoneIcon /> },
+    { title: "Dự án", url: "/campaigns", icon: <MegaphoneIcon /> },
     { title: "Rủi ro", url: "/risks", icon: <ShieldAlertIcon /> },
     { title: "Nhân sự", url: "/team", icon: <UsersIcon /> },
     { title: "Ngân sách", url: "/budget", icon: <WalletIcon /> },

@@ -72,7 +72,15 @@ service cloud.firestore {
     }
 
     match /projectMembers/{memberId} {
-      allow read: if isProjectMember(memberId.split('__')[0]);
+      // get: own membership row, or any row of a project you belong to.
+      allow get: if isSignedIn() && (
+        request.auth.uid == resource.data.user_id ||
+        isProjectMember(resource.data.project_id)
+      );
+      // list: only `where("user_id", "==", <me>)` — Firestore can't prove a
+      // list safe when the rule contains exists(); listing a project's members
+      // goes through GET /api/projects/[id]/members instead.
+      allow list: if isSignedIn() && request.auth.uid == resource.data.user_id;
       allow write: if false;
     }
 

@@ -58,6 +58,21 @@ async function assertNotLastManager(
   }
 }
 
+// SPEC §5.1 R4: any project member can view the member list. Listing via the
+// server (not a client query) because the membership check can't be expressed
+// as a Firestore list rule.
+export async function listProjectMembers(
+  actor: AuthedUser,
+  projectId: string
+): Promise<{ members: Array<Record<string, unknown> & { id: string }> }> {
+  await requireProjectScope(actor.uid, projectId)
+  const snap = await getAdminDb()
+    .collection(COLLECTIONS.projectMembers)
+    .where("project_id", "==", projectId)
+    .get()
+  return { members: snap.docs.map((d) => ({ id: d.id, ...d.data() })) }
+}
+
 export async function addProjectMember(
   actor: AuthedUser,
   projectId: string,
