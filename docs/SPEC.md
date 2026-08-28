@@ -777,7 +777,7 @@ Mỗi task đủ nhỏ để làm trong một phiên; kèm cách verify. Làm th
 - [x] 3.4 API danh sách + lọc (assignee, status, topic, overdue) + sắp xếp (deadline, updated_at); verify từng bộ lọc
 - [x] 3.5 API bình luận + @mention, tách khỏi StatusHistory; verify lưu mentions + phát sự kiện thông báo
 - [x] 3.6 Màn hình bảng nội dung đủ cột (mục 5.2 R3); verify hiển thị + sửa inline
-- [ ] 3.7 Màn hình Kanban theo cột trạng thái (toggle từ bảng); verify hạng mục đúng cột
+- [x] 3.7 Màn hình Kanban theo cột trạng thái (toggle từ bảng); verify hạng mục đúng cột
 
 ### 7.4 Production workflow
 

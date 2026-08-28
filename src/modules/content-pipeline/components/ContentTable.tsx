@@ -178,7 +178,7 @@ export function ContentTable({
       {error && <p className="text-sm text-destructive">{error}</p>}
 
       {view === "board" ? (
-        <ContentBoard items={items ?? []} />
+        <ContentBoard items={items ?? []} members={memberOptions} />
       ) : (
         <div className="overflow-x-auto rounded-lg border">
           <Table>
