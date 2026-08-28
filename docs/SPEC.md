@@ -812,7 +812,7 @@ Mỗi task đủ nhỏ để làm trong một phiên; kèm cách verify. Làm th
 
 - [x] 6.1 Luồng OAuth Google (refresh token của manager) + parse `spreadsheet_id`/`sheet_tab`; verify xác thực quyền đọc/ghi sheet
 - [x] 6.2 Màn hình cấu hình `SheetSyncMapping` (header row, ánh xạ cột → field, `conflict_rule`); verify lưu + chạy đồng bộ lần đầu nạp dữ liệu
-- [ ] 6.3 Đồng bộ hệ thống → sheet theo ô có ánh xạ; verify đổi field trong hệ thống được ghi xuống sheet chu kỳ kế tiếp
+- [x] 6.3 Đồng bộ hệ thống → sheet theo ô có ánh xạ; verify đổi field trong hệ thống được ghi xuống sheet chu kỳ kế tiếp
 - [ ] 6.4 Đồng bộ sheet → hệ thống với delta theo snapshot; verify thêm dòng sheet tạo ContentItem mới, status không hợp lệ bị bỏ qua + đếm dòng lỗi
 - [ ] 6.5 Đẩy số liệu ads xuống sheet một chiều (không đọc ngược, mục 6.2); verify cột báo cáo ads trên sheet cập nhật, sửa tay trên sheet không ảnh hưởng hệ thống
 - [ ] 6.6 Phát hiện xung đột cùng field hai bên → áp `conflict_rule`, ghi `SyncConflict`; verify test kịch bản xung đột deadline

@@ -82,6 +82,55 @@ export async function readSheetValues(
   )
 }
 
+// SPEC §6.3: write cells one at a time ("ghi theo ô, chỉ các ô có ánh xạ").
+export async function batchUpdateValues(
+  accessToken: string,
+  spreadsheetId: string,
+  updates: Array<{ range: string; value: string }>,
+  fetchImpl: Fetch = fetch
+): Promise<number> {
+  if (updates.length === 0) return 0
+  const url = `${SHEETS_BASE}/${encodeURIComponent(spreadsheetId)}/values:batchUpdate`
+  let res: Response
+  try {
+    res = await fetchImpl(url, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      cache: "no-store",
+      body: JSON.stringify({
+        valueInputOption: "USER_ENTERED",
+        data: updates.map((u) => ({ range: u.range, values: [[u.value]] })),
+      }),
+    })
+  } catch {
+    throw new HttpError(502, "Không ghi được vào Google Sheet")
+  }
+  const json = (await res.json().catch(() => null)) as Record<
+    string,
+    unknown
+  > | null
+  if (!res.ok || !json || json.error) {
+    const err = (json?.error ?? {}) as { message?: string; code?: number }
+    if (err.code === 403) throw new HttpError(403, "Không có quyền ghi sheet")
+    throw new HttpError(502, `Google lỗi khi ghi: ${err.message ?? res.status}`)
+  }
+  return Number(json.totalUpdatedCells ?? updates.length)
+}
+
+// column index (0-based) → A1 letter
+export function columnLetter(index: number): string {
+  let n = index
+  let out = ""
+  do {
+    out = String.fromCharCode(65 + (n % 26)) + out
+    n = Math.floor(n / 26) - 1
+  } while (n >= 0)
+  return out
+}
+
 export async function getDriveCapabilities(
   accessToken: string,
   fileId: string,

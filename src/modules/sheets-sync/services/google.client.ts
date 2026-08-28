@@ -85,3 +85,10 @@ export function saveSheetMapping(
     { method: "PUT", body: JSON.stringify(body) }
   )
 }
+
+export function syncSheetNow(projectId: string) {
+  return authedJson<{ push: { rows_matched: number; cells_written: number } }>(
+    `/api/projects/${projectId}/sheet/sync`,
+    { method: "POST" }
+  )
+}

@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from "vitest"
 
 import {
+  batchUpdateValues,
+  columnLetter,
   getDriveCapabilities,
   getSpreadsheetMeta,
   verifySheetAccess,
@@ -81,5 +83,56 @@ describe("verifySheetAccess (SPEC §5.1 R1 / §5.5 R1)", () => {
     await expect(
       verifySheetAccess("t", "1abc", 999, stub(true) as never)
     ).rejects.toMatchObject({ status: 400 })
+  })
+})
+
+describe("columnLetter", () => {
+  it("maps 0-based index to A1 letters", () => {
+    expect([0, 1, 25, 26, 27, 51, 52].map(columnLetter)).toEqual([
+      "A",
+      "B",
+      "Z",
+      "AA",
+      "AB",
+      "AZ",
+      "BA",
+    ])
+  })
+})
+
+describe("batchUpdateValues (SPEC §6.3)", () => {
+  it("no-ops on an empty list", async () => {
+    const f = vi.fn()
+    expect(await batchUpdateValues("t", "1abc", [], f as never)).toBe(0)
+    expect(f).not.toHaveBeenCalled()
+  })
+
+  it("posts one values entry per cell", async () => {
+    const f = vi.fn(async (_u: string, init: RequestInit) => {
+      const body = JSON.parse(String(init.body))
+      expect(body.valueInputOption).toBe("USER_ENTERED")
+      expect(body.data).toEqual([
+        { range: "'T'!C4", values: [["01/09/2026"]] },
+        { range: "'T'!E4", values: [["reels"]] },
+      ])
+      return jsonRes({ totalUpdatedCells: 2 })
+    })
+    const n = await batchUpdateValues(
+      "t",
+      "1abc",
+      [
+        { range: "'T'!C4", value: "01/09/2026" },
+        { range: "'T'!E4", value: "reels" },
+      ],
+      f as never
+    )
+    expect(n).toBe(2)
+  })
+
+  it("maps a 403 to HttpError 403", async () => {
+    const f = vi.fn(async () => jsonRes({ error: { code: 403 } }, false, 403))
+    await expect(
+      batchUpdateValues("t", "1abc", [{ range: "A1", value: "x" }], f as never)
+    ).rejects.toMatchObject({ status: 403 })
   })
 })

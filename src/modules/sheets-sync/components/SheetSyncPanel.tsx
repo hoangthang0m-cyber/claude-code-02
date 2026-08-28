@@ -8,6 +8,7 @@ import {
   getSheetMapping,
   previewSheet,
   saveSheetMapping,
+  syncSheetNow,
   type SheetPreview,
 } from "@/modules/sheets-sync/services/google.client"
 import { Button } from "@/components/ui/button"
@@ -35,12 +36,15 @@ export function SheetSyncPanel({ projectId }: { projectId: string }) {
   const [preview, setPreview] = React.useState<SheetPreview | null>(null)
   const [checking, setChecking] = React.useState(false)
   const [saving, setSaving] = React.useState(false)
+  const [syncing, setSyncing] = React.useState(false)
+  const [hasMapping, setHasMapping] = React.useState(false)
 
   React.useEffect(() => {
     let cancelled = false
     getSheetMapping(projectId)
       .then((r) => {
         if (cancelled || !r.mapping) return
+        setHasMapping(true)
         setUrl(r.mapping.progress_sheet_url ?? "")
         setHeaderRow(r.mapping.header_row)
         setConflictRule(
@@ -84,6 +88,7 @@ export function SheetSyncPanel({ projectId }: { projectId: string }) {
         column_map: cleanMap,
         conflict_rule: conflictRule,
       })
+      setHasMapping(true)
       toast.success(
         `Đã lưu (tab "${sheet_tab}"). Đồng bộ lần đầu: ${first_sync.created} tạo mới, ` +
           `${first_sync.updated} cập nhật` +
@@ -95,6 +100,20 @@ export function SheetSyncPanel({ projectId }: { projectId: string }) {
       toast.error(e instanceof Error ? e.message : "Không lưu được")
     } finally {
       setSaving(false)
+    }
+  }
+
+  async function syncNow() {
+    setSyncing(true)
+    try {
+      const { push } = await syncSheetNow(projectId)
+      toast.success(
+        `Đã ghi ${push.cells_written} ô xuống sheet (${push.rows_matched} dòng khớp)`
+      )
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Không đồng bộ được")
+    } finally {
+      setSyncing(false)
     }
   }
 
@@ -203,14 +222,25 @@ export function SheetSyncPanel({ projectId }: { projectId: string }) {
         </label>
       </div>
 
-      <Button
-        size="sm"
-        className="w-fit"
-        onClick={save}
-        disabled={saving || !preview || !columnMap.code}
-      >
-        Lưu & đồng bộ lần đầu
-      </Button>
+      <div className="flex flex-wrap items-center gap-2">
+        <Button
+          size="sm"
+          onClick={save}
+          disabled={saving || !preview || !columnMap.code}
+        >
+          Lưu & đồng bộ lần đầu
+        </Button>
+        {hasMapping && (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={syncNow}
+            disabled={syncing}
+          >
+            Đồng bộ ngay
+          </Button>
+        )}
+      </div>
     </section>
   )
 }

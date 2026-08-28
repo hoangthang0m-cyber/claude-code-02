@@ -69,6 +69,8 @@ Cron jobs so far:
   dead ones to `needs_reconnect`.
 - `ads-sync` — hourly; appends an `AdsMetric` (`source=synced`) per content item
   with an active AdsBinding that is due (6h / 12h / 24h cadence).
+- `sheets-sync` — every 5 min; two-way Google Sheets sync for every project with
+  a mapping (task 6.3 = system → sheet; 6.4 adds sheet → system).
 
 ## Google Sheets OAuth (group 7.6, task 6.1)
 
