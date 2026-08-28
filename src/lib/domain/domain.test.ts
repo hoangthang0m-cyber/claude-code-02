@@ -8,7 +8,9 @@ import {
   commentWriteSchema,
   contentItemCreateSchema,
   contentFieldUpdateSchema,
+  contentListFiltersSchema,
   isBackgroundSyncActive,
+  isOverdue,
   isProjectWritable,
   projectCreateSchema,
   projectMemberAddSchema,
@@ -242,6 +244,54 @@ describe("contentFieldUpdateSchema (SPEC §5.2 R1)", () => {
     )
   })
 
+})
+
+describe("isOverdue (SPEC §3 / §6.7)", () => {
+  const now = 1_000_000
+
+  it("past deadline + not da_len_ads → overdue", () => {
+    expect(isOverdue(now - 1, "quay_dung", now)).toBe(true)
+  })
+
+  it("past deadline but da_len_ads → not overdue", () => {
+    expect(isOverdue(now - 1, "da_len_ads", now)).toBe(false)
+  })
+
+  it("future deadline → not overdue", () => {
+    expect(isOverdue(now + 1, "quay_dung", now)).toBe(false)
+  })
+
+  it("no deadline → not overdue", () => {
+    expect(isOverdue(null, "quay_dung", now)).toBe(false)
+    expect(isOverdue(undefined, "chua_bat_dau", now)).toBe(false)
+  })
+})
+
+describe("contentListFiltersSchema (SPEC §5.2 R4)", () => {
+  it("defaults sort to updated_at and overdue to false", () => {
+    const r = contentListFiltersSchema.parse({})
+    expect(r.sort).toBe("updated_at")
+    expect(r.overdue).toBe(false)
+  })
+
+  it("parses overdue=true and a valid status", () => {
+    const r = contentListFiltersSchema.parse({
+      overdue: "true",
+      status: "cho_duyet_video",
+      assignee: "u1",
+    })
+    expect(r).toMatchObject({
+      overdue: true,
+      status: "cho_duyet_video",
+      assignee: "u1",
+    })
+  })
+
+  it("falls back on an unknown status / sort rather than throwing", () => {
+    const r = contentListFiltersSchema.parse({ status: "nope", sort: "nope" })
+    expect(r.status).toBeUndefined()
+    expect(r.sort).toBe("updated_at")
+  })
 })
 
 describe("statusHistoryWriteSchema (SPEC §5.3 R5)", () => {

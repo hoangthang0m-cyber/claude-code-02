@@ -6,7 +6,11 @@ import {
   assigneeUpdateSchema,
   contentFieldUpdateSchema,
   contentItemCreateSchema,
+  contentListFiltersSchema,
+  isOverdue,
   projectMemberDocId,
+  type ContentListFilters,
+  type ContentStatus,
 } from "@/lib/domain"
 import {
   assertProjectWritable,
@@ -92,6 +96,82 @@ export async function updateContentItemFields(
 
   await ref.update(patch)
   return { id: contentItemId }
+}
+
+export interface ContentListItem {
+  id: string
+  is_overdue: boolean
+  [key: string]: unknown
+}
+
+// SPEC §5.2 R4 / R3: list a project's content items with in-memory filtering
+// (assignee / status / topic / overdue) and sorting (deadline | updated_at).
+// `is_overdue` is computed per item (§6.7), never stored. Filtering in memory
+// avoids Firestore composite indexes; a rollup can be added later if slow.
+export async function listContentItems(
+  actor: AuthedUser,
+  projectId: string,
+  rawFilters: unknown
+): Promise<{ items: ContentListItem[] }> {
+  await requireProjectScope(actor.uid, projectId)
+  const filters: ContentListFilters = contentListFiltersSchema.parse(
+    rawFilters ?? {}
+  )
+
+  const snap = await getAdminDb()
+    .collection(COLLECTIONS.contentItems)
+    .where("project_id", "==", projectId)
+    .get()
+
+  const now = Date.now()
+  let items: ContentListItem[] = snap.docs.map((d) => {
+    const data = d.data()
+    const deadlineMs =
+      typeof data.deadline?.toMillis === "function"
+        ? data.deadline.toMillis()
+        : null
+    return {
+      id: d.id,
+      ...data,
+      is_overdue: isOverdue(deadlineMs, data.status as ContentStatus, now),
+    }
+  })
+
+  if (filters.assignee === "none") {
+    items = items.filter((i) => !i.assignee_id)
+  } else if (filters.assignee) {
+    items = items.filter((i) => i.assignee_id === filters.assignee)
+  }
+  if (filters.status) {
+    items = items.filter((i) => i.status === filters.status)
+  }
+  if (filters.topic) {
+    items = items.filter((i) => i.topic === filters.topic)
+  }
+  if (filters.overdue) {
+    items = items.filter((i) => i.is_overdue)
+  }
+
+  items.sort((a, b) => {
+    if (filters.sort === "deadline") {
+      const av = deadlineMillis(a)
+      const bv = deadlineMillis(b)
+      return av - bv // ascending, items without a deadline last
+    }
+    return updatedMillis(b) - updatedMillis(a) // updated_at descending
+  })
+
+  return { items }
+}
+
+function deadlineMillis(item: ContentListItem): number {
+  const d = item.deadline as { toMillis?: () => number } | undefined
+  return typeof d?.toMillis === "function" ? d.toMillis() : Number.MAX_SAFE_INTEGER
+}
+
+function updatedMillis(item: ContentListItem): number {
+  const d = item.updated_at as { toMillis?: () => number } | undefined
+  return typeof d?.toMillis === "function" ? d.toMillis() : 0
 }
 
 // SPEC §5.2 R2: assign a content item to exactly one project member.

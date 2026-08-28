@@ -72,3 +72,28 @@ export const CONTENT_ITEM_INITIAL_STATUS: ContentStatus = CONTENT_STATUSES[0]
 export function isContentItemDone(status: ContentStatus): boolean {
   return status === "da_len_ads"
 }
+
+// SPEC §3 / §6.7: computed, not stored — `deadline < now() AND status != da_len_ads`.
+export function isOverdue(
+  deadlineMs: number | null | undefined,
+  status: ContentStatus,
+  nowMs: number
+): boolean {
+  return deadlineMs != null && deadlineMs < nowMs && !isContentItemDone(status)
+}
+
+// Filters / sort for the content list (SPEC §5.2 R4). Query-string shaped;
+// unknown values fall back rather than 400 (a filter, not a mutation).
+export const contentListFiltersSchema = z.object({
+  // assignee_id, or "none" for unassigned
+  assignee: z.string().trim().min(1).optional(),
+  status: z.enum(CONTENT_STATUSES).optional().catch(undefined),
+  topic: z.string().trim().min(1).optional(),
+  overdue: z
+    .enum(["true", "false"])
+    .catch("false")
+    .transform((v) => v === "true"),
+  sort: z.enum(["deadline", "updated_at"]).catch("updated_at"),
+})
+
+export type ContentListFilters = z.infer<typeof contentListFiltersSchema>
