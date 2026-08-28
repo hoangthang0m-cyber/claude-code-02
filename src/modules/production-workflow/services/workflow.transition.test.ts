@@ -247,3 +247,56 @@ describe("executeTransition — approve is manager-only (SPEC §2, §5.3 R3, tas
     ).rejects.toMatchObject({ status: 403 })
   })
 })
+
+describe("executeTransition — return is manager-only + reason required (SPEC §5.3 R3, task 4.5)", () => {
+  it("lets a project manager return a script with a reason (cho_duyet_kich_ban → viet_kich_ban)", async () => {
+    fx.status = "cho_duyet_kich_ban"
+    fx.actorRole = "manager"
+    const r = await executeTransition(actor, "c1", {
+      to: "viet_kich_ban",
+      reason: "Mở bài chưa rõ thông điệp",
+    })
+    expect(r).toEqual({
+      id: "c1",
+      from: "cho_duyet_kich_ban",
+      to: "viet_kich_ban",
+    })
+  })
+
+  it("rejects a manager return with no reason (400, no write)", async () => {
+    fx.status = "cho_duyet_kich_ban"
+    fx.actorRole = "manager"
+    await expect(
+      executeTransition(actor, "c1", { to: "viet_kich_ban" })
+    ).rejects.toMatchObject({ status: 400 })
+    expect(fx.updateSpy).not.toHaveBeenCalled()
+  })
+
+  it("rejects a manager return with a blank reason (400, schema)", async () => {
+    fx.status = "cho_duyet_video"
+    fx.actorRole = "manager"
+    await expect(
+      executeTransition(actor, "c1", { to: "quay_dung", reason: "   " })
+    ).rejects.toMatchObject({ status: 400 })
+  })
+
+  it("rejects a staff member returning a script (403, no write)", async () => {
+    fx.status = "cho_duyet_kich_ban"
+    fx.actorRole = "staff"
+    await expect(
+      executeTransition(actor, "c1", {
+        to: "viet_kich_ban",
+        reason: "gửi lại đi",
+      })
+    ).rejects.toMatchObject({ status: 403 })
+    expect(fx.updateSpy).not.toHaveBeenCalled()
+  })
+
+  it("rejects a staff member returning a video (403)", async () => {
+    fx.status = "cho_duyet_video"
+    fx.actorRole = "staff"
+    await expect(
+      executeTransition(actor, "c1", { to: "quay_dung", reason: "làm lại" })
+    ).rejects.toMatchObject({ status: 403 })
+  })
+})

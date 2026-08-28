@@ -33,12 +33,13 @@ const LINK_LABEL: Record<"script_url" | "video_url", string> = {
 //    R1/R2) — task 4.3
 //  - a submit for review needs the matching link (script_url / video_url)
 //    already filled (SPEC §5.3 R2) — task 4.3
-//  - an approve (cho_duyet_* → bước sau) is a project-manager action only
-//    (SPEC §2 role table, §5.3 R3) — task 4.4
+//  - approve (cho_duyet_* → bước sau) and return (cho_duyet_* → bước trước)
+//    are project-manager actions only, and a return needs a reason
+//    (SPEC §2 role table, §5.3 R3) — tasks 4.4 / 4.5
 //
-// The manager return role check (task 4.5), the "đã lên ads" special case
-// (task 4.6), StatusHistory logging (task 4.7) and event notifications
-// (group 7.7) layer on next.
+// The "đã lên ads" special case (task 4.6), StatusHistory logging — where the
+// return reason is persisted (task 4.7) — and event notifications (group 7.7)
+// layer on next.
 export async function executeTransition(
   actor: AuthedUser,
   contentItemId: string,
@@ -71,9 +72,9 @@ export async function executeTransition(
     )
   }
 
-  // SPEC §2 role table / §5.3 R3: only a project manager approves a pending
-  // item (duyệt kịch bản / video).
-  if (transition.kind === "approve") {
+  // SPEC §2 role table / §5.3 R3: approving or returning a pending item (duyệt
+  // / trả lại kịch bản, video) is a project-manager action.
+  if (transition.kind === "approve" || transition.kind === "return") {
     requireProjectManager(scope)
   }
 
