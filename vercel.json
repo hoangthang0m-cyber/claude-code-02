@@ -4,6 +4,10 @@
     {
       "path": "/api/jobs/meta-token-refresh",
       "schedule": "0 3 * * *"
+    },
+    {
+      "path": "/api/jobs/ads-sync",
+      "schedule": "0 * * * *"
     }
   ]
 }

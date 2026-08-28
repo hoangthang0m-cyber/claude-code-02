@@ -81,6 +81,13 @@ Access:
   history stay ("giữ số liệu lịch sử, đánh dấu đã ngừng cập nhật"). Doc id is
   `${content_item_id}__${object_id}` so re-binding the same object reactivates
   the existing row.
+- `AdsMetric.cost_per_purchase` replaces the §6.1 sketch's `cost_per_message`:
+  SPEC §8 Q1 was answered "CPP = Cost Per Purchase" (Meta `cost_per_action_type`
+  for `omni_purchase`). `messages` still holds the count of
+  `messaging_conversation_started` conversations. The sync job (task 5.4) appends
+  one aggregated `source=synced` row per content item per run — a lifetime
+  cumulative snapshot (`date_preset=maximum`) with `data_as_of = now`; cadence
+  6h / 12h / 24h by lifecycle + delivery status (Q5).
 
 ## Transitional note
 

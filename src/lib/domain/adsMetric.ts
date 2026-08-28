@@ -10,9 +10,14 @@ import {
 import { idString, isoDateString } from "@/lib/domain/shared"
 
 // SPEC §6.1: AdsMetric (id, content_item_id, source: synced | manual,
-//   spend, messages, cost_per_message, roas, ctr, ads_started_on nullable,
+//   spend, messages, cost_per_*, roas, ctr, ads_started_on nullable,
 //   delivery_status: active | paused | completed | unknown,
 //   data_as_of, captured_at)
+//
+// §6.1 sketches the cost field as `cost_per_message`; SPEC §8 Q1 was answered
+// "CPP = Cost Per Purchase", so it is `cost_per_purchase` here (cost per
+// omni_purchase from Meta `cost_per_action_type`). `messages` still holds the
+// count of `messaging_conversation_started` conversations.
 //
 // Append-only (SPEC §6.1): never updated in place. The current value of a
 // content item = latest `synced` record, falling back to latest `manual`.
@@ -24,7 +29,7 @@ export interface AdsMetric {
   source: AdsMetricSource
   spend: number
   messages: number
-  cost_per_message: number
+  cost_per_purchase: number
   roas: number
   ctr: number
   ads_started_on?: Timestamp
@@ -42,7 +47,7 @@ export const adsMetricWriteSchema = z.object({
   source: z.enum(ADS_METRIC_SOURCES),
   spend: nonNegative,
   messages: nonNegative,
-  cost_per_message: nonNegative,
+  cost_per_purchase: nonNegative,
   roas: nonNegative,
   ctr: nonNegative,
   ads_started_on: isoDateString.nullable().optional(),

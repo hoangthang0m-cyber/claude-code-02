@@ -64,8 +64,11 @@ screen and is removed when group 7.8 replaces it.
 |---|---|
 | `CRON_SECRET` | Guards the `/api/jobs/**` handlers. Vercel Cron (see `vercel.json`) sends it as `Authorization: Bearer <CRON_SECRET>` automatically once the env var is set on the project; a manual run uses the same header. Generate: `node -e "console.log(require('crypto').randomBytes(24).toString('hex'))"`. Set a different value on Vercel. |
 
-Cron jobs so far: `meta-token-refresh` (daily 03:00 UTC — renews Meta long-lived
-tokens, flips dead ones to `needs_reconnect`).
+Cron jobs so far:
+- `meta-token-refresh` — daily 03:00 UTC; renews Meta long-lived tokens, flips
+  dead ones to `needs_reconnect`.
+- `ads-sync` — hourly; appends an `AdsMetric` (`source=synced`) per content item
+  with an active AdsBinding that is due (6h / 12h / 24h cadence).
 
 ## Later groups (not yet wired)
 

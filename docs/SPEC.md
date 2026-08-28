@@ -600,7 +600,7 @@ AdsBinding (id, content_item_id, ad_account_id,
 AdsMetric (
   id, content_item_id,
   source: synced | manual,
-  spend, messages, cost_per_message, roas, ctr,
+  spend, messages, cost_per_purchase, roas, ctr,   -- CPP = cost/purchase (Q1)
   ads_started_on nullable,
   delivery_status: active | paused | completed | unknown,
   data_as_of,                               -- mốc thời gian số liệu
@@ -646,7 +646,7 @@ biệt được nguồn số liệu.
 | `code`, `deadline`, `assignee`, `topic`, `script_url`, `video_url`, `customer_research_url` | ✓ | ✓ (2 chiều) | ✗ |
 | `status` | ✓ (qua workflow) | ✓ đọc vào, chỉ chấp nhận giá trị hợp lệ | ✗ |
 | `evaluation`, `retrospective`, `objective`, `description`, `scale` | ✓ | đọc/ghi nếu có cột ánh xạ | ✗ |
-| `spend`, `messages`, `cost_per_message`, `roas`, `ctr`, `ads_started_on`, `delivery_status` | chỉ khi `source = manual` | ✗ (chỉ ghi xuống sheet, **không đọc lên**) | ✓ (`source = synced`) |
+| `spend`, `messages`, `cost_per_purchase`, `roas`, `ctr`, `ads_started_on`, `delivery_status` | chỉ khi `source = manual` | ✗ (chỉ ghi xuống sheet, **không đọc lên**) | ✓ (`source = synced`) |
 
 Số liệu ads **đẩy xuống sheet một chiều** để cột "báo cáo hiệu quả ads" trên sheet
 vẫn có dữ liệu, nhưng không bao giờ đọc ngược (tránh số máy móc bị ghi đè bởi số
@@ -678,16 +678,20 @@ phụ thuộc script sống trong từng file, khó vận hành tập trung. Pol
 
 - **Kết nối:** `AdAccountConnection` lưu long-lived user token (hoặc System User
   token) đã mã hoá; job làm mới trước khi hết hạn.
-- **Đồng bộ:** job nền theo từng `ContentItem` có `AdsBinding`, chu kỳ ≤ 6 giờ khi
-  `delivery_status = active`, giãn ra khi `paused/completed`. Gọi Insights API theo
-  `object_id` với các trường: `spend`, `actions` (messaging_conversation_started →
-  messages), `cost_per_action_type`, `purchase_roas`, `ctr`, `date_start`.
+- **Đồng bộ:** job nền theo từng `ContentItem` có `AdsBinding` active, chu kỳ ≤ 6
+  giờ khi `delivery_status = active` (dự án `running`), giãn ra khi
+  `paused/completed`; dự án `done` chu kỳ ~24 giờ; `archived` dừng hẳn (Q5). Gọi
+  Insights API theo `object_id` với các trường: `spend`, `actions`
+  (`messaging_conversation_started` → messages, attribution mặc định Meta — Q1),
+  `cost_per_action_type` (`omni_purchase` → CPP), `purchase_roas`, `ctr`,
+  `date_start`.
 - **Rate limit / lỗi:** retry lùi dần theo cấp số nhân; giữ `AdsMetric` gần nhất;
   chỉ báo lỗi ra người dùng nếu fail liên tục > 24 giờ. Đánh dấu
   `AdAccountConnection.state = needs_reconnect` khi token hỏng và dừng đồng bộ tài
   khoản đó.
-- **Nhiều ad trên một hạng mục:** cộng `spend`, `messages`; `cost_per_message =
-  tổng spend / tổng messages`; `roas`, `ctr` tính lại có trọng số theo `spend`.
+- **Nhiều ad trên một hạng mục:** cộng `spend`, `messages`, `purchases`;
+  `cost_per_purchase = tổng spend / tổng purchases`; `roas`, `ctr` tính lại có
+  trọng số theo `spend`.
 - **Chuyển "Đã lên ads":** cho phép khi có `AdsBinding` với ad `active`, hoặc
   Trưởng phòng xác nhận thủ công.
 
@@ -796,7 +800,7 @@ Mỗi task đủ nhỏ để làm trong một phiên; kèm cách verify. Làm th
 - [x] 5.1 Luồng OAuth kết nối Ad Account Meta, lưu token mã hoá + `token_expires_at`; verify kết nối test hiển thị state `connected`
 - [x] 5.2 Job làm mới token trước khi hết hạn; verify token gần hết hạn được refresh, token hỏng → `needs_reconnect` + dừng đồng bộ
 - [x] 5.3 API gắn/gỡ AdsBinding (campaign/adset/ad); verify gỡ giữ lại AdsMetric lịch sử đánh dấu ngừng cập nhật
-- [ ] 5.4 Job đồng bộ Insights (mục 6.4), chu kỳ ≤ 6h khi active; verify ghi AdsMetric `source=synced` kèm `data_as_of`
+- [x] 5.4 Job đồng bộ Insights (mục 6.4), chu kỳ ≤ 6h khi active; verify ghi AdsMetric `source=synced` kèm `data_as_of`
 - [ ] 5.5 Tổng hợp số liệu khi nhiều AdsBinding (cộng spend/messages, tính lại CPP/ROAS/CTR có trọng số); verify unit test công thức
 - [ ] 5.6 Xử lý lỗi Ads API (retry lùi dần, giữ số liệu gần nhất, chỉ báo lỗi khi fail > 24h); verify test mô phỏng rate limit + lỗi mạng
 - [ ] 5.7 Phát hiện ad chuyển paused/completed → cập nhật trạng thái ads hạng mục + phát sự kiện "ads đã dừng"; verify test đổi delivery_status
@@ -851,14 +855,14 @@ Mỗi task đủ nhỏ để làm trong một phiên; kèm cách verify. Làm th
 
 Các câu này có thể trả lời sau mà không đổi cấu trúc, nhưng nên chốt sớm:
 
-1. **Định nghĩa "Mess" và "CPP":** map sang action type nào của Meta
-   (`onsite_conversion.messaging_conversation_started_7d`?) và cửa sổ quy đổi bao
-   nhiêu ngày?
-2. **Phạm vi @mention:** giới hạn trong thành viên dự án hay cho phép mention bất
-   kỳ ai trong công ty?
-3. **Nhãn định dạng nội dung:** có cần thêm phân loại (reels / TVC / photo) ngoài
-   "chủ đề" để lọc báo cáo không?
+1. **Định nghĩa "Mess" và "CPP":** — **ĐÃ CHỐT (2026-08-28):** Mess =
+   `messaging_conversation_started` với attribution mặc định của Meta (7-day
+   click + 1-day view). CPP = **Cost Per Purchase** = `cost_per_action_type` cho
+   `omni_purchase` (không phải cost per message) → field `cost_per_purchase`.
+2. **Phạm vi @mention:** — **ĐÃ CHỐT:** chỉ thành viên dự án.
+3. **Nhãn định dạng nội dung:** — **ĐÃ CHỐT:** có; field `content_format`, enum
+   `reels | tvc | photo`.
 4. **Múi giờ & mốc tuần:** báo cáo tính theo múi giờ nào, tuần bắt đầu thứ Hai hay
-   Chủ nhật?
-5. **Dự án "Hoàn thành":** có tiếp tục đồng bộ Ads cho hạng mục vẫn đang chạy ads,
-   hay dừng hẳn?
+   Chủ nhật? *(chưa chốt — nhóm 7.8)*
+5. **Dự án "Hoàn thành":** — **ĐÃ CHỐT (2026-08-28):** vẫn đồng bộ Ads nhưng giãn
+   chu kỳ (~24 giờ) so với `running` (≤ 6 giờ); `archived` dừng hẳn.
