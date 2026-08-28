@@ -30,3 +30,58 @@ export function verifyProjectSheet(projectId: string, url: string) {
     { method: "POST", body: JSON.stringify({ url }) }
   )
 }
+
+// task 6.2 — SheetSyncMapping config
+export interface SheetPreview {
+  can_read: boolean
+  can_write: boolean
+  spreadsheet_title: string
+  sheet_tab: string
+  header_columns: string[]
+}
+
+export interface SheetMapping {
+  spreadsheet_id: string
+  sheet_tab: string
+  header_row: number
+  column_map: Record<string, string>
+  conflict_rule: string
+  progress_sheet_url: string | null
+}
+
+export interface FirstSyncResult {
+  rows_read: number
+  content_items: number
+  created: number
+  updated: number
+  mapping_errors: number
+  messages: string[]
+}
+
+export function getSheetMapping(projectId: string) {
+  return authedJson<{ mapping: SheetMapping | null }>(
+    `/api/projects/${projectId}/sheet/mapping`
+  )
+}
+
+export function previewSheet(projectId: string, url: string, headerRow: number) {
+  return authedJson<SheetPreview>(
+    `/api/projects/${projectId}/sheet/preview`,
+    { method: "POST", body: JSON.stringify({ url, header_row: headerRow }) }
+  )
+}
+
+export function saveSheetMapping(
+  projectId: string,
+  body: {
+    url: string
+    header_row: number
+    column_map: Record<string, string>
+    conflict_rule: string
+  }
+) {
+  return authedJson<{ id: string; sheet_tab: string; first_sync: FirstSyncResult }>(
+    `/api/projects/${projectId}/sheet/mapping`,
+    { method: "PUT", body: JSON.stringify(body) }
+  )
+}

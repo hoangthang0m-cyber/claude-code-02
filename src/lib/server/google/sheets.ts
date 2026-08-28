@@ -65,6 +65,23 @@ export async function getSpreadsheetMeta(
   }
 }
 
+// Reads a rectangular block of a tab as rows of formatted strings (SPEC §5.5
+// R2, task 6.2's first sync). Empty trailing cells are omitted by the API, so
+// callers index by the header map, not by a fixed width.
+export async function readSheetValues(
+  accessToken: string,
+  spreadsheetId: string,
+  range: string,
+  fetchImpl: Fetch = fetch
+): Promise<string[][]> {
+  const url = `${SHEETS_BASE}/${encodeURIComponent(spreadsheetId)}/values/${encodeURIComponent(range)}?majorDimension=ROWS&valueRenderOption=FORMATTED_VALUE`
+  const json = await googleGet(fetchImpl, url, accessToken, "đọc dữ liệu sheet")
+  const values = Array.isArray(json.values) ? json.values : []
+  return values.map((row) =>
+    Array.isArray(row) ? row.map((c) => String(c ?? "")) : []
+  )
+}
+
 export async function getDriveCapabilities(
   accessToken: string,
   fileId: string,

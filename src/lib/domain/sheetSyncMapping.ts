@@ -55,3 +55,44 @@ export function parseSheetUrl(url: string): ParsedSheetUrl | null {
     sheet_gid: gidMatch ? Number(gidMatch[1]) : null,
   }
 }
+
+// System fields a sheet column can feed into a ContentItem (SPEC §6.2, the
+// "Sheet ghi ✓" rows). `code` is the row key and is required in a mapping.
+// Ads-metric fields are push-down only (task 6.5) and never appear here.
+export const SHEET_INBOUND_FIELDS = [
+  "code",
+  "deadline",
+  "assignee",
+  "topic",
+  "content_format",
+  "script_url",
+  "video_url",
+  "customer_research_url",
+  "status",
+  "evaluation",
+] as const
+export type SheetInboundField = (typeof SHEET_INBOUND_FIELDS)[number]
+
+export const SHEET_INBOUND_FIELD_LABELS: Record<SheetInboundField, string> = {
+  code: "Mã hạng mục",
+  deadline: "Deadline",
+  assignee: "Nhân sự thực hiện",
+  topic: "Chủ đề",
+  content_format: "Định dạng",
+  script_url: "Link kịch bản",
+  video_url: "Link video",
+  customer_research_url: "Link research KH",
+  status: "Trạng thái sản xuất",
+  evaluation: "Đánh giá / đề xuất",
+}
+
+// Save request from the config screen (SPEC §5.5 R1). `spreadsheet_id` /
+// `sheet_tab` are resolved from `url` + the verify step, not sent in the body.
+export const sheetMappingSaveSchema = z.object({
+  url: z.string().trim().min(1),
+  header_row: z.number().int().positive().default(1),
+  column_map: z.record(z.string().trim().min(1), z.string().trim().min(1)),
+  conflict_rule: z.enum(SYNC_CONFLICT_RULES).default("system_wins"),
+})
+
+export type SheetMappingSave = z.infer<typeof sheetMappingSaveSchema>
