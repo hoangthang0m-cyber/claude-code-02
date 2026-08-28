@@ -6,6 +6,7 @@ import {
   NOTIFICATION_TYPES,
   adAccountConnectionWriteSchema,
   adsBindingCreateSchema,
+  adsMetricManualSchema,
   adsMetricWriteSchema,
   notificationPreferenceWriteSchema,
   notificationWriteSchema,
@@ -129,6 +130,24 @@ describe("adsMetricWriteSchema (SPEC §5.4 R3/R4, §6.1 append-only)", () => {
         data_as_of: "2026-08-27T00:00:00.000Z",
       }).success
     ).toBe(false)
+  })
+})
+
+describe("adsMetricManualSchema (SPEC §5.4 R4)", () => {
+  it("accepts a partial manual entry, defaulting the rest to 0 / now", () => {
+    const r = adsMetricManualSchema.safeParse({ roas: 3.2, cost_per_purchase: 40000 })
+    expect(r.success).toBe(true)
+    if (r.success) {
+      expect(r.data.roas).toBe(3.2)
+      expect(r.data.spend).toBe(0)
+      expect(r.data.messages).toBe(0)
+      expect(r.data.delivery_status).toBe("unknown")
+      expect(r.data.data_as_of).toBeUndefined()
+    }
+  })
+
+  it("rejects a negative figure", () => {
+    expect(adsMetricManualSchema.safeParse({ roas: -1 }).success).toBe(false)
   })
 })
 

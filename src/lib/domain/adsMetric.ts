@@ -56,3 +56,35 @@ export const adsMetricWriteSchema = z.object({
 })
 
 export type AdsMetricWrite = z.infer<typeof adsMetricWriteSchema>
+
+// Manual entry by a manager (SPEC §5.4 R4). `content_item_id` comes from the
+// URL; `source` is forced to "manual"; every figure is optional (the manager
+// fills in what they know) and `data_as_of` defaults to now server-side.
+export const adsMetricManualSchema = z.object({
+  spend: nonNegative.default(0),
+  messages: nonNegative.default(0),
+  cost_per_purchase: nonNegative.default(0),
+  roas: nonNegative.default(0),
+  ctr: nonNegative.default(0),
+  ads_started_on: isoDateString.nullable().optional(),
+  delivery_status: z.enum(ADS_DELIVERY_STATUSES).default("unknown"),
+  data_as_of: isoDateString.optional(),
+})
+
+export type AdsMetricManual = z.infer<typeof adsMetricManualSchema>
+
+// One metric row as the client sees it (SPEC §5.4 R4: the "source" label makes
+// manual vs synced clear).
+export interface AdsMetricView {
+  id: string
+  source: AdsMetricSource
+  spend: number
+  messages: number
+  cost_per_purchase: number
+  roas: number
+  ctr: number
+  ads_started_on: number | null
+  delivery_status: AdsDeliveryStatus
+  data_as_of: number | null
+  captured_at: number | null
+}

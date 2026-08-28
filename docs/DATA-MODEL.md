@@ -84,6 +84,11 @@ Access:
   history stay ("giữ số liệu lịch sử, đánh dấu đã ngừng cập nhật"). Doc id is
   `${content_item_id}__${object_id}` so re-binding the same object reactivates
   the existing row.
+- `AdsMetric` is append-only. The **current** value of a content item is the
+  latest `source=synced` row; only when no synced row has ever been written does
+  the latest `source=manual` row show (SPEC §6.1, §5.4 R4). A manual entry
+  (`POST /api/content/[id]/ads-metrics`, manager only) never overwrites — it
+  stays in history and is superseded once a sync succeeds.
 - `AdsMetric.cost_per_purchase` replaces the §6.1 sketch's `cost_per_message`:
   SPEC §8 Q1 was answered "CPP = Cost Per Purchase" (Meta `cost_per_action_type`
   for `omni_purchase`). `messages` still holds the count of
