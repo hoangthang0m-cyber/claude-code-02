@@ -10,6 +10,7 @@ import {
   evaluationUpdateSchema,
   isOverdue,
   projectMemberDocId,
+  type AdsMetricView,
   type ContentListFilters,
   type ContentStatus,
 } from "@/lib/domain"
@@ -22,6 +23,10 @@ import type { AuthedUser } from "@/lib/server/auth"
 import { getAdminDb } from "@/lib/server/firebaseAdmin"
 import { HttpError } from "@/lib/server/http"
 import { parseOrThrow } from "@/lib/server/validate"
+import {
+  pickCurrentMetric,
+  toMetricView,
+} from "@/modules/ads-performance/services/adsMetrics.server"
 import { queueNotification } from "@/modules/notifications/services/notify.server"
 
 // Server-side content-pipeline operations (SPEC §5.2).
@@ -188,7 +193,34 @@ export async function listContentItems(
     return updatedMillis(b) - updatedMillis(a) // updated_at descending
   })
 
+  await attachAdsMetrics(items)
+
   return { items }
+}
+
+// SPEC §5.4 R3 (task 5.10): the "báo cáo hiệu quả ads" cell shows the current
+// figure — latest synced, else latest manual (§6.1) — so the list joins it in.
+async function attachAdsMetrics(items: ContentListItem[]): Promise<void> {
+  const ids = items.map((i) => i.id)
+  if (ids.length === 0) return
+
+  const db = getAdminDb()
+  const byItem = new Map<string, AdsMetricView[]>()
+  for (let i = 0; i < ids.length; i += 30) {
+    const snap = await db
+      .collection(COLLECTIONS.adsMetrics)
+      .where("content_item_id", "in", ids.slice(i, i + 30))
+      .get()
+    for (const d of snap.docs) {
+      const view = toMetricView(d.id, d.data())
+      const key = String(d.data().content_item_id ?? "")
+      ;(byItem.get(key) ?? byItem.set(key, []).get(key)!).push(view)
+    }
+  }
+
+  for (const item of items) {
+    item.ads_metric = pickCurrentMetric(byItem.get(item.id) ?? [])
+  }
 }
 
 function deadlineMillis(item: ContentListItem): number {

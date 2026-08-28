@@ -27,6 +27,26 @@ function ms(value: unknown): number | null {
   return typeof t?.toMillis === "function" ? t.toMillis() : null
 }
 
+export function toMetricView(
+  id: string,
+  d: Record<string, unknown>
+): AdsMetricView {
+  return toView(id, d)
+}
+
+// SPEC §6.1 / §5.4 R4: latest synced wins; latest manual only when no synced
+// row exists. `rows` need not be sorted.
+export function pickCurrentMetric(rows: AdsMetricView[]): AdsMetricView | null {
+  const byNewest = [...rows].sort(
+    (a, b) => (b.captured_at ?? 0) - (a.captured_at ?? 0)
+  )
+  return (
+    byNewest.find((r) => r.source === "synced") ??
+    byNewest.find((r) => r.source === "manual") ??
+    null
+  )
+}
+
 function toView(id: string, d: Record<string, unknown>): AdsMetricView {
   return {
     id,
@@ -100,8 +120,7 @@ export async function getContentMetrics(
     .map((d) => toView(d.id, d.data()))
     .sort((a, b) => (b.captured_at ?? 0) - (a.captured_at ?? 0))
 
-  const latestSynced = rows.find((r) => r.source === "synced")
-  const current = latestSynced ?? rows.find((r) => r.source === "manual") ?? null
+  const current = pickCurrentMetric(rows)
 
   return {
     current,

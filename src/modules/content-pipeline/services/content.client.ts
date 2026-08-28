@@ -1,5 +1,5 @@
 import { authedJson } from "@/lib/api/authedFetch"
-import type { ContentFieldUpdate } from "@/lib/domain"
+import type { AdsMetricView, ContentFieldUpdate } from "@/lib/domain"
 
 // Client wrappers for the content-pipeline APIs (SPEC §5.2).
 
@@ -24,6 +24,7 @@ export interface ContentListRow {
   content_format?: string
   customer_research_url?: string
   evaluation?: string
+  ads_metric?: AdsMetricView | null
   [key: string]: unknown
 }
 

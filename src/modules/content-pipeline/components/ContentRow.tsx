@@ -14,6 +14,7 @@ import {
   updateContentFields,
   type ContentListRow,
 } from "@/modules/content-pipeline/services/content.client"
+import { AdsReportCell } from "@/modules/ads-performance/components/AdsReportCell"
 import { ContentStatusBadge } from "@/modules/content-pipeline/components/ContentStatusBadge"
 import { OverdueBadge } from "@/modules/content-pipeline/components/OverdueBadge"
 import { Input } from "@/components/ui/input"
@@ -193,9 +194,9 @@ export function ContentRow({
         onSave={(v) => patch("customer_research_url", v)}
       />
 
-      {/* Ads report — derived from AdsMetric, read-only here (SPEC §5.4) */}
-      <TableCell className="min-w-40 text-xs text-muted-foreground">
-        Chưa có dữ liệu ads
+      {/* Ads report — current AdsMetric, read-only (SPEC §5.4 R3, task 5.10) */}
+      <TableCell className="min-w-44 align-top">
+        <AdsReportCell metric={item.ads_metric} />
       </TableCell>
 
       {/* Evaluation — manager-only free-text note (SPEC §5.4 R5) */}

@@ -4,6 +4,7 @@ const { fx } = vi.hoisted(() => ({
   fx: {
     actorRole: "staff" as "manager" | "staff" | null,
     docs: [] as Array<Record<string, unknown>>,
+    adsMetricDocs: [] as Array<Record<string, unknown>>,
   },
 }))
 
@@ -24,6 +25,11 @@ vi.mock("@/lib/server/firebaseAdmin", () => {
       }
       if (collection === "contentItems") {
         return { docs: fx.docs.map((d, i) => ({ id: `c${i}`, data: () => d })) }
+      }
+      if (collection === "adsMetrics") {
+        return {
+          docs: fx.adsMetricDocs.map((d, i) => ({ id: `am${i}`, data: () => d })),
+        }
       }
       return { empty: true, docs: [] }
     },
@@ -82,6 +88,7 @@ beforeEach(() => {
       updated_at: ts(now - 2000),
     },
   ]
+  fx.adsMetricDocs = []
 })
 
 describe("listContentItems (SPEC §5.2 R4)", () => {
@@ -134,6 +141,40 @@ describe("listContentItems (SPEC §5.2 R4)", () => {
       status: "cho_duyet_video",
     })
     expect(items.map((i) => i.code)).toEqual(["V3"])
+  })
+
+  it("attaches the current ad metric per item — synced beats manual (task 5.10)", async () => {
+    fx.adsMetricDocs = [
+      // c0: a manual entry, then a synced one → synced wins
+      {
+        content_item_id: "c0",
+        source: "manual",
+        roas: 1,
+        captured_at: ts(now - 9000),
+      },
+      {
+        content_item_id: "c0",
+        source: "synced",
+        roas: 3.4,
+        spend: 850000,
+        delivery_status: "paused",
+        data_as_of: ts(now - 3600_000),
+        captured_at: ts(now - 3000),
+      },
+      // c1: only a manual entry
+      {
+        content_item_id: "c1",
+        source: "manual",
+        roas: 2.1,
+        captured_at: ts(now - 100),
+      },
+    ]
+    const { items } = await listContentItems(actor, "p1", {})
+    const byCode = Object.fromEntries(items.map((i) => [i.code, i.ads_metric]))
+    expect(byCode.V0).toMatchObject({ source: "synced", roas: 3.4 })
+    expect(byCode.V1).toMatchObject({ source: "manual", roas: 2.1 })
+    expect(byCode.V2).toBeNull()
+    expect(byCode.V3).toBeNull()
   })
 
   it("is_overdue recomputes when the deadline moves (§5.3 R6, task 4.8)", async () => {

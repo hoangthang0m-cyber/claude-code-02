@@ -806,7 +806,7 @@ Mỗi task đủ nhỏ để làm trong một phiên; kèm cách verify. Làm th
 - [x] 5.7 Phát hiện ad chuyển paused/completed → cập nhật trạng thái ads hạng mục + phát sự kiện "ads đã dừng"; verify test đổi delivery_status
 - [x] 5.8 API nhập tay AdsMetric (`source=manual`) với nhãn phân biệt; verify test thứ tự ưu tiên hiển thị synced > manual
 - [x] 5.9 Trường `evaluation` chỉ manager ghi; verify hiển thị ở cột bảng
-- [ ] 5.10 Ô "báo cáo hiệu quả ads" hiển thị số hiện tại + `data_as_of` + nguồn; verify render đúng khi có/không có dữ liệu
+- [x] 5.10 Ô "báo cáo hiệu quả ads" hiển thị số hiện tại + `data_as_of` + nguồn; verify render đúng khi có/không có dữ liệu
 
 ### 7.6 Google Sheets sync
 
