@@ -772,7 +772,7 @@ Mỗi task đủ nhỏ để làm trong một phiên; kèm cách verify. Làm th
 ### 7.3 Content pipeline
 
 - [x] 3.1 API tạo hạng mục (chỉ `code` + `project_id` bắt buộc); verify tạo ở trạng thái `chua_bat_dau`
-- [ ] 3.2 API cập nhật từng trường hạng mục; verify lưu độc lập kèm audit updated_at/actor
+- [x] 3.2 API cập nhật từng trường hạng mục; verify lưu độc lập kèm audit updated_at/actor
 - [ ] 3.3 API gán người thực hiện (manager gán bất kỳ / staff tự nhận hạng mục trống); verify từ chối gán người ngoài dự án
 - [ ] 3.4 API danh sách + lọc (assignee, status, topic, overdue) + sắp xếp (deadline, updated_at); verify từng bộ lọc
 - [ ] 3.5 API bình luận + @mention, tách khỏi StatusHistory; verify lưu mentions + phát sự kiện thông báo

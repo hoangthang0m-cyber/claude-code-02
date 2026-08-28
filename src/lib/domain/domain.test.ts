@@ -7,7 +7,7 @@ import {
   canChangeLifecycle,
   commentWriteSchema,
   contentItemCreateSchema,
-  contentItemUpdateSchema,
+  contentFieldUpdateSchema,
   isBackgroundSyncActive,
   isProjectWritable,
   projectCreateSchema,
@@ -192,47 +192,56 @@ describe("contentItemCreateSchema (SPEC §5.2 R1)", () => {
   })
 })
 
-describe("contentItemUpdateSchema", () => {
+describe("contentFieldUpdateSchema (SPEC §5.2 R1)", () => {
   it("accepts a partial update of a single field", () => {
     expect(
-      contentItemUpdateSchema.safeParse({ topic: "Quay lại NYC" }).success
+      contentFieldUpdateSchema.safeParse({ topic: "Quay lại NYC" }).success
     ).toBe(true)
+  })
+
+  it("strips status / assignee_id / evaluation (handled by other endpoints)", () => {
+    const r = contentFieldUpdateSchema.safeParse({
+      topic: "x",
+      status: "da_len_ads",
+      assignee_id: "u1",
+      evaluation: "note",
+    })
+    expect(r.success).toBe(true)
+    if (r.success) {
+      expect("status" in r.data).toBe(false)
+      expect("assignee_id" in r.data).toBe(false)
+      expect("evaluation" in r.data).toBe(false)
+    }
   })
 
   it("accepts a valid content_format", () => {
     expect(
-      contentItemUpdateSchema.safeParse({ content_format: "reels" }).success
+      contentFieldUpdateSchema.safeParse({ content_format: "reels" }).success
     ).toBe(true)
   })
 
   it("rejects a content_format outside the enum", () => {
     expect(
-      contentItemUpdateSchema.safeParse({ content_format: "tiktok" }).success
+      contentFieldUpdateSchema.safeParse({ content_format: "tiktok" }).success
     ).toBe(false)
   })
 
   it("rejects a malformed deadline", () => {
     expect(
-      contentItemUpdateSchema.safeParse({ deadline: "31/12/2026" }).success
+      contentFieldUpdateSchema.safeParse({ deadline: "31/12/2026" }).success
     ).toBe(false)
   })
 
   it("accepts an ISO deadline and a null (clear) deadline", () => {
     expect(
-      contentItemUpdateSchema.safeParse({ deadline: "2026-09-01T00:00:00.000Z" })
+      contentFieldUpdateSchema.safeParse({ deadline: "2026-09-01T00:00:00.000Z" })
         .success
     ).toBe(true)
-    expect(contentItemUpdateSchema.safeParse({ deadline: null }).success).toBe(
+    expect(contentFieldUpdateSchema.safeParse({ deadline: null }).success).toBe(
       true
     )
   })
 
-  it("does not allow status to be changed here (workflow only)", () => {
-    const r = contentItemUpdateSchema.safeParse({ status: "da_len_ads" })
-    // unknown key is stripped, not an error — but it must not appear in output
-    expect(r.success).toBe(true)
-    if (r.success) expect("status" in r.data).toBe(false)
-  })
 })
 
 describe("statusHistoryWriteSchema (SPEC §5.3 R5)", () => {

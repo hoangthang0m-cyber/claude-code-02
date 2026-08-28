@@ -7,7 +7,7 @@ import {
   type ContentFormat,
   type ContentStatus,
 } from "@/lib/domain/enums"
-import { idString, isoDateString, urlString } from "@/lib/domain/shared"
+import { isoDateString, urlString } from "@/lib/domain/shared"
 
 // SPEC §6.1 + §4: ContentItem
 //   (id, project_id, code, deadline nullable, assignee_id nullable,
@@ -32,6 +32,8 @@ export interface ContentItem {
   sheet_row_ref?: string
   created_at: Timestamp
   updated_at: Timestamp
+  // Required by SPEC §5.2 R1 ("người cập nhật"); the §6.1 sketch omits it.
+  updated_by?: string
 }
 
 // Create: only `code` in the body (SPEC §5.2 R1) — project_id comes from the URL.
@@ -43,22 +45,20 @@ export const contentItemCreateSchema = z.object({
 export type ContentItemCreate = z.infer<typeof contentItemCreateSchema>
 
 // Field-by-field update (SPEC §5.2 R1): each field independent, none forced.
-// `status` is NOT updatable here — it moves only through the workflow
-// (SPEC §5.3, §6.2). `evaluation` is manager-only (SPEC §5.4 R5) — enforced in
-// the handler, not the schema.
-export const contentItemUpdateSchema = z.object({
+// Excluded and handled elsewhere: `status` (workflow only, §5.3 / §6.2),
+// `assignee_id` (assignment endpoint, §5.2 R2 / task 3.3), `evaluation`
+// (manager-only, §5.4 R5 / task 5.9), `sheet_row_ref` (sheets-sync internal).
+export const contentFieldUpdateSchema = z.object({
   code: z.string().trim().min(1).optional(),
   deadline: isoDateString.nullable().optional(),
-  assignee_id: idString.nullable().optional(),
   script_url: urlString.nullable().optional(),
   video_url: urlString.nullable().optional(),
   topic: z.string().trim().nullable().optional(),
   content_format: z.enum(CONTENT_FORMATS).nullable().optional(),
   customer_research_url: urlString.nullable().optional(),
-  evaluation: z.string().trim().nullable().optional(),
 })
 
-export type ContentItemUpdate = z.infer<typeof contentItemUpdateSchema>
+export type ContentFieldUpdate = z.infer<typeof contentFieldUpdateSchema>
 
 export const CONTENT_ITEM_INITIAL_STATUS: ContentStatus = CONTENT_STATUSES[0]
 
