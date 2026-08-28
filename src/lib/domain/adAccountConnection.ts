@@ -54,3 +54,10 @@ export interface AdAccountConnectionView {
   state: AdAccountState
   token_expires_at: number | null
 }
+
+// SPEC §5.4 R1 / §6.4: a `needs_reconnect` account is not synced until the
+// manager reconnects. The Ads sync job (task 5.4) and the token-refresh job
+// (task 5.2) both gate on this.
+export function isAdAccountSyncable(state: AdAccountState): boolean {
+  return state === "connected"
+}

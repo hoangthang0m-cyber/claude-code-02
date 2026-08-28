@@ -122,6 +122,63 @@ export async function exchangeForLongLivedToken(
   }
 }
 
+export type TokenRefreshResult =
+  | { status: "refreshed"; token: MetaToken }
+  | { status: "invalid"; message: string }
+
+// SPEC §5.4 R1 / §6.4: renew a long-lived user token before it expires by
+// re-running the fb_exchange_token grant. A still-valid token comes back
+// extended; a revoked/expired one returns an OAuthException (code 190) → the
+// caller marks the connection `needs_reconnect`. Transient failures (network,
+// rate limit, 5xx) throw so the next cron run retries.
+export async function refreshLongLivedToken(
+  cfg: MetaAppConfig,
+  currentToken: string,
+  fetchImpl: Fetch = fetch
+): Promise<TokenRefreshResult> {
+  const url = new URL(`${GRAPH}/oauth/access_token`)
+  url.searchParams.set("grant_type", "fb_exchange_token")
+  url.searchParams.set("client_id", cfg.appId)
+  url.searchParams.set("client_secret", cfg.appSecret)
+  url.searchParams.set("fb_exchange_token", currentToken)
+
+  let res: Response
+  try {
+    res = await fetchImpl(url.toString(), { cache: "no-store" })
+  } catch {
+    throw new HttpError(502, "Không gọi được Meta để làm mới token")
+  }
+  const json = (await res.json().catch(() => null)) as Record<
+    string,
+    unknown
+  > | null
+
+  if (json && typeof json.access_token === "string") {
+    return {
+      status: "refreshed",
+      token: {
+        access_token: json.access_token,
+        expires_in: Number(json.expires_in ?? 60 * 24 * 60 * 60),
+      },
+    }
+  }
+
+  const error = (json?.error ?? {}) as {
+    code?: number
+    type?: string
+    message?: string
+  }
+  // A dead token — the manager must reconnect (SPEC §5.4 R1).
+  if (error.code === 190 || error.type === "OAuthException") {
+    return { status: "invalid", message: error.message ?? "Token không hợp lệ" }
+  }
+  // Anything else is transient.
+  throw new HttpError(
+    502,
+    `Làm mới token thất bại: ${error.message ?? `HTTP ${res.status}`}`
+  )
+}
+
 // Step 3: the ad accounts this token can read (SPEC §5.4 R1: "chọn một Ad
 // Account").
 export async function listAdAccounts(

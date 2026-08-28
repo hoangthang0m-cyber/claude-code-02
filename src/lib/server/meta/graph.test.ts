@@ -7,6 +7,7 @@ import {
   listAdAccounts,
   metaConfigFromEnv,
   metaOAuthDialogUrl,
+  refreshLongLivedToken,
 } from "@/lib/server/meta/graph"
 
 const cfg = {
@@ -77,6 +78,58 @@ describe("exchangeForLongLivedToken", () => {
     const t = await exchangeForLongLivedToken(cfg, "short-tok", fetchImpl as never)
     expect(t.access_token).toBe("long-tok")
     expect(t.expires_in).toBe(60 * 24 * 60 * 60)
+  })
+})
+
+describe("refreshLongLivedToken", () => {
+  it("returns the renewed token on success", async () => {
+    const fetchImpl = vi.fn(async () =>
+      jsonRes({ access_token: "renewed", expires_in: 5_000_000 })
+    )
+    const r = await refreshLongLivedToken(cfg, "old-tok", fetchImpl as never)
+    expect(r).toEqual({
+      status: "refreshed",
+      token: { access_token: "renewed", expires_in: 5_000_000 },
+    })
+  })
+
+  it("classifies a dead token (code 190) as invalid, not an error", async () => {
+    const fetchImpl = vi.fn(async () =>
+      jsonRes(
+        { error: { code: 190, type: "OAuthException", message: "expired" } },
+        false,
+        400
+      )
+    )
+    const r = await refreshLongLivedToken(cfg, "dead", fetchImpl as never)
+    expect(r.status).toBe("invalid")
+  })
+
+  it("treats any OAuthException as invalid", async () => {
+    const fetchImpl = vi.fn(async () =>
+      jsonRes({ error: { type: "OAuthException", message: "revoked" } }, false, 400)
+    )
+    expect((await refreshLongLivedToken(cfg, "x", fetchImpl as never)).status).toBe(
+      "invalid"
+    )
+  })
+
+  it("throws on a transient error (rate limit) so the next run retries", async () => {
+    const fetchImpl = vi.fn(async () =>
+      jsonRes({ error: { code: 4, message: "rate limited" } }, false, 429)
+    )
+    await expect(
+      refreshLongLivedToken(cfg, "x", fetchImpl as never)
+    ).rejects.toMatchObject({ status: 502 })
+  })
+
+  it("throws on a network failure", async () => {
+    const fetchImpl = vi.fn(async () => {
+      throw new Error("ECONNRESET")
+    })
+    await expect(
+      refreshLongLivedToken(cfg, "x", fetchImpl as never)
+    ).rejects.toMatchObject({ status: 502 })
   })
 })
 

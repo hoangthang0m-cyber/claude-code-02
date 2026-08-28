@@ -794,7 +794,7 @@ Mỗi task đủ nhỏ để làm trong một phiên; kèm cách verify. Làm th
 ### 7.5 Ads performance (Meta Ads API)
 
 - [x] 5.1 Luồng OAuth kết nối Ad Account Meta, lưu token mã hoá + `token_expires_at`; verify kết nối test hiển thị state `connected`
-- [ ] 5.2 Job làm mới token trước khi hết hạn; verify token gần hết hạn được refresh, token hỏng → `needs_reconnect` + dừng đồng bộ
+- [x] 5.2 Job làm mới token trước khi hết hạn; verify token gần hết hạn được refresh, token hỏng → `needs_reconnect` + dừng đồng bộ
 - [ ] 5.3 API gắn/gỡ AdsBinding (campaign/adset/ad); verify gỡ giữ lại AdsMetric lịch sử đánh dấu ngừng cập nhật
 - [ ] 5.4 Job đồng bộ Insights (mục 6.4), chu kỳ ≤ 6h khi active; verify ghi AdsMetric `source=synced` kèm `data_as_of`
 - [ ] 5.5 Tổng hợp số liệu khi nhiều AdsBinding (cộng spend/messages, tính lại CPP/ROAS/CTR có trọng số); verify unit test công thức

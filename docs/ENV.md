@@ -58,9 +58,17 @@ as a test user / app role while unreviewed).
 `FACEBOOK_ACCESS_TOKEN` (a single static token) belongs to the old `/reports`
 screen and is removed when group 7.8 replaces it.
 
+## Background jobs (group 7.5, task 5.2)
+
+| Key | Purpose |
+|---|---|
+| `CRON_SECRET` | Guards the `/api/jobs/**` handlers. Vercel Cron (see `vercel.json`) sends it as `Authorization: Bearer <CRON_SECRET>` automatically once the env var is set on the project; a manual run uses the same header. Generate: `node -e "console.log(require('crypto').randomBytes(24).toString('hex'))"`. Set a different value on Vercel. |
+
+Cron jobs so far: `meta-token-refresh` (daily 03:00 UTC — renews Meta long-lived
+tokens, flips dead ones to `needs_reconnect`).
+
 ## Later groups (not yet wired)
 
 | Key | Introduced in | Purpose |
 |---|---|---|
-| `CRON_SECRET` | 7.5 / 7.6 | Shared secret guarding `/api/jobs/**` cron endpoints (Meta token refresh, Ads + Sheets sync). |
 | `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET` | 7.6 | Google OAuth using the manager's refresh token for Sheets — **not** a service account (SPEC §6.3). Replaces `GOOGLE_SERVICE_ACCOUNT_EMAIL` / `GOOGLE_PRIVATE_KEY`. |
