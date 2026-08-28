@@ -789,7 +789,7 @@ Mỗi task đủ nhỏ để làm trong một phiên; kèm cách verify. Làm th
 - [x] 4.6 API `da_duyet` → `da_len_ads` khi có AdsBinding active hoặc manager xác nhận thủ công; verify cả hai đường
 - [x] 4.7 Ghi StatusHistory mọi lần chuyển (from/to, actor, reason); verify tab lịch sử đúng thứ tự thời gian
 - [x] 4.8 Computed `is_overdue` (mục 6.7); verify test các mốc biên (đúng hạn, quá hạn, đã lên ads, đổi deadline)
-- [ ] 4.9 Hiển thị cờ quá hạn nhất quán trên bảng, Kanban, dashboard; verify quan sát cả 3 màn hình
+- [x] 4.9 Hiển thị cờ quá hạn nhất quán trên bảng, Kanban, dashboard; verify quan sát cả 3 màn hình
 
 ### 7.5 Ads performance (Meta Ads API)
 

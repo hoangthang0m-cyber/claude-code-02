@@ -14,7 +14,7 @@ import {
   type ContentListRow,
 } from "@/modules/content-pipeline/services/content.client"
 import { ContentStatusBadge } from "@/modules/content-pipeline/components/ContentStatusBadge"
-import { Badge } from "@/components/ui/badge"
+import { OverdueBadge } from "@/modules/content-pipeline/components/OverdueBadge"
 import { Input } from "@/components/ui/input"
 import {
   Select,
@@ -72,7 +72,12 @@ export function ContentRow({
 
   return (
     <TableRow>
-      <TableCell className="font-medium">{item.code}</TableCell>
+      <TableCell className="font-medium">
+        <div className="flex items-center gap-2">
+          <span>{item.code}</span>
+          <OverdueBadge overdue={item.is_overdue} />
+        </div>
+      </TableCell>
 
       <TableCell
         className={cn(
@@ -177,8 +182,7 @@ export function ContentRow({
 
       {/* Ads report — derived from AdsMetric, read-only here (SPEC §5.4) */}
       <TableCell className="min-w-40 text-xs text-muted-foreground">
-        {item.is_overdue ? <Badge variant="destructive">Quá hạn</Badge> : null}
-        <span className="ml-1">Chưa có dữ liệu ads</span>
+        Chưa có dữ liệu ads
       </TableCell>
 
       {/* Evaluation — manager-only write (SPEC §5.4 R5 / task 5.9), read-only here */}

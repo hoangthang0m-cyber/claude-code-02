@@ -1,6 +1,7 @@
 import { CONTENT_FORMAT_LABELS } from "@/lib/domain"
 import type { ContentListRow } from "@/modules/content-pipeline/services/content.client"
-import { Badge } from "@/components/ui/badge"
+import { OverdueBadge } from "@/modules/content-pipeline/components/OverdueBadge"
+import { cn } from "@/utils/cn"
 
 type Member = { user_id: string; name: string }
 
@@ -26,11 +27,7 @@ export function ContentCard({
     <div className="flex flex-col gap-1.5 rounded-lg border bg-card p-2.5 text-sm shadow-sm">
       <div className="flex items-center justify-between gap-2">
         <span className="font-medium">{item.code}</span>
-        {item.is_overdue && (
-          <Badge variant="destructive" className="shrink-0">
-            Quá hạn
-          </Badge>
-        )}
+        <OverdueBadge overdue={item.is_overdue} />
       </div>
       {item.topic && (
         <p className="line-clamp-2 text-xs text-muted-foreground">{item.topic}</p>
@@ -38,7 +35,7 @@ export function ContentCard({
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
         <span>{assignee ?? "Chưa gán"}</span>
         {deadlineSec != null && (
-          <span>
+          <span className={cn(item.is_overdue && "font-medium text-destructive")}>
             {new Date(deadlineSec * 1000).toLocaleDateString("vi-VN")}
           </span>
         )}
