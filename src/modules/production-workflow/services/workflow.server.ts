@@ -1,6 +1,10 @@
 import { FieldValue } from "firebase-admin/firestore"
 
-import { COLLECTIONS, contentTransitionSchema, type ContentStatus } from "@/lib/domain"
+import {
+  COLLECTIONS,
+  contentTransitionSchema,
+  type ContentStatus,
+} from "@/lib/domain"
 import {
   assertProjectWritable,
   requireProjectManager,
@@ -55,9 +59,10 @@ async function hasAdsBinding(contentItemId: string): Promise<boolean> {
 //  - publish (da_duyet → da_len_ads) is a manager action allowed when the item
 //    has an ads binding OR the manager confirms manually (SPEC §5.3 R4) —
 //    task 4.6
+//  - every applied transition writes a StatusHistory row in the same batch
+//    (SPEC §5.3 R5) — task 4.7
 //
-// StatusHistory logging — where the return reason is persisted (task 4.7) —
-// and event notifications (group 7.7) layer on next.
+// Event notifications (group 7.7) layer on next.
 export async function executeTransition(
   actor: AuthedUser,
   contentItemId: string,
@@ -130,13 +135,72 @@ export async function executeTransition(
     }
   }
 
-  await ref.update({
+  const db = getAdminDb()
+  const batch = db.batch()
+  batch.update(ref, {
     status: to,
     updated_at: FieldValue.serverTimestamp(),
     updated_by: actor.uid,
   })
 
+  // SPEC §5.3 R5: log every transition (from/to, actor, reason on a return,
+  // timestamp), separate from comments. Written in the same batch as the status
+  // change so the item and its history never disagree.
+  const historyEntry: Record<string, unknown> = {
+    content_item_id: contentItemId,
+    from_status: from,
+    to_status: to,
+    actor_id: actor.uid,
+    created_at: FieldValue.serverTimestamp(),
+  }
+  if (transition.requiresReason && input.reason) {
+    historyEntry.reason = input.reason
+  }
+  batch.set(db.collection(COLLECTIONS.statusHistory).doc(), historyEntry)
+
+  await batch.commit()
+
   return reminder
     ? { id: contentItemId, from, to, reminder }
     : { id: contentItemId, from, to }
+}
+
+export interface StatusHistoryEntry {
+  id: string
+  content_item_id: string
+  from_status: ContentStatus
+  to_status: ContentStatus
+  actor_id: string
+  reason?: string
+  created_at: unknown
+}
+
+function toMillis(value: unknown): number {
+  const t = value as { toMillis?: () => number } | undefined
+  return typeof t?.toMillis === "function" ? t.toMillis() : 0
+}
+
+// SPEC §5.3 R5: the item's transition log, oldest first (the order the history
+// tab renders). Any project member can read it; sorted in memory to avoid a
+// composite index (same approach as the content list and comments).
+export async function listStatusHistory(
+  actor: AuthedUser,
+  contentItemId: string
+): Promise<{ entries: StatusHistoryEntry[] }> {
+  const { data } = await loadContentItem(contentItemId)
+  await requireProjectScope(actor.uid, data.project_id)
+
+  const snap = await getAdminDb()
+    .collection(COLLECTIONS.statusHistory)
+    .where("content_item_id", "==", contentItemId)
+    .get()
+
+  const entries = snap.docs
+    .map((d) => ({
+      id: d.id,
+      ...(d.data() as Omit<StatusHistoryEntry, "id">),
+    }))
+    .sort((a, b) => toMillis(a.created_at) - toMillis(b.created_at))
+
+  return { entries }
 }

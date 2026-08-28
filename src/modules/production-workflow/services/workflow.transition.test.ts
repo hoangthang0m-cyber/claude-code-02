@@ -7,10 +7,13 @@ const { fx } = vi.hoisted(() => ({
     assigneeId: "u1" as string | null,
     scriptUrl: "https://docs.google.com/document/d/s1" as string | null,
     videoUrl: "https://drive.google.com/file/d/v1" as string | null,
-    actorRole: "staff" as "manager" | "staff" | null,
+    actorRole: "manager" as "manager" | "staff" | null,
     lifecycle: "running" as "running" | "done" | "archived" | null,
     hasBinding: false,
+    historyDocs: [] as Array<Record<string, unknown>>,
     updateSpy: vi.fn(),
+    setSpy: vi.fn(),
+    commitSpy: vi.fn(),
   },
 }))
 
@@ -31,6 +34,11 @@ vi.mock("@/lib/server/firebaseAdmin", () => {
         return fx.hasBinding
           ? { empty: false, docs: [{ id: "b1" }] }
           : { empty: true, docs: [] }
+      }
+      if (collection === "statusHistory") {
+        return {
+          docs: fx.historyDocs.map((h, i) => ({ id: `h${i}`, data: () => h })),
+        }
       }
       return { empty: true, docs: [] }
     },
@@ -64,12 +72,20 @@ vi.mock("@/lib/server/firebaseAdmin", () => {
           update: fx.updateSpy,
         }),
       }),
+      batch: () => ({
+        update: fx.updateSpy,
+        set: fx.setSpy,
+        commit: fx.commitSpy,
+      }),
     }),
   }
 })
 
 import type { AuthedUser } from "@/lib/server/auth"
-import { executeTransition } from "@/modules/production-workflow/services/workflow.server"
+import {
+  executeTransition,
+  listStatusHistory,
+} from "@/modules/production-workflow/services/workflow.server"
 
 const actor: AuthedUser = { uid: "u1", email: null, system_role: "staff" }
 
@@ -82,7 +98,10 @@ beforeEach(() => {
   fx.actorRole = "manager"
   fx.lifecycle = "running"
   fx.hasBinding = false
+  fx.historyDocs = []
   fx.updateSpy.mockReset().mockResolvedValue(undefined)
+  fx.setSpy.mockReset()
+  fx.commitSpy.mockReset().mockResolvedValue(undefined)
 })
 
 describe("executeTransition — state-machine gate (SPEC §5.3 R1)", () => {
@@ -110,10 +129,12 @@ describe("executeTransition — state-machine gate (SPEC §5.3 R1)", () => {
   it("applies a legal transition and stamps updated_by", async () => {
     const r = await executeTransition(actor, "c1", { to: "viet_kich_ban" })
     expect(r).toEqual({ id: "c1", from: "chua_bat_dau", to: "viet_kich_ban" })
-    expect(fx.updateSpy.mock.calls[0][0]).toMatchObject({
+    // batch.update(ref, patch)
+    expect(fx.updateSpy.mock.calls[0][1]).toMatchObject({
       status: "viet_kich_ban",
       updated_by: "u1",
     })
+    expect(fx.commitSpy).toHaveBeenCalled()
   })
 
   it("rejects an illegal skip (quay_dung → da_duyet) with 409, no write", async () => {
@@ -351,5 +372,94 @@ describe("executeTransition — publish da_duyet → da_len_ads (SPEC §5.3 R4, 
       executeTransition(actor, "c1", { to: "da_len_ads", confirm: true })
     ).rejects.toMatchObject({ status: 403 })
     expect(fx.updateSpy).not.toHaveBeenCalled()
+  })
+})
+
+describe("executeTransition — StatusHistory logging (SPEC §5.3 R5, task 4.7)", () => {
+  it("writes a history row (from/to/actor) in the same batch as the status change", async () => {
+    await executeTransition(actor, "c1", { to: "viet_kich_ban" })
+    const historyWrite = fx.setSpy.mock.calls[0][1]
+    expect(historyWrite).toMatchObject({
+      content_item_id: "c1",
+      from_status: "chua_bat_dau",
+      to_status: "viet_kich_ban",
+      actor_id: "u1",
+    })
+    expect(historyWrite.created_at).toBeDefined()
+    expect(historyWrite.reason).toBeUndefined()
+    expect(fx.commitSpy).toHaveBeenCalledTimes(1)
+  })
+
+  it("records the reason on a return", async () => {
+    fx.status = "cho_duyet_video"
+    fx.actorRole = "manager"
+    await executeTransition(actor, "c1", {
+      to: "quay_dung",
+      reason: "Âm thanh chưa đạt",
+    })
+    expect(fx.setSpy.mock.calls[0][1]).toMatchObject({
+      from_status: "cho_duyet_video",
+      to_status: "quay_dung",
+      reason: "Âm thanh chưa đạt",
+    })
+  })
+
+  it("does not carry a reason onto a non-return transition", async () => {
+    fx.status = "chua_bat_dau"
+    await executeTransition(actor, "c1", {
+      to: "viet_kich_ban",
+      reason: "stray",
+    })
+    expect(fx.setSpy.mock.calls[0][1].reason).toBeUndefined()
+  })
+
+  it("writes no history when the transition is rejected", async () => {
+    fx.status = "quay_dung"
+    await expect(
+      executeTransition(actor, "c1", { to: "da_duyet" })
+    ).rejects.toMatchObject({ status: 409 })
+    expect(fx.setSpy).not.toHaveBeenCalled()
+    expect(fx.commitSpy).not.toHaveBeenCalled()
+  })
+})
+
+describe("listStatusHistory (SPEC §5.3 R5)", () => {
+  it("403 for a non-member", async () => {
+    fx.actorRole = null
+    await expect(listStatusHistory(actor, "c1")).rejects.toMatchObject({
+      status: 403,
+    })
+  })
+
+  it("returns entries oldest first regardless of the stored order", async () => {
+    fx.historyDocs = [
+      {
+        content_item_id: "c1",
+        from_status: "viet_kich_ban",
+        to_status: "cho_duyet_kich_ban",
+        actor_id: "u1",
+        created_at: { toMillis: () => 300 },
+      },
+      {
+        content_item_id: "c1",
+        from_status: "chua_bat_dau",
+        to_status: "viet_kich_ban",
+        actor_id: "u1",
+        created_at: { toMillis: () => 100 },
+      },
+      {
+        content_item_id: "c1",
+        from_status: "cho_duyet_kich_ban",
+        to_status: "quay_dung",
+        actor_id: "u-mgr",
+        created_at: { toMillis: () => 200 },
+      },
+    ]
+    const { entries } = await listStatusHistory(actor, "c1")
+    expect(entries.map((e) => e.to_status)).toEqual([
+      "viet_kich_ban",
+      "quay_dung",
+      "cho_duyet_kich_ban",
+    ])
   })
 })
