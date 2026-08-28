@@ -1,10 +1,19 @@
 import type { AdsDeliveryStatus } from "@/lib/domain"
 import type { AdObjectInsights } from "@/lib/server/meta/insights"
 
-// SPEC §5.4 R2, §6.4: a content item can be bound to several ad objects; their
-// numbers are combined into one snapshot. Sums for spend / messages / purchases;
-// cost_per_purchase from the totals; roas / ctr re-weighted by spend. Task 5.5
-// hardens this with the full WHEN/THEN scenarios.
+// SPEC §5.4 R2 / §6.4 — combining the Meta numbers of a content item's several
+// ad bindings into one snapshot:
+//
+//   spend, messages, purchases   = Σ per binding
+//   cost_per_purchase            = Σ spend / Σ purchases   (0 if no purchases)
+//   roas                         = Σ(roasᵢ · spendᵢ) / Σ spend   (spend-weighted; 0 if Σ spend = 0)
+//   ctr                          = Σ(ctrᵢ  · spendᵢ) / Σ spend   (spend-weighted; 0 if Σ spend = 0)
+//   delivery_status              = active ▸ paused ▸ completed ▸ unknown (first present)
+//   ads_started_on               = earliest non-null start date
+//
+// A single binding therefore passes straight through unchanged. Per-binding
+// `cost_per_purchase` from Meta is intentionally ignored — CPP is always
+// recomputed from the totals so it stays consistent with `spend` / `purchases`.
 
 export interface AggregatedMetrics {
   spend: number
@@ -25,52 +34,64 @@ const STATUS_PRECEDENCE: AdsDeliveryStatus[] = [
   "unknown",
 ]
 
+const ZERO: AggregatedMetrics = {
+  spend: 0,
+  messages: 0,
+  purchases: 0,
+  cost_per_purchase: 0,
+  roas: 0,
+  ctr: 0,
+  delivery_status: "unknown",
+  ads_started_on: null,
+}
+
+// Meta should never return negatives, but clamp defensively so one bad row
+// can't drag a total below zero.
+const nn = (v: number): number => (Number.isFinite(v) && v > 0 ? v : 0)
+
 export function aggregateMetrics(
   parts: Array<{ insights: AdObjectInsights; delivery_status: AdsDeliveryStatus }>
 ): AggregatedMetrics {
-  if (parts.length === 0) {
-    return {
-      spend: 0,
-      messages: 0,
-      purchases: 0,
-      cost_per_purchase: 0,
-      roas: 0,
-      ctr: 0,
-      delivery_status: "unknown",
-      ads_started_on: null,
-    }
-  }
+  if (parts.length === 0) return { ...ZERO }
 
-  const spend = sum(parts, (p) => p.insights.spend)
-  const messages = sum(parts, (p) => p.insights.messages)
-  const purchases = sum(parts, (p) => p.insights.purchases)
+  const rows = parts.map((p) => ({
+    spend: nn(p.insights.spend),
+    messages: nn(p.insights.messages),
+    purchases: nn(p.insights.purchases),
+    roas: nn(p.insights.roas),
+    ctr: nn(p.insights.ctr),
+    delivery_status: p.delivery_status,
+    ads_started_on: p.insights.ads_started_on,
+  }))
 
-  const weightedRoas =
-    spend > 0
-      ? sum(parts, (p) => p.insights.roas * p.insights.spend) / spend
-      : 0
-  const weightedCtr =
-    spend > 0 ? sum(parts, (p) => p.insights.ctr * p.insights.spend) / spend : 0
+  const spend = sum(rows, (r) => r.spend)
+  const messages = sum(rows, (r) => r.messages)
+  const purchases = sum(rows, (r) => r.purchases)
 
-  const status =
+  const roas =
+    spend > 0 ? sum(rows, (r) => r.roas * r.spend) / spend : 0
+  const ctr = spend > 0 ? sum(rows, (r) => r.ctr * r.spend) / spend : 0
+
+  const delivery_status =
     STATUS_PRECEDENCE.find((s) =>
-      parts.some((p) => p.delivery_status === s)
+      rows.some((r) => r.delivery_status === s)
     ) ?? "unknown"
 
-  const startDates = parts
-    .map((p) => p.insights.ads_started_on)
-    .filter((d): d is string => Boolean(d))
-    .sort()
+  const ads_started_on =
+    rows
+      .map((r) => r.ads_started_on)
+      .filter((d): d is string => Boolean(d))
+      .sort()[0] ?? null
 
   return {
     spend,
     messages,
     purchases,
     cost_per_purchase: purchases > 0 ? spend / purchases : 0,
-    roas: weightedRoas,
-    ctr: weightedCtr,
-    delivery_status: status,
-    ads_started_on: startDates[0] ?? null,
+    roas,
+    ctr,
+    delivery_status,
+    ads_started_on,
   }
 }
 
