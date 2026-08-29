@@ -133,6 +133,12 @@ Access:
   `null`. `content_overdue` is in the table but has no trigger yet (no write
   event marks "became overdue" — it needs a scheduled deadline scan that no
   checklist task defines).
+- `NotificationPreference` doc id is `${user_id}__${group}` (deterministic, one
+  row per user+group), and the row is written only when a user turns a group
+  **off** — its absence, or `enabled: true`, means the group is on (opt-out
+  model, §5.7 R4). The engine reads `${uid}__${group}` with one `get()` per
+  recipient before writing; the settings panel (`/ad-accounts`) toggles the
+  caller's own rows via `GET/PUT /api/notification-preferences`.
 - `AdsBinding` carries three fields beyond the §6.1 sketch: `active` (bool),
   `unbound_at` (nullable Timestamp), and `sync_error_since` (nullable Timestamp —
   set by the sync job when Insights fetches for this object keep failing, cleared

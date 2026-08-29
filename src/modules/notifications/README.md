@@ -39,7 +39,14 @@ recipient list themselves. Wired at: content assign, comment create, workflow
 submit/approve/return, ads sync (ads stopped), sheet sync (row unlinked, access
 lost).
 
-Preference filtering (§5.7 R4) layers onto the recipient list in task 7.5.
+### Preference filtering (task 7.5)
+
+`emitNotifications` drops every recipient who muted the event's group before it
+writes anything (`NOTIFICATION_TYPE_GROUP` maps the 9 types onto the 6 toggle
+groups). Opt-out model: one `notificationPreferences/${uid}__${group}` row, and
+its absence (or `enabled: true`) means keep. `GET/PUT /api/notification-preferences`
+(`notificationPreferences.server.ts`) list/toggle a user's own groups; the panel
+is on the settings page (`/ad-accounts`).
 
 ## The read side (task 7.3)
 

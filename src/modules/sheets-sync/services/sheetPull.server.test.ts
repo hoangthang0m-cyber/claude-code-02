@@ -54,7 +54,11 @@ vi.mock("@/lib/server/firebaseAdmin", () => {
       }),
       collection: (name: string) => ({
         ...query(name),
-        doc: (id?: string) => ({ id: id ?? `${name}-new` }),
+        doc: (id?: string) => ({
+          id: id ?? `${name}-new`,
+          // notificationPreferences lookups by the engine: absent → enabled
+          get: async () => ({ exists: false, data: () => undefined }),
+        }),
       }),
     }),
   }

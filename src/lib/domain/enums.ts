@@ -121,6 +121,17 @@ export const NOTIFICATION_GROUPS = [
 ] as const
 export type NotificationGroup = (typeof NOTIFICATION_GROUPS)[number]
 
+// SPEC §5.7 R4 spells the toggle list: giao việc, duyệt, quá hạn, ads,
+// bình luận/mention, đồng bộ.
+export const NOTIFICATION_GROUP_LABELS: Record<NotificationGroup, string> = {
+  assignment: "Giao việc",
+  approval: "Duyệt / trả lại",
+  overdue: "Quá hạn",
+  ads: "Ads",
+  comment_mention: "Bình luận / nhắc tên",
+  sync: "Đồng bộ",
+}
+
 // Event types (SPEC §5.7 R1 event → recipient table).
 export const NOTIFICATION_TYPES = [
   "content_assigned",

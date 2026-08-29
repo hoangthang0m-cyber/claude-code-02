@@ -1,4 +1,5 @@
 import { AdAccountsPanel } from "@/modules/ads-performance/components/AdAccountsPanel"
+import { NotificationPreferencesPanel } from "@/modules/notifications/components/NotificationPreferencesPanel"
 import { GoogleConnectPanel } from "@/modules/sheets-sync/components/GoogleConnectPanel"
 import { Separator } from "@/components/ui/separator"
 
@@ -8,6 +9,8 @@ export default function AdAccountsPage() {
       <AdAccountsPanel />
       <Separator className="max-w-2xl" />
       <GoogleConnectPanel />
+      <Separator className="max-w-2xl" />
+      <NotificationPreferencesPanel />
     </div>
   )
 }

@@ -1,6 +1,11 @@
 import { type Firestore, type WriteBatch } from "firebase-admin/firestore"
 
-import type { NotificationType } from "@/lib/domain"
+import {
+  COLLECTIONS,
+  NOTIFICATION_TYPE_GROUP,
+  notificationPreferenceDocId,
+  type NotificationType,
+} from "@/lib/domain"
 import {
   projectManagerUids,
   queueNotification,
@@ -117,8 +122,30 @@ export function notificationMessage(event: NotificationEvent): string {
   }
 }
 
-// Resolve the recipients, drop the actor + blanks, and queue one Notification
-// per remaining recipient into `batch`. Returns who was notified.
+// SPEC §5.7 R4, task 7.5: drop recipients who turned this event's group off.
+// Opt-out model — one `notificationPreferences/${uid}__${group}` row, absent or
+// `enabled: true` means keep.
+async function filterByPreference(
+  db: Firestore,
+  uids: string[],
+  type: NotificationType
+): Promise<string[]> {
+  const group = NOTIFICATION_TYPE_GROUP[type]
+  const checks = await Promise.all(
+    uids.map(async (uid) => {
+      const snap = await db
+        .collection(COLLECTIONS.notificationPreferences)
+        .doc(notificationPreferenceDocId(uid, group))
+        .get()
+      return snap.exists && snap.data()?.enabled === false ? null : uid
+    })
+  )
+  return checks.filter((uid): uid is string => uid != null)
+}
+
+// Resolve the recipients, drop the actor + blanks + anyone who muted this
+// group, and queue one Notification per remaining recipient into `batch`.
+// Returns who was notified.
 export async function emitNotifications(
   db: Firestore,
   batch: WriteBatch,
@@ -130,7 +157,7 @@ export async function emitNotifications(
 
   const message = notificationMessage(event)
   const type: NotificationType = event.type
-  const list = [...recipients]
+  const list = await filterByPreference(db, [...recipients], type)
   for (const uid of list) {
     queueNotification(db, batch, {
       recipient_id: uid,

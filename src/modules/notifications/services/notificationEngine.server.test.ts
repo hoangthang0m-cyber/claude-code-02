@@ -3,6 +3,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 const { fx } = vi.hoisted(() => ({
   fx: {
     managers: ["mgr-a", "mgr-b"] as string[],
+    /** doc ids (`${uid}__${group}`) that are turned OFF */
+    disabled: [] as string[],
     queueSpy: vi.fn(),
   },
 }))
@@ -23,7 +25,17 @@ import {
   type NotificationEvent,
 } from "@/modules/notifications/services/notificationEngine.server"
 
-const db = {} as never
+// minimal Firestore stub — only notificationPreferences reads matter here
+const db = {
+  collection: () => ({
+    doc: (id: string) => ({
+      get: async () => ({
+        exists: fx.disabled.includes(id),
+        data: () => ({ enabled: false }),
+      }),
+    }),
+  }),
+} as never
 const batch = {} as never
 
 const base = {
@@ -34,6 +46,7 @@ const base = {
 
 beforeEach(() => {
   fx.managers = ["mgr-a", "mgr-b"]
+  fx.disabled = []
   fx.queueSpy.mockReset()
 })
 
@@ -193,6 +206,43 @@ describe("emitNotifications — never notify the person who caused it", () => {
       delivery_status: "completed",
     })
     expect(recipients).toEqual([])
+  })
+})
+
+describe("emitNotifications — SPEC §5.7 R4 group opt-out (task 7.5)", () => {
+  it("drops a recipient who turned this event's group off", async () => {
+    fx.disabled = ["mgr-a__approval"] // review_* belongs to the 'approval' group
+    const { recipients } = await emitNotifications(db, batch, {
+      ...base,
+      type: "review_requested",
+      actor_id: "u2",
+      to_status: "cho_duyet_kich_ban",
+    })
+    expect(recipients).toEqual(["mgr-b"])
+    expect(fx.queueSpy).toHaveBeenCalledTimes(1)
+  })
+
+  it("a different group for the same user is unaffected", async () => {
+    fx.disabled = ["mgr-a__approval"]
+    const { recipients } = await emitNotifications(db, batch, {
+      ...base,
+      type: "ads_stopped",
+      actor_id: null,
+      delivery_status: "paused",
+    })
+    expect(recipients.sort()).toEqual(["mgr-a", "mgr-b"])
+  })
+
+  it("everyone in the group muted → notifies nobody", async () => {
+    fx.disabled = ["mgr-a__approval", "mgr-b__approval"]
+    const { recipients } = await emitNotifications(db, batch, {
+      ...base,
+      type: "review_requested",
+      actor_id: "u2",
+      to_status: "cho_duyet_video",
+    })
+    expect(recipients).toEqual([])
+    expect(fx.queueSpy).not.toHaveBeenCalled()
   })
 })
 
