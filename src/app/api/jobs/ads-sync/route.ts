@@ -7,7 +7,8 @@ export const maxDuration = 300
 
 // GET/POST /api/jobs/ads-sync — pull Meta Insights for every content item with
 // an active AdsBinding that is due, appending an AdsMetric `source=synced`
-// (SPEC §5.4 R3). Vercel Cron runs it hourly (vercel.json); each item's cadence
+// (SPEC §5.4 R3). Scheduled hourly by .github/workflows/scheduled-jobs.yml (the
+// Hobby plan can't run vercel.json crons more than daily); each item's cadence
 // is decided per SPEC §6.4 / Q5. Guarded by CRON_SECRET.
 async function run(request: Request): Promise<Response> {
   try {

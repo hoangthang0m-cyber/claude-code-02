@@ -1,0 +1,65 @@
+name: scheduled-jobs
+
+# Background jobs for the Content Performance Tracker. The Vercel account is on
+# the Hobby plan, where a cron in vercel.json can only run once per day (a more
+# frequent expression fails the deployment). So the sheets / ads sync are driven
+# from here instead, hitting the /api/jobs/** route handlers with the same
+# Authorization: Bearer <CRON_SECRET> header Vercel Cron would send.
+#
+# Repo secrets required (Settings → Secrets and variables → Actions):
+#   APP_URL      https://claude-code-02-thang20.vercel.app   (no trailing slash)
+#   CRON_SECRET  same value as the Vercel env var
+
+on:
+  schedule:
+    - cron: "*/15 * * * *" # sheets-sync   (SPEC §5.5 wants ≤5 min; ~15 is the practical floor here)
+    - cron: "7 * * * *" # ads-sync      (hourly; the job itself decides per-item due-ness / cadence)
+    - cron: "13 3 * * *" # meta-token-refresh (daily)
+  workflow_dispatch:
+    inputs:
+      job:
+        description: Job to run now
+        required: true
+        type: choice
+        options:
+          - sheets-sync
+          - ads-sync
+          - meta-token-refresh
+
+concurrency:
+  group: scheduled-jobs
+  cancel-in-progress: false
+
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve which job
+        id: pick
+        run: |
+          case "${{ github.event.schedule }}" in
+            "*/15 * * * *") job=sheets-sync ;;
+            "7 * * * *")     job=ads-sync ;;
+            "13 3 * * *")    job=meta-token-refresh ;;
+            "")              job="${{ github.event.inputs.job }}" ;;
+            *) echo "::error::unrecognised schedule '${{ github.event.schedule }}'"; exit 1 ;;
+          esac
+          echo "job=$job" >> "$GITHUB_OUTPUT"
+
+      - name: Trigger ${{ steps.pick.outputs.job }}
+        env:
+          APP_URL: ${{ secrets.APP_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          JOB: ${{ steps.pick.outputs.job }}
+        run: |
+          if [ -z "$APP_URL" ] || [ -z "$CRON_SECRET" ]; then
+            echo "::error::APP_URL / CRON_SECRET repo secrets are not set"
+            exit 1
+          fi
+          code=$(curl -sS -o response.json -w '%{http_code}' --max-time 300 \
+            -X POST "$APP_URL/api/jobs/$JOB" \
+            -H "Authorization: Bearer $CRON_SECRET")
+          echo "HTTP $code"
+          cat response.json || true
+          echo
+          [ "$code" -ge 200 ] && [ "$code" -lt 300 ]

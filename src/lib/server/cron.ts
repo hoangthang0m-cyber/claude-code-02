@@ -1,9 +1,10 @@
 import { HttpError } from "@/lib/server/http"
 
-// Guards the background-job route handlers under /api/jobs/**. Vercel Cron
-// invokes them with `Authorization: Bearer <CRON_SECRET>` when the env var is
-// set (SPEC §1.5: a background-job / scheduler mechanism). Also lets an operator
-// trigger a run by hand with the same header.
+// Guards the background-job route handlers under /api/jobs/**. The scheduler
+// (.github/workflows/scheduled-jobs.yml — the Vercel account is Hobby, which
+// can't run sub-daily vercel.json crons) calls them with
+// `Authorization: Bearer <CRON_SECRET>` (SPEC §1.5: a background-job / scheduler
+// mechanism). An operator can trigger a run by hand with the same header.
 export function assertCronRequest(request: Request): void {
   const secret = process.env.CRON_SECRET
   if (!secret) {

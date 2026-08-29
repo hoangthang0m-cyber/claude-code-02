@@ -65,15 +65,33 @@ project.
 
 | Key | Purpose |
 |---|---|
-| `CRON_SECRET` | Guards the `/api/jobs/**` handlers. Vercel Cron (see `vercel.json`) sends it as `Authorization: Bearer <CRON_SECRET>` automatically once the env var is set on the project; a manual run uses the same header. Generate: `node -e "console.log(require('crypto').randomBytes(24).toString('hex'))"`. Set a different value on Vercel. |
+| `CRON_SECRET` | Guards the `/api/jobs/**` handlers — the caller must send `Authorization: Bearer <CRON_SECRET>`. Generate: `node -e "console.log(require('crypto').randomBytes(24).toString('hex'))"`. Set the **same value** as a Vercel env var **and** as a GitHub repo secret (below). |
 
-Cron jobs so far:
-- `meta-token-refresh` — daily 03:00 UTC; renews Meta long-lived tokens, flips
-  dead ones to `needs_reconnect`.
+### Scheduling — GitHub Actions, not `vercel.json`
+
+The Vercel account is **Hobby**, where a cron in `vercel.json` may only run
+**once per day** — a more frequent expression fails the whole deployment. So the
+three jobs are driven by `.github/workflows/scheduled-jobs.yml`, which `curl`s
+the same route handlers with the `CRON_SECRET` header. It needs two **GitHub
+repo secrets** (Settings → Secrets and variables → Actions):
+
+| Secret | Value |
+|---|---|
+| `APP_URL` | `https://claude-code-02-thang20.vercel.app` (no trailing slash) |
+| `CRON_SECRET` | same as the Vercel env var |
+
+Scheduled workflows only fire on `main` and can be a few minutes late under load.
+Trigger any job by hand from the **Actions** tab → *scheduled-jobs* → *Run
+workflow*. If the account moves to **Pro**, restore `vercel.json` crons and
+delete the workflow.
+
+Jobs:
+- `meta-token-refresh` — daily; renews Meta long-lived tokens, flips dead ones
+  to `needs_reconnect`.
 - `ads-sync` — hourly; appends an `AdsMetric` (`source=synced`) per content item
   with an active AdsBinding that is due (6h / 12h / 24h cadence).
-- `sheets-sync` — every 5 min; two-way Google Sheets sync for every project with
-  a mapping (task 6.3 = system → sheet; 6.4 adds sheet → system).
+- `sheets-sync` — ~every 15 min; two-way Google Sheets sync for every project
+  with a mapping whose `sync_enabled` is not `false`.
 
 ## Google Sheets OAuth (group 7.6, task 6.1)
 

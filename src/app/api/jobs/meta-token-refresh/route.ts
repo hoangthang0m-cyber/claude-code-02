@@ -6,9 +6,9 @@ export const dynamic = "force-dynamic"
 export const maxDuration = 60
 
 // GET/POST /api/jobs/meta-token-refresh — renew Meta long-lived tokens nearing
-// expiry and mark dead ones `needs_reconnect` (SPEC §5.4 R1, §6.4). Called by
-// Vercel Cron (see vercel.json) with the CRON_SECRET bearer; GET is what Cron
-// sends, POST is for a manual run.
+// expiry and mark dead ones `needs_reconnect` (SPEC §5.4 R1, §6.4). Scheduled
+// daily by .github/workflows/scheduled-jobs.yml with the CRON_SECRET bearer;
+// GET and POST both work.
 async function run(request: Request): Promise<Response> {
   try {
     assertCronRequest(request)
