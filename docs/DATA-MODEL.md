@@ -197,6 +197,18 @@ scope a room by, and the ads sync is a ~6h cron with no interactive change to
 miss; those numbers refresh on the dashboard's own poll (≤60s). Adding
 `AdsMetric.project_id` for a true ads room is an open call for the user.
 
+## Progress dashboard (SPEC §5.6 R1, task 8.1)
+
+No new collection. `GET /api/dashboard` (`analytics/services/dashboard.server.ts`)
+reads `projectMembers` for the caller, then `contentItems` (+ `adsMetrics` for
+the "ads đang chạy" count) for the in-scope projects, and folds them with the
+pure `computeProgressDashboard` (`src/lib/domain/analytics.ts`). All chunked `in`
+queries + in-memory counting — no composite index. `total = in_production +
+pending_review + published`; the status→bucket split is defined by
+`PENDING_REVIEW_STATUSES` (`cho_duyet_*`), `da_len_ads` (published), and the
+complement (in production). Manager → over managed projects; anyone else → over
+their own assigned items (§5.6 R1 bullet 3).
+
 ## Transitional note
 
 The pre-existing `/campaigns` feature stores content in the

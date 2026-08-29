@@ -1,0 +1,139 @@
+import {
+  COLLECTIONS,
+  computeProgressDashboard,
+  EMPTY_PROGRESS_DASHBOARD,
+  type ContentStatus,
+  type DashboardItemInput,
+  type ProgressDashboard,
+} from "@/lib/domain"
+import type { AuthedUser } from "@/lib/server/auth"
+import { getAdminDb } from "@/lib/server/firebaseAdmin"
+import {
+  pickCurrentMetric,
+  toMetricView,
+} from "@/modules/ads-performance/services/adsMetrics.server"
+
+// SPEC §5.6 R1, task 8.1: the live progress dashboard.
+//
+// A project manager sees the six counters over every project they manage
+// (`mode: "manager"`). Anyone else sees the same counters but only over the
+// content items assigned to them (`mode: "staff"`, SPEC §5.6 R1 bullet 3 — no
+// project/dept dashboard). The per-role hard limit is task 8.7; this endpoint
+// already scopes the data.
+
+export interface ProgressDashboardResult extends ProgressDashboard {
+  mode: "manager" | "staff"
+  project_ids: string[]
+  as_of: number
+}
+
+function tsMs(v: unknown): number | null {
+  const t = v as { toMillis?: () => number } | undefined
+  return typeof t?.toMillis === "function" ? t.toMillis() : null
+}
+
+async function chunkedIn<T>(
+  ids: string[],
+  run: (batch: string[]) => Promise<T[]>
+): Promise<T[]> {
+  const out: T[] = []
+  for (let i = 0; i < ids.length; i += 30) {
+    out.push(...(await run(ids.slice(i, i + 30))))
+  }
+  return out
+}
+
+export async function getProgressDashboard(
+  actor: AuthedUser
+): Promise<ProgressDashboardResult> {
+  const db = getAdminDb()
+
+  const memberships = await db
+    .collection(COLLECTIONS.projectMembers)
+    .where("user_id", "==", actor.uid)
+    .get()
+  const rows = memberships.docs.map((d) => d.data())
+  const managed = [
+    ...new Set(
+      rows
+        .filter((r) => r.project_role === "manager")
+        .map((r) => String(r.project_id))
+    ),
+  ]
+  const allProjects = [...new Set(rows.map((r) => String(r.project_id)))]
+
+  const mode: "manager" | "staff" = managed.length > 0 ? "manager" : "staff"
+  const scopeProjects = mode === "manager" ? managed : allProjects
+
+  if (scopeProjects.length === 0) {
+    return {
+      ...EMPTY_PROGRESS_DASHBOARD,
+      mode,
+      project_ids: [],
+      as_of: Date.now(),
+    }
+  }
+
+  const itemDocs = await chunkedIn(scopeProjects, async (batch) => {
+    const snap = await db
+      .collection(COLLECTIONS.contentItems)
+      .where("project_id", "in", batch)
+      .get()
+    return snap.docs
+  })
+  const items = itemDocs
+    .map((d) => ({ id: d.id, data: d.data() }))
+    .filter((i) =>
+      mode === "manager" ? true : i.data.assignee_id === actor.uid
+    )
+
+  const activeAdItemIds = await currentlyRunningAdItemIds(
+    db,
+    items.map((i) => i.id)
+  )
+
+  const now = Date.now()
+  const rowsForDash: DashboardItemInput[] = items.map((i) => ({
+    status: i.data.status as ContentStatus,
+    deadline_ms: tsMs(i.data.deadline),
+    ads_active: activeAdItemIds.has(i.id),
+  }))
+
+  return {
+    ...computeProgressDashboard(rowsForDash, now),
+    mode,
+    project_ids: scopeProjects,
+    as_of: now,
+  }
+}
+
+// content items whose current AdsMetric (latest synced, else latest manual —
+// §6.1) is delivering.
+async function currentlyRunningAdItemIds(
+  db: ReturnType<typeof getAdminDb>,
+  itemIds: string[]
+): Promise<Set<string>> {
+  if (itemIds.length === 0) return new Set()
+
+  const byItem = new Map<string, ReturnType<typeof toMetricView>[]>()
+  const metricDocs = await chunkedIn(itemIds, async (batch) => {
+    const snap = await db
+      .collection(COLLECTIONS.adsMetrics)
+      .where("content_item_id", "in", batch)
+      .get()
+    return snap.docs
+  })
+  for (const d of metricDocs) {
+    const key = String(d.data().content_item_id ?? "")
+    if (!key) continue
+    const list = byItem.get(key) ?? []
+    list.push(toMetricView(d.id, d.data()))
+    byItem.set(key, list)
+  }
+
+  const running = new Set<string>()
+  for (const [id, metrics] of byItem) {
+    if (pickCurrentMetric(metrics)?.delivery_status === "active") running.add(id)
+  }
+  return running
+}
