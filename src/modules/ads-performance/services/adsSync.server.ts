@@ -18,10 +18,7 @@ import {
   type AdObjectInsights,
 } from "@/lib/server/meta/insights"
 import { aggregateMetrics } from "@/modules/ads-performance/services/metricsAggregate"
-import {
-  projectManagerUids,
-  queueNotification,
-} from "@/modules/notifications/services/notify.server"
+import { emitNotifications } from "@/modules/notifications/services/notificationEngine.server"
 
 // SPEC §5.4 R3 / §6.4: the background job that pulls Meta Insights for every
 // content item with an active AdsBinding and appends an AdsMetric
@@ -296,18 +293,14 @@ export async function syncDueAdsMetrics(
       lastStatus === "active" &&
       (agg.delivery_status === "paused" || agg.delivery_status === "completed")
     if (stopped) {
-      const code = String(itemSnap.data()?.code ?? contentItemId)
-      for (const uid of await projectManagerUids(db, projectId)) {
-        queueNotification(db, batch, {
-          recipient_id: uid,
-          type: "ads_stopped",
-          content_item_id: contentItemId,
-          project_id: projectId,
-          message: `Ads của hạng mục ${code} đã ${
-            agg.delivery_status === "paused" ? "tạm dừng" : "hoàn tất"
-          }`,
-        })
-      }
+      await emitNotifications(db, batch, {
+        type: "ads_stopped",
+        project_id: projectId,
+        content_item_id: contentItemId,
+        actor_id: null, // system event — the sync job
+        code: String(itemSnap.data()?.code ?? contentItemId),
+        delivery_status: agg.delivery_status as "paused" | "completed",
+      })
       summary.ads_stopped_events++
     }
 

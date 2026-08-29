@@ -15,10 +15,7 @@ import { getAdminDb } from "@/lib/server/firebaseAdmin"
 import { HttpError } from "@/lib/server/http"
 import { parseOrThrow } from "@/lib/server/validate"
 import { loadContentItem } from "@/modules/content-pipeline/services/content.server"
-import {
-  projectManagerUids,
-  queueNotification,
-} from "@/modules/notifications/services/notify.server"
+import { emitNotifications } from "@/modules/notifications/services/notificationEngine.server"
 
 // SPEC §5.2 R5: free-text comments on a content item, separate from
 // StatusHistory. Commenters = the assignee, project managers, or anyone
@@ -109,35 +106,28 @@ export async function createComment(
   })
 
   const code = item.code ?? contentItemId
-  const mentionSet = new Set(uniqueMentions.filter((u) => u !== actor.uid))
 
-  // @mention → the mentioned person (SPEC §5.7 R1).
-  for (const uid of mentionSet) {
-    queueNotification(db, batch, {
-      recipient_id: uid,
-      type: "comment_mention",
-      content_item_id: contentItemId,
-      project_id: projectId,
-      message: `Bạn được nhắc tên trong bình luận ở hạng mục ${code}`,
-    })
-  }
+  // SPEC §5.7 R1: @mention → the mentioned person; new comment → everyone
+  // involved with the item (assignee + managers) minus the author and anyone
+  // already told via a mention. The engine owns the actor exclusion.
+  const { recipients: mentioned } = await emitNotifications(db, batch, {
+    type: "comment_mention",
+    project_id: projectId,
+    content_item_id: contentItemId,
+    actor_id: actor.uid,
+    code,
+    mentioned_ids: uniqueMentions,
+  })
 
-  // New comment → people involved with the item, minus the author and anyone
-  // already notified via a mention (SPEC §5.7 R1).
-  const involved = new Set<string>(await projectManagerUids(db, projectId))
-  if (item.assignee_id) involved.add(item.assignee_id)
-  involved.delete(actor.uid)
-  for (const uid of mentionSet) involved.delete(uid)
-
-  for (const uid of involved) {
-    queueNotification(db, batch, {
-      recipient_id: uid,
-      type: "comment_added",
-      content_item_id: contentItemId,
-      project_id: projectId,
-      message: `Bình luận mới trên hạng mục ${code}`,
-    })
-  }
+  await emitNotifications(db, batch, {
+    type: "comment_added",
+    project_id: projectId,
+    content_item_id: contentItemId,
+    actor_id: actor.uid,
+    code,
+    assignee_id: item.assignee_id ?? null,
+    also_notified: mentioned,
+  })
 
   await batch.commit()
   return { id: commentRef.id }

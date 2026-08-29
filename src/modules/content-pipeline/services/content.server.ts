@@ -27,7 +27,7 @@ import {
   pickCurrentMetric,
   toMetricView,
 } from "@/modules/ads-performance/services/adsMetrics.server"
-import { queueNotification } from "@/modules/notifications/services/notify.server"
+import { emitNotifications } from "@/modules/notifications/services/notificationEngine.server"
 
 // Server-side content-pipeline operations (SPEC §5.2).
 
@@ -276,14 +276,16 @@ export async function assignContentItem(
     updated_at: FieldValue.serverTimestamp(),
     updated_by: actor.uid,
   })
-  // SPEC §5.7 R1: notify the assignee — but not when they claimed it themselves.
-  if (target !== null && target !== actor.uid) {
-    queueNotification(db, batch, {
-      recipient_id: target,
+  // SPEC §5.7 R1: notify the assignee — the engine drops it when they claimed
+  // the item themselves (actor === recipient).
+  if (target !== null) {
+    await emitNotifications(db, batch, {
       type: "content_assigned",
-      content_item_id: contentItemId,
       project_id: projectId,
-      message: `Bạn được giao hạng mục ${data.code ?? contentItemId}`,
+      content_item_id: contentItemId,
+      actor_id: actor.uid,
+      assignee_id: target,
+      code: data.code ?? contentItemId,
     })
   }
   await batch.commit()

@@ -2,10 +2,7 @@ import { FieldValue } from "firebase-admin/firestore"
 
 import { CONTENT_STATUSES, COLLECTIONS } from "@/lib/domain"
 import { getAdminDb } from "@/lib/server/firebaseAdmin"
-import {
-  projectManagerUids,
-  queueNotification,
-} from "@/modules/notifications/services/notify.server"
+import { emitNotifications } from "@/modules/notifications/services/notificationEngine.server"
 import { memberNameMap } from "@/modules/sheets-sync/services/sheetMapping.server"
 import {
   readMappedSheet,
@@ -176,7 +173,6 @@ export async function runDeltaSheetSync(
       itemByCode.get(code)?.data.sheet_row_ref // still linked
   )
   if (missing.length > 0) {
-    const managers = await projectManagerUids(db, projectId)
     for (const code of missing) {
       const item = itemByCode.get(code)!
       batch.update(db.collection(COLLECTIONS.contentItems).doc(item.id), {
@@ -185,15 +181,13 @@ export async function runDeltaSheetSync(
         updated_at: FieldValue.serverTimestamp(),
         updated_by: SYNC_ACTOR,
       })
-      for (const uid of managers) {
-        queueNotification(db, batch, {
-          recipient_id: uid,
-          type: "sync_issue",
-          content_item_id: item.id,
-          project_id: projectId,
-          message: `Hạng mục ${code} đã bị xoá khỏi Google Sheet — hệ thống giữ lại và đánh dấu "mất liên kết"`,
-        })
-      }
+      await emitNotifications(db, batch, {
+        type: "sync_issue",
+        project_id: projectId,
+        content_item_id: item.id,
+        actor_id: null,
+        message: `Hạng mục ${code} đã bị xoá khỏi Google Sheet — hệ thống giữ lại và đánh dấu "mất liên kết"`,
+      })
       result.unlinked++
       ops++
     }

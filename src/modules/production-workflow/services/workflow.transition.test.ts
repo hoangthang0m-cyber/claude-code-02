@@ -10,6 +10,7 @@ const { fx } = vi.hoisted(() => ({
     actorRole: "manager" as "manager" | "staff" | null,
     lifecycle: "running" as "running" | "done" | "archived" | null,
     hasBinding: false,
+    managers: [] as string[],
     historyDocs: [] as Array<Record<string, unknown>>,
     updateSpy: vi.fn(),
     setSpy: vi.fn(),
@@ -29,6 +30,9 @@ vi.mock("@/lib/server/firebaseAdmin", () => {
               empty: false,
               docs: [{ data: () => ({ project_role: fx.actorRole }) }],
             }
+      }
+      if (collection === "projectMembers" && clauses.includes("project_role")) {
+        return { docs: fx.managers.map((u) => ({ data: () => ({ user_id: u }) })) }
       }
       if (collection === "adsBindings") {
         return fx.hasBinding
@@ -98,6 +102,7 @@ beforeEach(() => {
   fx.actorRole = "manager"
   fx.lifecycle = "running"
   fx.hasBinding = false
+  fx.managers = []
   fx.historyDocs = []
   fx.updateSpy.mockReset().mockResolvedValue(undefined)
   fx.setSpy.mockReset()
@@ -420,6 +425,72 @@ describe("executeTransition — StatusHistory logging (SPEC §5.3 R5, task 4.7)"
     ).rejects.toMatchObject({ status: 409 })
     expect(fx.setSpy).not.toHaveBeenCalled()
     expect(fx.commitSpy).not.toHaveBeenCalled()
+  })
+})
+
+describe("executeTransition — event notifications (SPEC §5.7 R1, task 7.2)", () => {
+  const notifs = () =>
+    fx.setSpy.mock.calls
+      .map((c) => c[1] as Record<string, unknown>)
+      .filter((d) => typeof d.recipient_id === "string")
+
+  it("submit for review → notifies the project managers", async () => {
+    fx.status = "viet_kich_ban"
+    fx.assigneeId = "u1" // the actor does their own work step
+    fx.managers = ["mgr-1", "mgr-2"]
+    await executeTransition(actor, "c1", { to: "cho_duyet_kich_ban" })
+
+    const n = notifs()
+    expect(n.map((x) => x.recipient_id).sort()).toEqual(["mgr-1", "mgr-2"])
+    expect(n[0]).toMatchObject({
+      type: "review_requested",
+      content_item_id: "c1",
+      project_id: "p1",
+      message: "Hạng mục V1 đang chờ duyệt kịch bản",
+    })
+  })
+
+  it("approve → notifies the assignee (not the approving manager)", async () => {
+    fx.status = "cho_duyet_kich_ban"
+    fx.actorRole = "manager"
+    fx.assigneeId = "u2"
+    fx.managers = ["u1"]
+    await executeTransition(actor, "c1", { to: "quay_dung" })
+
+    const n = notifs()
+    expect(n).toHaveLength(1)
+    expect(n[0]).toMatchObject({
+      recipient_id: "u2",
+      type: "review_approved",
+      message: "Hạng mục V1 đã được duyệt",
+    })
+  })
+
+  it("return → notifies the assignee with the reason in the message", async () => {
+    fx.status = "cho_duyet_video"
+    fx.actorRole = "manager"
+    fx.assigneeId = "u2"
+    await executeTransition(actor, "c1", {
+      to: "quay_dung",
+      reason: "Tiếng ồn nền",
+    })
+
+    const n = notifs()
+    expect(n).toEqual([
+      expect.objectContaining({
+        recipient_id: "u2",
+        type: "review_returned",
+        message: "Hạng mục V1 bị trả lại: Tiếng ồn nền",
+      }),
+    ])
+  })
+
+  it("a plain advance (chua_bat_dau → viet_kich_ban) raises no notification", async () => {
+    fx.status = "chua_bat_dau"
+    fx.assigneeId = "u1"
+    fx.managers = ["mgr-1"]
+    await executeTransition(actor, "c1", { to: "viet_kich_ban" })
+    expect(notifs()).toHaveLength(0)
   })
 })
 

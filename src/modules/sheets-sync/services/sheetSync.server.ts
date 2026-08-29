@@ -14,10 +14,7 @@ import {
 import type { AuthedUser } from "@/lib/server/auth"
 import { getAdminDb } from "@/lib/server/firebaseAdmin"
 import { HttpError } from "@/lib/server/http"
-import {
-  projectManagerUids,
-  queueNotification,
-} from "@/modules/notifications/services/notify.server"
+import { emitNotifications } from "@/modules/notifications/services/notificationEngine.server"
 import { getGoogleAccessToken } from "@/modules/sheets-sync/services/googleConnection.server"
 import {
   captureSnapshot,
@@ -150,15 +147,13 @@ async function runSync(projectId: string): Promise<SheetSyncResult> {
       },
       { merge: true }
     )
-    for (const uid of await projectManagerUids(db, projectId)) {
-      queueNotification(db, batch, {
-        recipient_id: uid,
-        type: "sync_issue",
-        project_id: projectId,
-        message:
-          "Mất quyền truy cập Google Sheet — đã tạm dừng đồng bộ. Cấp lại quyền rồi bật lại trong cấu hình dự án.",
-      })
-    }
+    await emitNotifications(db, batch, {
+      type: "sync_issue",
+      project_id: projectId,
+      actor_id: null,
+      message:
+        "Mất quyền truy cập Google Sheet — đã tạm dừng đồng bộ. Cấp lại quyền rồi bật lại trong cấu hình dự án.",
+    })
     await batch.commit()
   }
 

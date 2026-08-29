@@ -16,6 +16,7 @@ import { getAdminDb } from "@/lib/server/firebaseAdmin"
 import { HttpError } from "@/lib/server/http"
 import { parseOrThrow } from "@/lib/server/validate"
 import { loadContentItem } from "@/modules/content-pipeline/services/content.server"
+import { emitNotifications } from "@/modules/notifications/services/notificationEngine.server"
 
 export interface TransitionResult {
   id: string
@@ -157,6 +158,39 @@ export async function executeTransition(
     historyEntry.reason = input.reason
   }
   batch.set(db.collection(COLLECTIONS.statusHistory).doc(), historyEntry)
+
+  // SPEC §5.7 R1: submit for review → the project managers; approve / return →
+  // the assignee. Queued in the same batch as the status change + history row.
+  const code = data.code ?? contentItemId
+  if (transition.kind === "submit") {
+    await emitNotifications(db, batch, {
+      type: "review_requested",
+      project_id: projectId,
+      content_item_id: contentItemId,
+      actor_id: actor.uid,
+      code,
+      to_status: to as "cho_duyet_kich_ban" | "cho_duyet_video",
+    })
+  } else if (transition.kind === "approve") {
+    await emitNotifications(db, batch, {
+      type: "review_approved",
+      project_id: projectId,
+      content_item_id: contentItemId,
+      actor_id: actor.uid,
+      code,
+      assignee_id: data.assignee_id ?? null,
+    })
+  } else if (transition.kind === "return") {
+    await emitNotifications(db, batch, {
+      type: "review_returned",
+      project_id: projectId,
+      content_item_id: contentItemId,
+      actor_id: actor.uid,
+      code,
+      assignee_id: data.assignee_id ?? null,
+      reason: input.reason,
+    })
+  }
 
   await batch.commit()
 

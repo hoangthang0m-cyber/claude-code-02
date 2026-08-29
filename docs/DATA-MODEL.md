@@ -126,7 +126,13 @@ Access:
   `sync_disabled_at` stamps when; both reason and timestamp are cleared when
   sync is turned back on.
 - `Notification` uses `recipient_id` (per §6.1). The pre-existing, unused
-  `notifications` rule keyed on `userId` has been replaced.
+  `notifications` rule keyed on `userId` has been replaced. Every doc is written
+  by the notification engine (`emitNotifications`, task 7.2) from the §5.7 R1
+  event → recipient table; the engine always drops the acting user, so a
+  self-claim / self-approve / own comment produces nothing. `read_at` starts
+  `null`. `content_overdue` is in the table but has no trigger yet (no write
+  event marks "became overdue" — it needs a scheduled deadline scan that no
+  checklist task defines).
 - `AdsBinding` carries three fields beyond the §6.1 sketch: `active` (bool),
   `unbound_at` (nullable Timestamp), and `sync_error_since` (nullable Timestamp —
   set by the sync job when Insights fetches for this object keep failing, cleared
