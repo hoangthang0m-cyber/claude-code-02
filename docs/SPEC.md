@@ -827,7 +827,7 @@ Mỗi task đủ nhỏ để làm trong một phiên; kèm cách verify. Làm th
 - [x] 7.3 API đếm chưa đọc + danh sách gần nhất phục vụ polling 30s; verify badge số đúng
 - [x] 7.4 UI chuông (badge, dropdown, mở → đánh dấu đã đọc + điều hướng đúng đối tượng, "đánh dấu tất cả đã đọc"); verify end-to-end
 - [x] 7.5 `NotificationPreference` bật/tắt theo nhóm; verify tắt một nhóm thì ngừng sinh thông báo nhóm đó cho người đó
-- [ ] 7.6 Đẩy cập nhật chỉ số dashboard qua kênh realtime; verify chỉ số đổi trong vài giây khi có thay đổi liên quan
+- [x] 7.6 Đẩy cập nhật chỉ số dashboard qua kênh realtime; verify chỉ số đổi trong vài giây khi có thay đổi liên quan
 
 ### 7.8 Progress analytics
 

@@ -2,16 +2,13 @@
 
 import * as React from "react"
 
+import { pollIntervalMs, type RealtimeStatus } from "@/lib/realtime"
 import {
   listContent,
   type ContentListParams,
   type ContentListRow,
 } from "@/modules/content-pipeline/services/content.client"
 import { useProjectRealtime } from "@/modules/content-pipeline/hooks/useProjectRealtime"
-import {
-  pollIntervalMs,
-  type RealtimeStatus,
-} from "@/modules/content-pipeline/services/realtime"
 
 // SPEC §6.6 / §5.6 R3, task 7.1: near-real-time for the content table. The
 // filtered/sorted list comes from the server (task 5.2), but a Firestore

@@ -162,7 +162,7 @@ Access:
   cumulative snapshot (`date_preset=maximum`) with `data_as_of = now`; cadence
   6h / 12h / 24h by lifecycle + delivery status (Q5).
 
-## Realtime (SPEC §6.6 / §5.6 R3, task 7.1)
+## Realtime (SPEC §6.6 / §5.6 R3, tasks 7.1 / 7.6)
 
 The realtime "room" for a project is a **client** Firestore listener scoped to
 `contentItems where project_id == <projectId>` (`useProjectRealtime`) — this is
@@ -180,10 +180,22 @@ connection gauge:
   a "mất kết nối tức thời" note while `offline`.
 
 The pure fold (`nextRealtimeStatus` / `pollIntervalMs` / `didReconnect` /
-`shouldRefetchOnSnapshot`) lives in `content-pipeline/services/realtime.ts` and
-is unit-tested; the `onSnapshot` wiring is the thin hook around it. In-app
+`shouldRefetchOnSnapshot` / `aggregateRealtimeStatus`) lives in `src/lib/realtime.ts`
+and is unit-tested; the `onSnapshot` wiring is the thin hook around it. In-app
 notifications stay a separate channel (30s poll, task 7.3) so history does not
 depend on the realtime connection.
+
+**Dashboard (task 7.6).** A manager's progress dashboard spans every project
+they manage, so `useDashboardRealtime(projectIds)` opens one `contentItems` room
+listener per project and folds them: the overall channel is `live` only when
+every room is, `offline` if any room is (some numbers may be stale). All the
+dashboard counts (total / đang sản xuất / chờ duyệt / quá hạn / đã lên ads)
+derive from `ContentItem` status + deadline, so a change in any project bumps
+`changeToken` within a second and the dashboard refetches. **Ads-derived figures
+(spend, "ads đang chạy") are not pushed** — `AdsMetric` has no `project_id` to
+scope a room by, and the ads sync is a ~6h cron with no interactive change to
+miss; those numbers refresh on the dashboard's own poll (≤60s). Adding
+`AdsMetric.project_id` for a true ads room is an open call for the user.
 
 ## Transitional note
 

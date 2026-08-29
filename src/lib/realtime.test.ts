@@ -3,13 +3,14 @@ import { describe, expect, it } from "vitest"
 import {
   HEALTHY_POLL_MS,
   REALTIME_POLL_MS,
+  aggregateRealtimeStatus,
   didReconnect,
   nextRealtimeStatus,
   pollIntervalMs,
   shouldRefetchOnSnapshot,
   snapshotEvent,
   type RealtimeStatus,
-} from "@/modules/content-pipeline/services/realtime"
+} from "@/lib/realtime"
 
 describe("nextRealtimeStatus (SPEC §6.6 / §5.6 R3, task 7.1)", () => {
   it("a server snapshot means the channel is live", () => {
@@ -65,6 +66,26 @@ describe("didReconnect — SPEC §6.6 R3 resync-on-recovery", () => {
         expect(didReconnect(prev, next)).toBe(false)
       }
     }
+  })
+})
+
+describe("aggregateRealtimeStatus — multi-room dashboard (task 7.6)", () => {
+  it("live only when every room is live", () => {
+    expect(aggregateRealtimeStatus(["live", "live"])).toBe("live")
+  })
+
+  it("any room offline → offline (some numbers may be stale)", () => {
+    expect(aggregateRealtimeStatus(["live", "offline", "connecting"])).toBe(
+      "offline"
+    )
+  })
+
+  it("still connecting while a room has not reported and none is offline", () => {
+    expect(aggregateRealtimeStatus(["live", "connecting"])).toBe("connecting")
+  })
+
+  it("no rooms → nothing to wait for → live", () => {
+    expect(aggregateRealtimeStatus([])).toBe("live")
   })
 })
 

@@ -11,7 +11,7 @@ import {
   shouldRefetchOnSnapshot,
   snapshotEvent,
   type RealtimeStatus,
-} from "@/modules/content-pipeline/services/realtime"
+} from "@/lib/realtime"
 
 export interface ProjectRealtime {
   /** increments whenever a contentItem in this project changed on the server */
