@@ -849,7 +849,7 @@ Mỗi task đủ nhỏ để làm trong một phiên; kèm cách verify. Làm th
         Firestore trực tiếp. Siết được ghi chú hoãn "nhóm 7.3" nhưng chưa làm; siết mà giữ được
         listener realtime (`onSnapshot where project_id ==`) cần quyết định kiến trúc (list-provability
         với `isProjectMember` dùng `exists()`). Chờ user quyết.
-- [ ] 9.2 Test state machine sản xuất đầy đủ (mục 5.3) gồm hai bước duyệt và trả lại
+- [x] 9.2 Test state machine sản xuất đầy đủ (mục 5.3) gồm hai bước duyệt và trả lại
 - [ ] 9.3 Test đồng bộ 2 chiều Google Sheets: nạp lần đầu, sửa hai chiều, thêm/xoá dòng, xung đột, mất quyền
 - [ ] 9.4 Test tích hợp Meta Ads API với mock: đồng bộ định kỳ, nhiều ad/hạng mục, rate limit, token hỏng, ads dừng
 - [ ] 9.5 Test báo cáo tuần/tháng và so sánh kỳ trên bộ dữ liệu có StatusHistory + AdsMetric trải nhiều kỳ
