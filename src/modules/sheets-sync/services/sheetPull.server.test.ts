@@ -3,7 +3,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 const { fx } = vi.hoisted(() => ({
   fx: {
     rows: [] as string[][],
-    existingItems: [] as Array<{ id: string; code: string }>,
+    existingItems: [] as Array<{
+      id: string
+      code: string
+      data?: Record<string, unknown>
+    }>,
     setSpy: vi.fn(),
     updateSpy: vi.fn(),
     commitSpy: vi.fn(),
@@ -25,7 +29,7 @@ vi.mock("@/lib/server/firebaseAdmin", () => {
         ? {
             docs: fx.existingItems.map((i) => ({
               id: i.id,
-              data: () => ({ code: i.code }),
+              data: () => ({ code: i.code, ...(i.data ?? {}) }),
             })),
           }
         : { docs: [] },
@@ -97,7 +101,9 @@ describe("runDeltaSheetSync (SPEC §5.5 R2 / §6.3, task 6.4)", () => {
   })
 
   it("only applies the sheet cells that changed since the last snapshot", async () => {
-    fx.existingItems = [{ id: "c1", code: "V001" }]
+    fx.existingItems = [
+      { id: "c1", code: "V001", data: { status: "quay_dung", topic: "NYC" } },
+    ]
     fx.rows = [
       ["Mã", "TT", "CĐ"],
       ["V001", "quay_dung", "NYC 2"], // topic changed, status same
@@ -124,7 +130,9 @@ describe("runDeltaSheetSync (SPEC §5.5 R2 / §6.3, task 6.4)", () => {
   })
 
   it("a cell changed to an invalid status is skipped + counted, no other change → no update", async () => {
-    fx.existingItems = [{ id: "c1", code: "V001" }]
+    fx.existingItems = [
+      { id: "c1", code: "V001", data: { status: "quay_dung", topic: "NYC" } },
+    ]
     fx.rows = [
       ["Mã", "TT", "CĐ"],
       ["V001", "bậy bạ", "NYC"],
@@ -134,6 +142,68 @@ describe("runDeltaSheetSync (SPEC §5.5 R2 / §6.3, task 6.4)", () => {
     expect(result.mapping_errors).toBe(1)
     expect(result.updated).toBe(0)
     expect(fx.updateSpy).not.toHaveBeenCalled()
+  })
+
+  it("conflict (both sides changed the same field): system_wins keeps the system value + logs SyncConflict", async () => {
+    fx.existingItems = [
+      { id: "c1", code: "V001", data: { topic: "Hệ thống sửa" } },
+    ]
+    fx.rows = [
+      ["Mã", "TT", "CĐ"],
+      ["V001", "quay_dung", "Sheet sửa"],
+    ]
+    const prev = { V001: { status: "quay_dung", topic: "Gốc" } }
+    const { result } = await runDeltaSheetSync("p1", cfg, "tok", prev) // default = system_wins
+
+    expect(result.conflicts).toBe(1)
+    expect(result.updated).toBe(0) // system value kept
+    const conflict = fx.setSpy.mock.calls[0][1] as Record<string, unknown>
+    expect(conflict).toMatchObject({
+      project_id: "p1",
+      content_item_id: "c1",
+      field: "topic",
+      system_value: "Hệ thống sửa",
+      sheet_value: "Sheet sửa",
+      chosen_side: "system",
+    })
+  })
+
+  it("conflict with sheet_wins: applies the sheet value + logs chosen_side sheet", async () => {
+    fx.existingItems = [
+      { id: "c1", code: "V001", data: { topic: "Hệ thống sửa" } },
+    ]
+    fx.rows = [
+      ["Mã", "TT", "CĐ"],
+      ["V001", "quay_dung", "Sheet sửa"],
+    ]
+    const prev = { V001: { status: "quay_dung", topic: "Gốc" } }
+    const { result } = await runDeltaSheetSync(
+      "p1",
+      { ...cfg, conflict_rule: "sheet_wins" },
+      "tok",
+      prev
+    )
+
+    expect(result.conflicts).toBe(1)
+    expect(result.updated).toBe(1)
+    expect((fx.updateSpy.mock.calls[0][1] as Record<string, unknown>).topic).toBe(
+      "Sheet sửa"
+    )
+    expect(
+      (fx.setSpy.mock.calls[0][1] as Record<string, unknown>).chosen_side
+    ).toBe("sheet")
+  })
+
+  it("no conflict when only the sheet changed (system still at the snapshot value)", async () => {
+    fx.existingItems = [{ id: "c1", code: "V001", data: { topic: "Gốc" } }]
+    fx.rows = [
+      ["Mã", "TT", "CĐ"],
+      ["V001", "quay_dung", "Sheet sửa"],
+    ]
+    const prev = { V001: { status: "quay_dung", topic: "Gốc" } }
+    const { result } = await runDeltaSheetSync("p1", cfg, "tok", prev)
+    expect(result.conflicts).toBe(0)
+    expect(result.updated).toBe(1)
   })
 
   it("leaves a row that was deleted from the sheet alone (task 6.7)", async () => {

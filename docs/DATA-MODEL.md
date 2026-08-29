@@ -96,7 +96,11 @@ Access:
   access (firestore.rules `read, write: if false`); the Sheets sync reads it
   server-side and refreshes the access token per run.
 - `SyncConflict.system_value` / `sheet_value` store the **serialised string**
-  form of each side's value, for the log (§5.5 R3).
+  form of each side's value, for the log (§5.5 R3). A conflict is detected when
+  the same field's value differs from the last-sync `snapshot` on BOTH sides
+  (task 6.6); `conflict_rule` (`system_wins` default) decides `chosen_side`, and
+  on `system_wins` the sheet value is not applied — the next push writes the
+  system value back down.
 - `Notification` uses `recipient_id` (per §6.1). The pre-existing, unused
   `notifications` rule keyed on `userId` has been replaced.
 - `AdsBinding` carries three fields beyond the §6.1 sketch: `active` (bool),

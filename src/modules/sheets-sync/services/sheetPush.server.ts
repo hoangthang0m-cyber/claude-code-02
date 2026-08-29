@@ -13,6 +13,7 @@ import {
   pickCurrentMetric,
   toMetricView,
 } from "@/modules/ads-performance/services/adsMetrics.server"
+import { systemFieldValue } from "@/modules/sheets-sync/services/sheetRows"
 
 // SPEC §5.5 R2 / §6.3, task 6.3: the system → sheet direction. For every content
 // item whose `code` matches a sheet row, write the current system value into
@@ -48,9 +49,6 @@ interface PushConfig {
   column_map: Record<string, string>
 }
 
-function fmtDate(ts: { toDate?: () => Date } | undefined): string {
-  return fmtDateMs(ts?.toDate?.()?.getTime() ?? null)
-}
 function fmtDateMs(ms: number | null): string {
   if (ms == null) return ""
   const d = new Date(ms)
@@ -136,21 +134,7 @@ export async function syncSystemToSheet(
   return result
 }
 
-function valueFor(
-  field: string,
-  item: Record<string, unknown>,
-  nameByUid: Map<string, string>
-): string {
-  if (field === "deadline") {
-    return fmtDate(item.deadline as { toDate?: () => Date } | undefined)
-  }
-  if (field === "assignee") {
-    const uid = String(item.assignee_id ?? "")
-    return uid ? (nameByUid.get(uid) ?? "") : ""
-  }
-  const v = item[field]
-  return v == null ? "" : String(v)
-}
+const valueFor = systemFieldValue
 
 function adsValueFor(field: string, m: AdsMetricView): string {
   switch (field) {

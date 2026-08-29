@@ -34,6 +34,7 @@ interface MappingDoc {
   sheet_tab: string
   header_row: number
   column_map: Record<string, string>
+  conflict_rule: "system_wins" | "sheet_wins"
   owner_uid: string
   snapshot: SheetSnapshot
 }
@@ -64,6 +65,7 @@ async function loadMapping(projectId: string): Promise<MappingDoc> {
     sheet_tab: String(d.sheet_tab ?? ""),
     header_row: Number(d.header_row ?? 1),
     column_map: (d.column_map ?? {}) as Record<string, string>,
+    conflict_rule: d.conflict_rule === "sheet_wins" ? "sheet_wins" : "system_wins",
     owner_uid: ownerUid,
     snapshot: (d.snapshot ?? {}) as SheetSnapshot,
   }
@@ -74,6 +76,7 @@ const EMPTY_PULL: SheetPullResult = {
   created: 0,
   updated: 0,
   mapping_errors: 0,
+  conflicts: 0,
   messages: [],
 }
 
@@ -107,19 +110,20 @@ async function runSync(projectId: string): Promise<SheetSyncResult> {
     error = e instanceof HttpError ? e.message : "Đồng bộ thất bại"
   }
 
-  const mappingErrors = pull.mapping_errors
+  const hasWarnings = pull.mapping_errors > 0 || pull.conflicts > 0
   await db.collection(COLLECTIONS.syncRuns).doc().set({
     project_id: projectId,
     kind: "sheets",
     started_at: startedAt,
     finished_at: FieldValue.serverTimestamp(),
-    result: error ? "error" : mappingErrors > 0 ? "warning" : "ok",
+    result: error ? "error" : hasWarnings ? "warning" : "ok",
     rows_read: pull.rows_read,
     rows_written: pull.created + pull.updated + push.cells_written,
     message:
       error ??
       `Sheet→hệ thống: ${pull.created} tạo, ${pull.updated} cập nhật` +
-        (mappingErrors ? `, ${mappingErrors} lỗi ánh xạ` : "") +
+        (pull.conflicts ? `, ${pull.conflicts} xung đột` : "") +
+        (pull.mapping_errors ? `, ${pull.mapping_errors} lỗi ánh xạ` : "") +
         `. Hệ thống→sheet: ${push.cells_written} ô.`,
   })
 

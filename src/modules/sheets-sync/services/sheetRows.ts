@@ -16,6 +16,8 @@ export interface MappedSheetConfig {
   sheet_tab: string
   header_row: number
   column_map: Record<string, string>
+  /** SPEC §5.5 R3 — who wins when the same field changed on both sides. */
+  conflict_rule?: "system_wins" | "sheet_wins"
 }
 
 export interface SheetRowContext {
@@ -122,6 +124,28 @@ export function resolveField(
 
 export function isMappableField(field: string): boolean {
   return (SHEET_INBOUND_FIELDS as readonly string[]).includes(field)
+}
+
+// The current system value of an inbound field, formatted the same way it is
+// written down to the sheet (task 6.3's `valueFor`). Used for conflict
+// detection (task 6.6): compare this against the last-sync snapshot.
+export function systemFieldValue(
+  field: string,
+  item: Record<string, unknown>,
+  nameByUid: Map<string, string>
+): string {
+  if (field === "deadline") {
+    const d = (item.deadline as { toDate?: () => Date } | undefined)?.toDate?.()
+    if (!d) return ""
+    const pad = (n: number) => String(n).padStart(2, "0")
+    return `${pad(d.getUTCDate())}/${pad(d.getUTCMonth() + 1)}/${d.getUTCFullYear()}`
+  }
+  if (field === "assignee") {
+    const uid = String(item.assignee_id ?? "")
+    return uid ? (nameByUid.get(uid) ?? "") : ""
+  }
+  const v = item[field]
+  return v == null ? "" : String(v)
 }
 
 // Accepts DD/MM/YYYY, YYYY-MM-DD and full ISO strings; date-only → UTC midnight.
