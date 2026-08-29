@@ -4,6 +4,7 @@ import {
   CONTENT_FORMATS,
   CONTENT_STATUSES,
   COLLECTIONS,
+  isAdsSheetField,
   parseSheetUrl,
   sheetMappingSaveSchema,
   type ContentFormat,
@@ -242,7 +243,8 @@ export async function runFirstSheetSync(
     }
 
     for (const field of Object.keys(cfg.column_map)) {
-      if (field === "code") continue
+      // ads columns are push-only (SPEC §6.2) — never read from the sheet
+      if (field === "code" || isAdsSheetField(field)) continue
       const value = cell(row, field)
       if (!value) continue
 

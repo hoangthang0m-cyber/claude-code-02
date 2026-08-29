@@ -1,17 +1,29 @@
-import { COLLECTIONS } from "@/lib/domain"
+import {
+  COLLECTIONS,
+  SHEET_ADS_FIELDS,
+  type AdsMetricView,
+} from "@/lib/domain"
 import { getAdminDb } from "@/lib/server/firebaseAdmin"
 import {
   batchUpdateValues,
   columnLetter,
   readSheetValues,
 } from "@/lib/server/google/sheets"
+import {
+  pickCurrentMetric,
+  toMetricView,
+} from "@/modules/ads-performance/services/adsMetrics.server"
 
 // SPEC §5.5 R2 / §6.3, task 6.3: the system → sheet direction. For every content
 // item whose `code` matches a sheet row, write the current system value into
-// each mapped cell that differs. Only mapped cells are touched ("ghi theo ô,
-// chỉ các ô có ánh xạ"). Ads-metric fields (push-down) land in task 6.5.
+// each mapped cell that differs — only mapped cells ("ghi theo ô, chỉ các ô có
+// ánh xạ").
+//
+// Task 6.5: the ads-metric columns are also written down here, but ONE-WAY —
+// nothing reads them back (SPEC §6.2), so a hand-edit on the sheet can't
+// overwrite a synced number.
 
-// Fields written down to the sheet — every inbound field except the row key.
+// Content fields — two-way. Every inbound field except the row key.
 const SYSTEM_TO_SHEET_FIELDS = [
   "deadline",
   "assignee",
@@ -37,8 +49,11 @@ interface PushConfig {
 }
 
 function fmtDate(ts: { toDate?: () => Date } | undefined): string {
-  const d = ts?.toDate?.()
-  if (!d) return ""
+  return fmtDateMs(ts?.toDate?.()?.getTime() ?? null)
+}
+function fmtDateMs(ms: number | null): string {
+  if (ms == null) return ""
+  const d = new Date(ms)
   const pad = (n: number) => String(n).padStart(2, "0")
   return `${pad(d.getUTCDate())}/${pad(d.getUTCMonth() + 1)}/${d.getUTCFullYear()}`
 }
@@ -61,9 +76,8 @@ export async function syncSystemToSheet(
   const codeCol = codeHeader ? headers.indexOf(codeHeader) : -1
   if (codeCol < 0) return result
 
-  // code → 1-based sheet row number (header is at cfg.header_row)
   const rowOf = new Map<string, number>()
-  const cellAt = new Map<string, string[]>() // code → the row's cells
+  const cellAt = new Map<string, string[]>()
   rows.slice(1).forEach((row, i) => {
     const code = (row[codeCol] ?? "").trim()
     if (code) {
@@ -77,6 +91,11 @@ export async function syncSystemToSheet(
     memberNames(db, projectId),
   ])
 
+  const mapsAds = SHEET_ADS_FIELDS.some((f) => cfg.column_map[f])
+  const metricByItem = mapsAds
+    ? await currentMetrics(db, itemsSnap.docs.map((d) => d.id))
+    : new Map<string, AdsMetricView | null>()
+
   const updates: Array<{ range: string; value: string }> = []
   for (const doc of itemsSnap.docs) {
     const item = doc.data()
@@ -85,21 +104,27 @@ export async function syncSystemToSheet(
     if (!sheetRow) continue
     result.rows_matched++
     const currentCells = cellAt.get(code) ?? []
+    const metric = metricByItem.get(doc.id) ?? null
 
-    for (const field of SYSTEM_TO_SHEET_FIELDS) {
+    const push = (field: string, value: string) => {
       const header = cfg.column_map[field]
-      if (!header) continue
+      if (!header) return
       const col = headers.indexOf(header)
-      if (col < 0) continue
-
-      const systemValue = valueFor(field, item, nameByUid)
-      const sheetValue = (currentCells[col] ?? "").trim()
-      if (systemValue === sheetValue) continue
-
+      if (col < 0) return
+      if ((currentCells[col] ?? "").trim() === value) return
       updates.push({
         range: `'${cfg.sheet_tab}'!${columnLetter(col)}${sheetRow}`,
-        value: systemValue,
+        value,
       })
+    }
+
+    for (const field of SYSTEM_TO_SHEET_FIELDS) {
+      push(field, valueFor(field, item, nameByUid))
+    }
+    if (metric) {
+      for (const field of SHEET_ADS_FIELDS) {
+        push(field, adsValueFor(field, metric))
+      }
     }
   }
 
@@ -125,6 +150,52 @@ function valueFor(
   }
   const v = item[field]
   return v == null ? "" : String(v)
+}
+
+function adsValueFor(field: string, m: AdsMetricView): string {
+  switch (field) {
+    case "spend":
+      return String(Math.round(m.spend))
+    case "messages":
+      return String(Math.round(m.messages))
+    case "cost_per_purchase":
+      return String(Math.round(m.cost_per_purchase))
+    case "roas":
+      return m.roas.toFixed(2)
+    case "ctr":
+      return m.ctr.toFixed(2)
+    case "delivery_status":
+      return m.delivery_status
+    case "ads_started_on":
+      return fmtDateMs(m.ads_started_on)
+    case "data_as_of":
+      return fmtDateMs(m.data_as_of)
+    default:
+      return ""
+  }
+}
+
+async function currentMetrics(
+  db: ReturnType<typeof getAdminDb>,
+  itemIds: string[]
+): Promise<Map<string, AdsMetricView | null>> {
+  const rowsByItem = new Map<string, AdsMetricView[]>()
+  for (let i = 0; i < itemIds.length; i += 30) {
+    const snap = await db
+      .collection(COLLECTIONS.adsMetrics)
+      .where("content_item_id", "in", itemIds.slice(i, i + 30))
+      .get()
+    for (const d of snap.docs) {
+      const key = String(d.data().content_item_id ?? "")
+      const view = toMetricView(d.id, d.data())
+      ;(rowsByItem.get(key) ?? rowsByItem.set(key, []).get(key)!).push(view)
+    }
+  }
+  const out = new Map<string, AdsMetricView | null>()
+  for (const id of itemIds) {
+    out.set(id, pickCurrentMetric(rowsByItem.get(id) ?? []))
+  }
+  return out
 }
 
 async function memberNames(

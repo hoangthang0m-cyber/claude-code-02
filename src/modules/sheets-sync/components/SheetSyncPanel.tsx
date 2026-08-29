@@ -3,7 +3,12 @@
 import * as React from "react"
 import { toast } from "sonner"
 
-import { SHEET_INBOUND_FIELDS, SHEET_INBOUND_FIELD_LABELS } from "@/lib/domain"
+import {
+  SHEET_ADS_FIELDS,
+  SHEET_ADS_FIELD_LABELS,
+  SHEET_INBOUND_FIELDS,
+  SHEET_INBOUND_FIELD_LABELS,
+} from "@/lib/domain"
 import {
   getSheetMapping,
   previewSheet,
@@ -171,35 +176,32 @@ export function SheetSyncPanel({ projectId }: { projectId: string }) {
       </div>
 
       {preview && preview.header_columns.length > 0 && (
-        <div className="flex flex-col gap-2">
-          <p className="text-sm font-medium">Ánh xạ cột → trường</p>
-          <div className="grid gap-2 sm:grid-cols-2">
-            {SHEET_INBOUND_FIELDS.map((field) => (
-              <div key={field} className="flex items-center gap-2 text-sm">
-                <span className="w-36 shrink-0 text-muted-foreground">
-                  {SHEET_INBOUND_FIELD_LABELS[field]}
-                  {field === "code" && " *"}
-                </span>
-                <Select
-                  value={columnMap[field] || NONE}
-                  onValueChange={(v) =>
-                    v && setColumnMap((m) => ({ ...m, [field]: v }))
-                  }
-                >
-                  <SelectTrigger size="sm" className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={NONE}>— không ánh xạ —</SelectItem>
-                    {preview.header_columns.map((c) => (
-                      <SelectItem key={c} value={c}>
-                        {c}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            ))}
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-2">
+            <p className="text-sm font-medium">Ánh xạ cột → trường (2 chiều)</p>
+            <MapGrid
+              fields={SHEET_INBOUND_FIELDS}
+              labels={SHEET_INBOUND_FIELD_LABELS}
+              columns={preview.header_columns}
+              columnMap={columnMap}
+              onChange={(f, v) => setColumnMap((m) => ({ ...m, [f]: v }))}
+              requiredField="code"
+            />
+          </div>
+          <div className="flex flex-col gap-2">
+            <p className="text-sm font-medium">
+              Cột số liệu ads{" "}
+              <span className="font-normal text-muted-foreground">
+                (chỉ ghi xuống sheet, không đọc ngược)
+              </span>
+            </p>
+            <MapGrid
+              fields={SHEET_ADS_FIELDS}
+              labels={SHEET_ADS_FIELD_LABELS}
+              columns={preview.header_columns}
+              columnMap={columnMap}
+              onChange={(f, v) => setColumnMap((m) => ({ ...m, [f]: v }))}
+            />
           </div>
         </div>
       )}
@@ -244,5 +246,50 @@ export function SheetSyncPanel({ projectId }: { projectId: string }) {
         )}
       </div>
     </section>
+  )
+}
+
+function MapGrid({
+  fields,
+  labels,
+  columns,
+  columnMap,
+  onChange,
+  requiredField,
+}: {
+  fields: readonly string[]
+  labels: Record<string, string>
+  columns: string[]
+  columnMap: Record<string, string>
+  onChange: (field: string, value: string) => void
+  requiredField?: string
+}) {
+  return (
+    <div className="grid gap-2 sm:grid-cols-2">
+      {fields.map((field) => (
+        <div key={field} className="flex items-center gap-2 text-sm">
+          <span className="w-36 shrink-0 text-muted-foreground">
+            {labels[field]}
+            {field === requiredField && " *"}
+          </span>
+          <Select
+            value={columnMap[field] || NONE}
+            onValueChange={(v) => v && onChange(field, v)}
+          >
+            <SelectTrigger size="sm" className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={NONE}>— không ánh xạ —</SelectItem>
+              {columns.map((c) => (
+                <SelectItem key={c} value={c}>
+                  {c}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      ))}
+    </div>
   )
 }

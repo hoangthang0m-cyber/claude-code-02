@@ -86,6 +86,36 @@ export const SHEET_INBOUND_FIELD_LABELS: Record<SheetInboundField, string> = {
   evaluation: "Đánh giá / đề xuất",
 }
 
+// Ads-metric columns are PUSH-ONLY (SPEC §6.2): the sync writes them down to the
+// sheet but never reads them back, so a hand-edit on the sheet cannot overwrite
+// a synced number with a stale one.
+export const SHEET_ADS_FIELDS = [
+  "spend",
+  "messages",
+  "cost_per_purchase",
+  "roas",
+  "ctr",
+  "delivery_status",
+  "ads_started_on",
+  "data_as_of",
+] as const
+export type SheetAdsField = (typeof SHEET_ADS_FIELDS)[number]
+
+export const SHEET_ADS_FIELD_LABELS: Record<SheetAdsField, string> = {
+  spend: "Ads – Chi phí",
+  messages: "Ads – Tin nhắn",
+  cost_per_purchase: "Ads – CPP",
+  roas: "Ads – ROAS",
+  ctr: "Ads – CTR",
+  delivery_status: "Ads – Trạng thái phân phối",
+  ads_started_on: "Ads – Ngày bắt đầu",
+  data_as_of: "Ads – Số liệu tính đến",
+}
+
+export function isAdsSheetField(field: string): boolean {
+  return (SHEET_ADS_FIELDS as readonly string[]).includes(field)
+}
+
 // Save request from the config screen (SPEC §5.5 R1). `spreadsheet_id` /
 // `sheet_tab` are resolved from `url` + the verify step, not sent in the body.
 export const sheetMappingSaveSchema = z.object({

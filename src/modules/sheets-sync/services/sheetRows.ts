@@ -70,7 +70,8 @@ export function snapshotOf(
     if (!code) continue
     const fields: Record<string, string> = {}
     for (const field of Object.keys(cfg.column_map)) {
-      if (field === "code") continue
+      // only inbound fields — ads columns are push-only, never read back
+      if (field === "code" || !isMappableField(field)) continue
       fields[field] = cellOf(ctx, cfg, row, field)
     }
     snap[code] = fields

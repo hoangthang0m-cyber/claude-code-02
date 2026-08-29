@@ -86,7 +86,9 @@ Access:
   the mapped cell values at the previous sync. The delta pull diffs the sheet
   against it, so only changed cells / new rows are applied; it is re-captured
   after every sync. Not in the §6.1 sketch (§6.3 mandates a snapshot but gives
-  it no home).
+  it no home). Only inbound fields (`SHEET_INBOUND_FIELDS`) go in the snapshot —
+  ads columns (`SHEET_ADS_FIELDS`) are push-only (task 6.5, SPEC §6.2) so a
+  hand-edit of an ads cell is never read back.
 - `googleConnections` (task 6.1) is a collection NOT in the §6.1 sketch — §6.3
   mandates storing the manager's Google refresh token but §6.1 gives it no home.
   Doc id = the manager's user id; `{ user_id, email, refresh_token_encrypted,
