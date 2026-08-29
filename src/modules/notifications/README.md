@@ -41,6 +41,17 @@ lost).
 
 Preference filtering (§5.7 R4) layers onto the recipient list in task 7.5.
 
+## The read side (task 7.3)
+
+`GET /api/notifications?limit=30` → `{ unread_count, items: NotificationView[] }`
+(`services/notifications.server.ts`). Scoped to `recipient_id == caller`, sorted
+newest-first and capped in memory (no composite index, same as the other list
+endpoints). `unread_count` counts **every** unread notification, not just the
+page, so the bell badge is exact even when the list is truncated. The client
+(`notifications.client.ts`) polls it every 30s — the mark-read mutations and the
+bell UI come in task 7.4.
+
+
 **Not yet wired:** `content_overdue` has no trigger — "becoming overdue" is a
 time transition with no write event, so it needs a scheduled deadline scan. No
 checklist task creates that scan; the engine route is ready for it.
