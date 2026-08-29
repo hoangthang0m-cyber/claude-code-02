@@ -46,7 +46,29 @@ task 7.6 (`useDashboardRealtime`).
 "nhận việc" is proxied by the item's first StatusHistory entry — assignment
 isn't recorded in StatusHistory, and the checklist says the lead time is computed
 **from StatusHistory**. `from`/`to` (epoch ms) bound the period; default is the
-current UTC calendar month. The report's week-start / timezone rule (Open
-Question Q4) is not needed here — the caller passes explicit bounds — and lands
-with task 8.3. Scope (`resolveAnalyticsScope`, shared with 8.1): manager → every
-member of their managed projects; anyone else → just their own row.
+current UTC calendar month. Scope (`resolveAnalyticsScope`, shared with 8.1):
+manager → every member of their managed projects; anyone else → just their own row.
+
+## Weekly / monthly report (task 8.3)
+
+`GET /api/dashboard/report?period=week|month&date=YYYY-MM-DD` → §5.6 R3 metrics
+over **the cohort of content that hit `da_len_ads` inside the period**:
+
+| field | meaning |
+|---|---|
+| `throughput` | size of the cohort |
+| `on_time` / `on_time_rate` | cohort items published on or before their deadline (no deadline → on time) |
+| `returns` | count of return-transitions (`cho_duyet_* → earlier`) across scoped items in the period |
+| `total_spend` / `total_messages` | sum of each cohort item's **current** cumulative AdsMetric |
+| `weighted_roas` | Σ(roas·spend) / Σ(spend) over the cohort (0 when nothing spent) |
+| `top_by_roas` | cohort items with ads, ranked by ROAS, capped at 5 |
+| `has_data` | `throughput > 0` — drives the "chưa có dữ liệu trong kỳ" label |
+
+**§8 Q4 (answered):** the period is resolved server-side in **Asia/Ho_Chi_Minh
+(UTC+7, no DST)** with a **Monday** week start (`resolveReportPeriod` in
+`src/lib/domain/reportPeriod.ts`, unit-tested — it also yields the
+immediately-preceding period's bounds, which task 8.4 reuses). The response
+echoes the resolved `period`. Ads figures are the
+**cohort's lifetime** AdsMetric, not a period delta — the sync writes cumulative
+snapshots (§6.1 Q1), and the report is about "the ads performance of this
+period's content".

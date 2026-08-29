@@ -3,10 +3,12 @@ import { describe, expect, it } from "vitest"
 import {
   IN_PRODUCTION_STATUSES,
   PENDING_REVIEW_STATUSES,
+  computePeriodReport,
   computePersonPerformance,
   computeProgressDashboard,
   type DashboardItemInput,
   type PersonItemInput,
+  type ReportCohortItem,
 } from "@/lib/domain/analytics"
 
 const NOW = Date.UTC(2026, 8, 1) // 2026-09-01
@@ -221,5 +223,81 @@ describe("progress-dashboard — sample dataset", () => {
       overdue: 2,
       ads_running: 2,
     })
+  })
+})
+
+describe("computePeriodReport (SPEC §5.6 R3, task 8.3)", () => {
+  const cItem = (over: Partial<ReportCohortItem>): ReportCohortItem => ({
+    content_item_id: "ci",
+    code: "C",
+    published_ms: 1_000,
+    deadline_ms: null,
+    ads: null,
+    ...over,
+  })
+
+  it("empty cohort → all zeros + has_data false, but returns still reported", () => {
+    expect(computePeriodReport([], 3)).toEqual({
+      has_data: false,
+      throughput: 0,
+      on_time: 0,
+      on_time_rate: 0,
+      returns: 3,
+      total_spend: 0,
+      total_messages: 0,
+      weighted_roas: 0,
+      top_by_roas: [],
+    })
+  })
+
+  it("throughput = cohort size; on-time = published by deadline (null deadline = on time)", () => {
+    const r = computePeriodReport(
+      [
+        cItem({ published_ms: 100, deadline_ms: 200 }), // on time
+        cItem({ published_ms: 300, deadline_ms: 200 }), // late
+        cItem({ published_ms: 300, deadline_ms: null }), // on time (no deadline)
+        cItem({ published_ms: 200, deadline_ms: 200 }), // on time (== deadline)
+      ],
+      0
+    )
+    expect(r).toMatchObject({ has_data: true, throughput: 4, on_time: 3 })
+    expect(r.on_time_rate).toBe(0.75)
+  })
+
+  it("spend + messages sum only items with ads; ROAS is spend-weighted", () => {
+    const r = computePeriodReport(
+      [
+        cItem({ ads: { spend: 100, messages: 5, roas: 2 } }),
+        cItem({ ads: { spend: 300, messages: 15, roas: 4 } }),
+        cItem({ ads: null }), // published but no metric yet
+      ],
+      0
+    )
+    expect(r.total_spend).toBe(400)
+    expect(r.total_messages).toBe(20)
+    // (2*100 + 4*300) / 400 = 1400/400 = 3.5
+    expect(r.weighted_roas).toBe(3.5)
+  })
+
+  it("weighted ROAS is 0 when nothing was spent", () => {
+    const r = computePeriodReport(
+      [cItem({ ads: { spend: 0, messages: 0, roas: 9 } })],
+      0
+    )
+    expect(r.weighted_roas).toBe(0)
+  })
+
+  it("top_by_roas is the ads items ranked by ROAS, capped", () => {
+    const r = computePeriodReport(
+      [
+        cItem({ content_item_id: "a", code: "A", ads: { spend: 1, messages: 0, roas: 1 } }),
+        cItem({ content_item_id: "b", code: "B", ads: { spend: 1, messages: 0, roas: 9 } }),
+        cItem({ content_item_id: "c", code: "C", ads: { spend: 1, messages: 0, roas: 5 } }),
+        cItem({ content_item_id: "d", code: "D", ads: null }),
+      ],
+      0,
+      2
+    )
+    expect(r.top_by_roas.map((t) => t.code)).toEqual(["B", "C"])
   })
 })

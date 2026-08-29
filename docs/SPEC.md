@@ -833,7 +833,7 @@ Mỗi task đủ nhỏ để làm trong một phiên; kèm cách verify. Làm th
 
 - [x] 8.1 API dashboard tiến độ thời gian thực (tổng, đang sản xuất, chờ duyệt, quá hạn, đã lên ads, ads đang chạy) trong phạm vi dự án manager quản lý; verify số khớp dữ liệu mẫu
 - [x] 8.2 API "theo nhân sự" (đang thực hiện, hoàn tất trong kỳ, quá hạn, thời gian TB nhận→da_duyet tính từ StatusHistory); verify test công thức
-- [ ] 8.3 API báo cáo tuần/tháng (throughput, tỷ lệ đúng hạn, số lần trả lại, tổng spend, tổng messages, ROAS TB có trọng số, top hạng mục theo ROAS); verify kỳ rỗng trả về 0 + nhãn "chưa có dữ liệu"
+- [x] 8.3 API báo cáo tuần/tháng (throughput, tỷ lệ đúng hạn, số lần trả lại, tổng spend, tổng messages, ROAS TB có trọng số, top hạng mục theo ROAS); verify kỳ rỗng trả về 0 + nhãn "chưa có dữ liệu"
 - [ ] 8.4 API so sánh kỳ với kỳ liền trước (chênh lệch tuyệt đối + %); verify test hai kỳ có dữ liệu
 - [ ] 8.5 Xuất báo cáo và bảng "theo nhân sự" ra CSV/Excel; verify tệp tải về chứa đúng chỉ số đang xem
 - [ ] 8.6 Màn hình dashboard (stat cards + bảng theo nhân sự) + màn hình báo cáo tuần/tháng có toggle so sánh; verify điều hướng từ nhân sự → danh sách hạng mục của họ
@@ -862,7 +862,11 @@ Các câu này có thể trả lời sau mà không đổi cấu trúc, nhưng n
 2. **Phạm vi @mention:** — **ĐÃ CHỐT:** chỉ thành viên dự án.
 3. **Nhãn định dạng nội dung:** — **ĐÃ CHỐT:** có; field `content_format`, enum
    `reels | tvc | photo`.
-4. **Múi giờ & mốc tuần:** báo cáo tính theo múi giờ nào, tuần bắt đầu thứ Hai hay
-   Chủ nhật? *(chưa chốt — nhóm 7.8)*
+4. **Múi giờ & mốc tuần:** — **ĐÃ CHỐT (2026-08-29):** múi giờ
+   **Asia/Ho_Chi_Minh (UTC+7, không DST)**, tuần bắt đầu **thứ Hai** (ISO-8601).
+   API báo cáo nhận `?period=week|month&date=YYYY-MM-DD`; server tự resolve mốc
+   `[đầu kỳ, cuối kỳ)` và kỳ liền trước theo múi giờ đó (không dùng `from`/`to`
+   client truyền). API "theo nhân sự" (8.2) vẫn giữ `from`/`to` epoch ms —
+   không phụ thuộc Q4.
 5. **Dự án "Hoàn thành":** — **ĐÃ CHỐT (2026-08-28):** vẫn đồng bộ Ads nhưng giãn
    chu kỳ (~24 giờ) so với `running` (≤ 6 giờ); `archived` dừng hẳn.

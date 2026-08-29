@@ -213,8 +213,17 @@ anyone else → `mode: "staff"` over their own assigned items (§5.6 R1 bullet 3
   `statusHistory` of those items: `avg_lead_time_ms` = mean (`da_duyet` entry
   time − the item's earliest history entry time) over items approved in
   `[from, to)`. "nhận việc" is proxied by that earliest entry because assignment
-  isn't in StatusHistory. `from`/`to` are epoch ms; default = current UTC month
-  (Q4's week-start/timezone rule is a task-8.3 concern).
+  isn't in StatusHistory. `from`/`to` are epoch ms; default = current UTC month.
+- **`GET /api/dashboard/report?period=week|month&date` (8.3)** — §5.6 R3 metrics
+  over the cohort that hit `da_len_ads` inside the period. `returns` counts
+  `statusHistory` entries whose `(from_status, to_status)` is a state-machine
+  `return` pair, in the period. Ads figures use each cohort item's **current**
+  (cumulative) AdsMetric — the sync writes lifetime snapshots (§8 Q1), not
+  period deltas, so the report is "this period's content, and how its ads did".
+  `has_data = throughput > 0` drives the "chưa có dữ liệu trong kỳ" label.
+  **§8 Q4 (answered 2026-08-29):** the period is resolved server-side in
+  **Asia/Ho_Chi_Minh (UTC+7, no DST)**, **Monday** week start — `resolveReportPeriod`
+  (`src/lib/domain/reportPeriod.ts`); it also gives the previous period for 8.4.
 
 All chunked `in` queries + in-memory counting — no composite index.
 

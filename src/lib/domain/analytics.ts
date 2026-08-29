@@ -140,3 +140,98 @@ export function computePersonPerformance(
       : null,
   }
 }
+
+// ── Weekly / monthly overview report (SPEC §5.6 R3, task 8.3) ──────────────
+
+// The report is about the cohort of content that reached `da_len_ads` inside the
+// period; its ads figures are each item's current cumulative AdsMetric (§6.1 —
+// syncs write lifetime snapshots, not per-period deltas). "số lần trả lại" is a
+// period-wide count of return transitions, passed in separately.
+export interface ReportCohortItem {
+  content_item_id: string
+  code: string
+  /** ms the item hit da_len_ads (already filtered into the period) */
+  published_ms: number
+  deadline_ms: number | null
+  ads: { spend: number; messages: number; roas: number } | null
+}
+
+export interface TopRoasItem {
+  content_item_id: string
+  code: string
+  roas: number
+  spend: number
+}
+
+export interface PeriodReport {
+  has_data: boolean
+  throughput: number
+  on_time: number
+  on_time_rate: number
+  returns: number
+  total_spend: number
+  total_messages: number
+  weighted_roas: number
+  top_by_roas: TopRoasItem[]
+}
+
+export const EMPTY_PERIOD_REPORT: PeriodReport = {
+  has_data: false,
+  throughput: 0,
+  on_time: 0,
+  on_time_rate: 0,
+  returns: 0,
+  total_spend: 0,
+  total_messages: 0,
+  weighted_roas: 0,
+  top_by_roas: [],
+}
+
+export function computePeriodReport(
+  cohort: readonly ReportCohortItem[],
+  returnsInPeriod: number,
+  topN = 5
+): PeriodReport {
+  if (cohort.length === 0) {
+    return { ...EMPTY_PERIOD_REPORT, returns: returnsInPeriod }
+  }
+
+  let onTime = 0
+  let totalSpend = 0
+  let totalMessages = 0
+  let roasTimesSpend = 0
+  for (const item of cohort) {
+    // no deadline → nothing to miss → on time
+    if (item.deadline_ms == null || item.published_ms <= item.deadline_ms) {
+      onTime++
+    }
+    if (item.ads) {
+      totalSpend += item.ads.spend
+      totalMessages += item.ads.messages
+      roasTimesSpend += item.ads.roas * item.ads.spend
+    }
+  }
+
+  const topByRoas = cohort
+    .filter((i) => i.ads != null)
+    .map((i) => ({
+      content_item_id: i.content_item_id,
+      code: i.code,
+      roas: i.ads!.roas,
+      spend: i.ads!.spend,
+    }))
+    .sort((a, b) => b.roas - a.roas)
+    .slice(0, topN)
+
+  return {
+    has_data: true,
+    throughput: cohort.length,
+    on_time: onTime,
+    on_time_rate: onTime / cohort.length,
+    returns: returnsInPeriod,
+    total_spend: totalSpend,
+    total_messages: totalMessages,
+    weighted_roas: totalSpend > 0 ? roasTimesSpend / totalSpend : 0,
+    top_by_roas: topByRoas,
+  }
+}
