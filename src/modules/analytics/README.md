@@ -3,7 +3,10 @@
 SPEC `docs/SPEC.md` §5.6 · checklist group 7.8.
 
 The manager's progress dashboard, the per-person workload view, weekly/monthly
-reports with period comparison, and CSV/Excel export.
+reports with period comparison, and CSV/Excel export. The screen lives at
+`/reports` (`AnalyticsView`), replacing the pre-existing Meta-token / campaigns
+`/reports` (`src/modules/reports/**`, `src/app/api/meta-ads/**`,
+`src/constants/metaAdsAccounts.ts`), all deleted in task 8.6.
 
 ## Live progress dashboard (task 8.1)
 
@@ -93,3 +96,22 @@ each result object into rows (`reportCsvRows` / `comparisonCsvRows` /
 `peopleCsvRows`), pure and unit-tested; the export always reflects the same
 `period` / `date` / `compare` params the caller passed, so the file matches
 what is on screen.
+
+## Screens (task 8.6)
+
+`/reports` → `AnalyticsView`, a two-tab page:
+
+- **Tổng quan** — `StatCards` (the six live counters, `useProgressDashboard` =
+  poll + a `useDashboardRealtime` listener per managed project) and
+  `PeopleSection` (the per-person table). Clicking a person opens a `Sheet` with
+  their content items and a status filter (`GET
+  /api/dashboard/people/[uid]/items?status=`, `personItems.server.ts` — a
+  manager drills into anyone on their projects, anyone else only into
+  themselves, 403 otherwise).
+- **Báo cáo tuần/tháng** — `PeriodReportPanel`: week/month + date + a "So sánh
+  với kỳ trước" checkbox (adds the previous-period column + delta), plus a CSV
+  export button. The compare toggle just flips `getReport` ↔ `getComparison`.
+
+Fetch hooks reset via a param-`key` guard (no synchronous `setState` in an
+effect). The dashboard cards are the only realtime surface; the people table and
+report refetch on parameter change.

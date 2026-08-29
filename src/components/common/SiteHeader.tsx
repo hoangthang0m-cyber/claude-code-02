@@ -13,7 +13,7 @@ const PAGE_TITLES: Record<string, string> = {
   "/budget": "Budget",
   "/documents": "Documents",
   "/meetings": "Meetings",
-  "/reports": "Reports",
+  "/reports": "Dashboard & báo cáo",
 }
 
 export function SiteHeader() {

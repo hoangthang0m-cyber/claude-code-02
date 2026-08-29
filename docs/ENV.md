@@ -55,8 +55,11 @@ as a test user / app role while unreviewed).
 | `FACEBOOK_APP_ID` | Meta app id — the OAuth `client_id`. |
 | `FACEBOOK_APP_SECRET` | Meta app secret — used server-side for the code→token and long-lived-token exchanges. |
 
-`FACEBOOK_ACCESS_TOKEN` (a single static token) belongs to the old `/reports`
-screen and is removed when group 7.8 replaces it.
+`FACEBOOK_ACCESS_TOKEN` (a single static token) powered the old `/reports`
+screen. Task 8.6 deleted that code (`src/modules/reports/**`,
+`src/app/api/meta-ads/**`, `src/constants/metaAdsAccounts.ts`) — nothing reads
+this var any more, so it can be dropped from `.env.local` and the Vercel
+project.
 
 ## Background jobs (group 7.5, task 5.2)
 
@@ -91,8 +94,11 @@ manager as a **Test user** on the OAuth consent screen (scopes: `spreadsheets`,
 | `GOOGLE_OAUTH_CLIENT_ID` | OAuth 2.0 Web client id. |
 | `GOOGLE_OAUTH_CLIENT_SECRET` | OAuth 2.0 Web client secret (server-side token exchange). |
 
-`GOOGLE_SERVICE_ACCOUNT_EMAIL` / `GOOGLE_PRIVATE_KEY` / `GOOGLE_PROJECT_ID` belong
-to the old service-account approach and are removed when group 7.8 lands.
+`GOOGLE_SERVICE_ACCOUNT_EMAIL` / `GOOGLE_PRIVATE_KEY` / `GOOGLE_PROJECT_ID` were
+the old service-account approach; no production code reads them any more. They
+are **kept in `.env.local` on purpose** — the live sheet-sync E2E tests still
+authenticate the `hem-sheets@…` service account with `GOOGLE_PRIVATE_KEY` (see
+the project memory). Drop them once group 7.9 integration testing is done.
 
 ## `firestore.rules`
 

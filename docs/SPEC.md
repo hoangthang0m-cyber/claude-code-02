@@ -836,7 +836,7 @@ Mỗi task đủ nhỏ để làm trong một phiên; kèm cách verify. Làm th
 - [x] 8.3 API báo cáo tuần/tháng (throughput, tỷ lệ đúng hạn, số lần trả lại, tổng spend, tổng messages, ROAS TB có trọng số, top hạng mục theo ROAS); verify kỳ rỗng trả về 0 + nhãn "chưa có dữ liệu"
 - [x] 8.4 API so sánh kỳ với kỳ liền trước (chênh lệch tuyệt đối + %); verify test hai kỳ có dữ liệu
 - [x] 8.5 Xuất báo cáo và bảng "theo nhân sự" ra CSV/Excel; verify tệp tải về chứa đúng chỉ số đang xem
-- [ ] 8.6 Màn hình dashboard (stat cards + bảng theo nhân sự) + màn hình báo cáo tuần/tháng có toggle so sánh; verify điều hướng từ nhân sự → danh sách hạng mục của họ
+- [x] 8.6 Màn hình dashboard (stat cards + bảng theo nhân sự) + màn hình báo cáo tuần/tháng có toggle so sánh; verify điều hướng từ nhân sự → danh sách hạng mục của họ
 - [ ] 8.7 Giới hạn dashboard/báo cáo cấp dự án cho manager; staff chỉ thấy việc của mình; verify test phân quyền
 
 ### 7.9 Kiểm thử & xác minh tích hợp

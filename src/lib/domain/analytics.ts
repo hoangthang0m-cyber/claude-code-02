@@ -252,6 +252,16 @@ export const COMPARED_METRICS = [
 
 export type ComparedMetric = (typeof COMPARED_METRICS)[number]
 
+export const COMPARED_METRIC_LABELS: Record<ComparedMetric, string> = {
+  throughput: "Số hạng mục lên ads (throughput)",
+  on_time: "Đúng hạn",
+  on_time_rate: "Tỷ lệ đúng hạn",
+  returns: "Số lần trả lại duyệt",
+  total_spend: "Tổng chi phí ads",
+  total_messages: "Tổng messages",
+  weighted_roas: "ROAS trung bình (trọng số chi phí)",
+}
+
 export interface MetricDelta {
   current: number
   previous: number

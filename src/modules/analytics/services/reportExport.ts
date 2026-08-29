@@ -1,5 +1,5 @@
 import type { CsvCell } from "@/lib/csv"
-import type { ComparedMetric } from "@/lib/domain"
+import { COMPARED_METRICS, COMPARED_METRIC_LABELS } from "@/lib/domain"
 
 import type {
   PeriodComparisonResult,
@@ -12,16 +12,8 @@ import type { PeoplePerformanceResult } from "@/modules/analytics/services/peopl
 
 const KIND_LABEL = { week: "Tuần", month: "Tháng" } as const
 
-const METRIC_LABEL: Record<ComparedMetric, string> = {
-  throughput: "Số hạng mục lên ads (throughput)",
-  on_time: "Đúng hạn",
-  on_time_rate: "Tỷ lệ đúng hạn",
-  returns: "Số lần trả lại duyệt",
-  total_spend: "Tổng chi phí ads",
-  total_messages: "Tổng messages",
-  weighted_roas: "ROAS trung bình (trọng số chi phí)",
-}
-const METRIC_ORDER = Object.keys(METRIC_LABEL) as ComparedMetric[]
+const METRIC_LABEL = COMPARED_METRIC_LABELS
+const METRIC_ORDER = COMPARED_METRICS
 
 const DIRECTION_LABEL = { up: "tăng", down: "giảm", flat: "không đổi" } as const
 
