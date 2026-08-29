@@ -24,11 +24,17 @@ reports with period comparison, and CSV/Excel export. The screen lives at
 `total = in_production + pending_review + published` always holds; `overdue`
 and `ads_running` overlay the buckets.
 
-**Scope.** A project manager (`project_role == "manager"` on ≥ 1 project) gets
-`mode: "manager"` over every project they manage. Anyone else gets `mode:
-"staff"` — the same counters but only over items assigned to them (§5.6 R1
-bullet 3: no project/dept dashboard for staff). The per-role hard limit +
-enforcement tests are task 8.7; this endpoint already scopes the data.
+**Scope (`resolveAnalyticsScope`, SPEC §5.6 R1 bullet 3 / §2, task 8.7).** A
+project manager (`project_role == "manager"` on ≥ 1 project) gets `mode:
+"manager"` over **only** the projects they manage — a project they are merely
+staff on is excluded. Anyone else gets `mode: "staff"`: the same shapes but
+scoped to the content items assigned to them, no project/dept view.
+
+There is no permission *parameter* to spoof — scope is derived from the caller's
+own `projectMembers` rows — so the split is the enforcement. `getPersonItems`
+additionally 403s a non-manager who drills into anyone but themselves.
+`analytics.permissions.test.ts` is the consolidated matrix (pure manager / pure
+staff / mixed-role / no-projects across every analytics endpoint).
 
 The pure formula (`computeProgressDashboard`) lives in `src/lib/domain/analytics.ts`
 and is unit-tested against sample data; the service (`dashboard.server.ts`) just
