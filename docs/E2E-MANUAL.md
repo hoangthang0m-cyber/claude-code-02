@@ -41,9 +41,40 @@ memory (`_live96`) and the committed integration tests (`*.integration.test.ts`)
 | 15 | M | **Báo cáo tuần/tháng** tab → period = **Tuần**, date = today | `throughput` ≥ 1, `total_spend` ≥ the entered spend, E2E-1 in "Top hạng mục theo ROAS". Toggle **So sánh với kỳ trước** → a "Kỳ trước" column + delta appears. **Xuất CSV** downloads a file whose numbers match the screen. |
 | 16 | S | Open **Dashboard & báo cáo** | Only `S`'s own numbers — no project/dept dashboard, no other people's rows (SPEC §5.6 R1 bullet 3). |
 
-## Realtime spot-check (feeds checklist 9.7)
+## Realtime check (SPEC §5.7 R3 / §6.6, checklist 9.7)
 
-Open the same project's content table in two browser sessions (M and S). Have
-`S` change a status; M's table updates within a few seconds without a reload.
-Kill M's network briefly — the table shows "mất kết nối tức thời — đang làm mới
-định kỳ"; restore it — the listener reconnects and the rows resync.
+Two browser sessions on the **same project's content table** — `M` in one, `S`
+in the other. The channel is a Firestore `onSnapshot` on
+`contentItems where project_id ==` (`useProjectRealtime`), used as a change
+signal + a connection gauge; the list itself refetches from the API.
+
+### A. Cross-session propagation (< a few seconds)
+
+| # | As | Action | Expected in the OTHER session |
+|---|---|---|---|
+| 1 | S | Move E2E-1 from *Chờ duyệt video* → *Quay/Dựng* (or M approves a script) | Within ~1–3s the row's status badge changes **without a reload**. |
+| 2 | M | Change E2E-1's deadline or assignee | Same — the changed cell updates in S's table within a few seconds. |
+| 3 | M | Kanban view (**Bảng → Kanban**) open in one session while the other moves an item | The card jumps columns within a few seconds. |
+
+The upper bound is the poll fallback: even if the push is missed, the table
+refetches every ≤ 60s while the channel is healthy (≤ 12s while it is down).
+The service-layer propagation (a write → a listener firing) is measured
+automatically — see the live E2E pattern for 9.7 (two admin listeners on one
+room, latency asserted < 5s).
+
+### B. Disconnect → reconnect, no silent stale (§6.6 R3)
+
+| # | Action | Expected |
+|---|---|---|
+| 1 | In `M`'s session, DevTools → Network → **Offline** (or kill wifi) for ~20s | The header of the content table shows **"● mất kết nối tức thời — đang làm mới định kỳ"**. The table keeps polling every ~12s, so it is never more than ~12s stale. |
+| 2 | While `M` is offline, have `S` change a status | `M` does **not** see it instantly, but the next 12s poll (still running) picks it up — or the reconnect does. |
+| 3 | Restore `M`'s network | The listener reconnects on its own (Firebase SDK). On the first authoritative snapshot the channel goes back to `live`, the "mất kết nối" note disappears, and the table forces **one immediate resync fetch** (`didReconnect` → `changeToken` bump) — so any change made while offline is now shown. No stale row is left without the note having been visible. |
+| 4 | Repeat with a longer outage (2–3 min) | Same recovery; the `EventSource`/WebChannel backoff is handled by the SDK. |
+
+### C. Dashboard realtime (task 7.6)
+
+Open **Dashboard & báo cáo → Tổng quan** as `M`. In another session move an item
+to/from *Đã lên ads* or *Chờ duyệt*. The relevant stat card count changes within
+a second or two (`useDashboardRealtime` opens one room listener per managed
+project). Ads-derived numbers (*Ads đang chạy*, spend in reports) refresh on the
+dashboard's own ≤ 60s poll, not instantly — the ads sync is a ~6h cron.
