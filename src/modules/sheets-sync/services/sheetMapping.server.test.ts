@@ -114,6 +114,7 @@ import {
   previewSheet,
   runFirstSheetSync,
   saveSheetMapping,
+  setSheetSyncEnabled,
 } from "@/modules/sheets-sync/services/sheetMapping.server"
 
 const mgr: AuthedUser = { uid: "u-mgr", email: null, system_role: "manager" }
@@ -170,7 +171,44 @@ describe("getSheetMapping", () => {
       sheet_tab: "Nội dung",
       header_row: 2,
       conflict_rule: "sheet_wins",
+      // task 6.9: a mapping saved before the flag reads as enabled
+      sync_enabled: true,
+      sync_disabled_reason: null,
     })
+  })
+})
+
+describe("setSheetSyncEnabled (SPEC §5.5 R4, task 6.9)", () => {
+  it("403 for a non-manager", async () => {
+    fx.actorRole = "staff"
+    await expect(setSheetSyncEnabled(mgr, "p1", false)).rejects.toMatchObject({
+      status: 403,
+    })
+  })
+
+  it("409 when the project has no mapping", async () => {
+    fx.mappingExists = false
+    await expect(setSheetSyncEnabled(mgr, "p1", false)).rejects.toMatchObject({
+      status: 409,
+    })
+  })
+
+  it("turning off records the manual pause reason", async () => {
+    fx.mappingExists = true
+    const r = await setSheetSyncEnabled(mgr, "p1", false)
+    expect(r).toEqual({ sync_enabled: false })
+    const patch = fx.setSpy.mock.calls[0][0] as Record<string, unknown>
+    expect(patch.sync_enabled).toBe(false)
+    expect(patch.sync_disabled_reason).toBe("manual")
+  })
+
+  it("turning back on clears the pause reason", async () => {
+    fx.mappingExists = true
+    await setSheetSyncEnabled(mgr, "p1", true)
+    const patch = fx.setSpy.mock.calls[0][0] as Record<string, unknown>
+    expect(patch.sync_enabled).toBe(true)
+    // FieldValue.delete() sentinel — just assert it is not the literal string
+    expect(patch.sync_disabled_reason).not.toBe("manual")
   })
 })
 

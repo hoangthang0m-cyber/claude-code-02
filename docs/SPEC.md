@@ -818,7 +818,7 @@ Mỗi task đủ nhỏ để làm trong một phiên; kèm cách verify. Làm th
 - [x] 6.6 Phát hiện xung đột cùng field hai bên → áp `conflict_rule`, ghi `SyncConflict`; verify test kịch bản xung đột deadline
 - [x] 6.7 Xoá dòng sheet → đánh dấu "mất liên kết", không xoá ContentItem, thông báo manager; verify test
 - [x] 6.8 Job nền đồng bộ ≤ 5 phút/dự án running + nút "đồng bộ ngay" + màn hình trạng thái/nhật ký (`SyncRun`, `SyncConflict`); verify hiển thị thời điểm, kết quả, số dòng đọc/ghi
-- [ ] 6.9 Tắt đồng bộ ở cấp dự án dừng mọi job nền, giữ nguyên dữ liệu hai bên; verify test
+- [x] 6.9 Tắt đồng bộ ở cấp dự án dừng mọi job nền, giữ nguyên dữ liệu hai bên; verify test
 
 ### 7.7 Realtime & Notifications
 

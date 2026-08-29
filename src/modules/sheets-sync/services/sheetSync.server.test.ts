@@ -6,6 +6,8 @@ const { fx } = vi.hoisted(() => ({
     mappingExists: true,
     managers: ["u-mgr"] as string[],
     mappings: ["p1", "p2"] as string[],
+    disabledMappings: [] as string[],
+    mappingData: {} as Record<string, unknown>,
     lifecycles: {} as Record<string, string>,
     runs: [] as Array<Record<string, unknown>>,
     conflicts: [] as Array<Record<string, unknown>>,
@@ -18,9 +20,13 @@ const { fx } = vi.hoisted(() => ({
       messages: [] as string[],
     },
     pushThrows: false,
+    pushErrorStatus: 502,
     tokenThrows: false,
     syncRunSpy: vi.fn(),
     snapshotSpy: vi.fn(),
+    batchSetSpy: vi.fn(),
+    batchUpdateSpy: vi.fn(),
+    batchCommitSpy: vi.fn(),
   },
 }))
 
@@ -30,7 +36,7 @@ vi.mock("@/modules/sheets-sync/services/sheetPush.server", () => ({
   syncSystemToSheet: vi.fn(async () => {
     if (fx.pushThrows) {
       const { HttpError } = await import("@/lib/server/http")
-      throw new HttpError(502, "Google sập")
+      throw new HttpError(fx.pushErrorStatus, "Google từ chối")
     }
     return fx.pushResult
   }),
@@ -71,7 +77,12 @@ vi.mock("@/lib/server/firebaseAdmin", () => {
         return snap(fx.managers.map((u) => ({ data: () => ({ user_id: u }) })))
       }
       if (name === "sheetSyncMappings") {
-        return snap(fx.mappings.map((id) => ({ id })))
+        return snap(
+          fx.mappings.map((id) => ({
+            id,
+            data: () => ({ sync_enabled: !fx.disabledMappings.includes(id) }),
+          }))
+        )
       }
       if (name === "syncRuns") {
         return snap(
@@ -92,6 +103,11 @@ vi.mock("@/lib/server/firebaseAdmin", () => {
   return {
     getAdminAuth: () => ({}),
     getAdminDb: () => ({
+      batch: () => ({
+        set: fx.batchSetSpy,
+        update: fx.batchUpdateSpy,
+        commit: fx.batchCommitSpy,
+      }),
       collection: (name: string) => ({
         ...query(name, []),
         doc: (id?: string) => ({
@@ -105,6 +121,7 @@ vi.mock("@/lib/server/firebaseAdmin", () => {
                   sheet_tab: "T",
                   header_row: 1,
                   column_map: { code: "Mã" },
+                  ...fx.mappingData,
                 }),
               }
             }
@@ -137,6 +154,8 @@ beforeEach(() => {
   fx.mappingExists = true
   fx.managers = ["u-mgr"]
   fx.mappings = ["p1", "p2"]
+  fx.disabledMappings = []
+  fx.mappingData = {}
   fx.lifecycles = {}
   fx.runs = []
   fx.conflicts = []
@@ -149,9 +168,13 @@ beforeEach(() => {
     messages: [],
   }
   fx.pushThrows = false
+  fx.pushErrorStatus = 502
   fx.tokenThrows = false
   fx.syncRunSpy.mockReset().mockResolvedValue(undefined)
   fx.snapshotSpy.mockReset().mockResolvedValue(undefined)
+  fx.batchSetSpy.mockReset()
+  fx.batchUpdateSpy.mockReset()
+  fx.batchCommitSpy.mockReset().mockResolvedValue(undefined)
 })
 
 describe("syncProjectSheetNow (SPEC §5.5 R2)", () => {
@@ -225,6 +248,36 @@ describe("syncProjectSheetNow (SPEC §5.5 R2)", () => {
       message: "cần kết nối lại",
     })
   })
+
+  it("409 when sync is turned off for the project (task 6.9)", async () => {
+    fx.mappingData = { sync_enabled: false }
+    await expect(syncProjectSheetNow(mgr, "p1")).rejects.toMatchObject({
+      status: 409,
+    })
+    expect(fx.syncRunSpy).not.toHaveBeenCalled() // nothing ran
+  })
+
+  it("lost sheet access → pauses the project + notifies managers (task 6.9)", async () => {
+    fx.managers = ["u-mgr", "u-mgr2"]
+    fx.pushThrows = true
+    fx.pushErrorStatus = 403
+
+    await expect(syncProjectSheetNow(mgr, "p1")).rejects.toMatchObject({
+      status: 502,
+    })
+
+    const writes = fx.batchSetSpy.mock.calls.map((c) => c[1] as Record<string, unknown>)
+    expect(writes).toContainEqual(
+      expect.objectContaining({
+        sync_enabled: false,
+        sync_disabled_reason: "permission_lost",
+      })
+    )
+    const notes = writes.filter((w) => w.type === "sync_issue")
+    expect(notes.map((n) => n.recipient_id).sort()).toEqual(["u-mgr", "u-mgr2"])
+    expect(fx.batchCommitSpy).toHaveBeenCalled()
+    expect(fx.syncRunSpy.mock.calls[0][0]).toMatchObject({ result: "error" })
+  })
 })
 
 describe("syncAllProjectSheets (cron)", () => {
@@ -244,6 +297,13 @@ describe("syncAllProjectSheets (cron)", () => {
     const s = await syncAllProjectSheets()
     expect(s).toEqual({ projects: 2, ok: 1, errors: 0, skipped: 1 })
     expect(fx.syncRunSpy).toHaveBeenCalledTimes(1) // only the running project
+  })
+
+  it("skips a project whose sync is turned off (task 6.9)", async () => {
+    fx.disabledMappings = ["p1"]
+    const s = await syncAllProjectSheets()
+    expect(s).toEqual({ projects: 2, ok: 1, errors: 0, skipped: 1 })
+    expect(fx.syncRunSpy).toHaveBeenCalledTimes(1)
   })
 })
 
@@ -321,5 +381,18 @@ describe("getProjectSheetSyncLog (SPEC §5.5 R4, task 6.8)", () => {
     const log = await getProjectSheetSyncLog(mgr, "p1")
     expect(log.configured).toBe(false)
     expect(log.last_run).toBeNull()
+  })
+
+  it("reports the paused state + reason (task 6.9)", async () => {
+    fx.mappingData = { sync_enabled: false, sync_disabled_reason: "permission_lost" }
+    const log = await getProjectSheetSyncLog(mgr, "p1")
+    expect(log.sync_enabled).toBe(false)
+    expect(log.sync_disabled_reason).toBe("permission_lost")
+  })
+
+  it("defaults sync_enabled to true for a mapping without the flag", async () => {
+    const log = await getProjectSheetSyncLog(mgr, "p1")
+    expect(log.sync_enabled).toBe(true)
+    expect(log.sync_disabled_reason).toBeNull()
   })
 })

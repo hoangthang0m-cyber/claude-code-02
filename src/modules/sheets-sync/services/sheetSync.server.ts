@@ -14,6 +14,10 @@ import {
 import type { AuthedUser } from "@/lib/server/auth"
 import { getAdminDb } from "@/lib/server/firebaseAdmin"
 import { HttpError } from "@/lib/server/http"
+import {
+  projectManagerUids,
+  queueNotification,
+} from "@/modules/notifications/services/notify.server"
 import { getGoogleAccessToken } from "@/modules/sheets-sync/services/googleConnection.server"
 import {
   captureSnapshot,
@@ -43,6 +47,7 @@ interface MappingDoc {
   conflict_rule: "system_wins" | "sheet_wins"
   owner_uid: string
   snapshot: SheetSnapshot
+  sync_enabled: boolean
 }
 
 async function loadMapping(projectId: string): Promise<MappingDoc> {
@@ -74,6 +79,7 @@ async function loadMapping(projectId: string): Promise<MappingDoc> {
     conflict_rule: d.conflict_rule === "sheet_wins" ? "sheet_wins" : "system_wins",
     owner_uid: ownerUid,
     snapshot: (d.snapshot ?? {}) as SheetSnapshot,
+    sync_enabled: d.sync_enabled !== false,
   }
 }
 
@@ -87,14 +93,27 @@ const EMPTY_PULL: SheetPullResult = {
   messages: [],
 }
 
+// A failure that will not fix itself on the next run — the manager must re-grant
+// Google access. The job pauses itself and notifies them (SPEC §5.5 R4).
+function isAccessLost(e: unknown): boolean {
+  return e instanceof HttpError && [401, 403, 409].includes(e.status)
+}
+
 async function runSync(projectId: string): Promise<SheetSyncResult> {
   const mapping = await loadMapping(projectId)
   const db = getAdminDb()
+
+  // task 6.9: a paused project runs no sync at all, in either direction.
+  if (!mapping.sync_enabled) {
+    throw new HttpError(409, "Đồng bộ Google Sheets đang tắt cho dự án này")
+  }
+
   const startedAt = Timestamp.now()
 
   let pull: SheetPullResult = EMPTY_PULL
   let push: SheetPushResult = { rows_matched: 0, cells_written: 0 }
   let error: string | null = null
+  let accessLost = false
 
   try {
     const token = await getGoogleAccessToken(mapping.owner_uid)
@@ -115,6 +134,32 @@ async function runSync(projectId: string): Promise<SheetSyncResult> {
       .set({ snapshot }, { merge: true })
   } catch (e) {
     error = e instanceof HttpError ? e.message : "Đồng bộ thất bại"
+    accessLost = isAccessLost(e)
+  }
+
+  // SPEC §5.5 R4: lost sheet access → pause the job, notify the managers so they
+  // can re-grant it. No data is touched on either side.
+  if (accessLost) {
+    const batch = db.batch()
+    batch.set(
+      db.collection(COLLECTIONS.sheetSyncMappings).doc(projectId),
+      {
+        sync_enabled: false,
+        sync_disabled_reason: "permission_lost",
+        sync_disabled_at: FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    )
+    for (const uid of await projectManagerUids(db, projectId)) {
+      queueNotification(db, batch, {
+        recipient_id: uid,
+        type: "sync_issue",
+        project_id: projectId,
+        message:
+          "Mất quyền truy cập Google Sheet — đã tạm dừng đồng bộ. Cấp lại quyền rồi bật lại trong cấu hình dự án.",
+      })
+    }
+    await batch.commit()
   }
 
   const hasWarnings =
@@ -165,6 +210,11 @@ export async function syncAllProjectSheets(): Promise<{
   let errors = 0
   let skipped = 0
   for (const m of mappings.docs) {
+    // task 6.9: a manager paused it, or a previous run lost sheet access
+    if (m.data()?.sync_enabled === false) {
+      skipped++
+      continue
+    }
     const proj = await db.collection(COLLECTIONS.projects).doc(m.id).get()
     const lifecycle = (proj.data()?.lifecycle as ProjectLifecycle) ?? "running"
     if (!isBackgroundSyncActive(lifecycle)) {
@@ -206,6 +256,8 @@ export interface SyncConflictView {
 
 export interface SheetSyncLog {
   configured: boolean
+  sync_enabled: boolean
+  sync_disabled_reason: "manual" | "permission_lost" | null
   last_run: SyncRunView | null
   runs: SyncRunView[]
   conflicts: SyncConflictView[]
@@ -269,8 +321,12 @@ export async function getProjectSheetSyncLog(
     .sort((a, b) => (b.created_at ?? 0) - (a.created_at ?? 0))
     .slice(0, 20)
 
+  const md = mapping.data() ?? {}
   return {
     configured: mapping.exists,
+    sync_enabled: md.sync_enabled !== false,
+    sync_disabled_reason:
+      (md.sync_disabled_reason as "manual" | "permission_lost") ?? null,
     last_run: runs[0] ?? null,
     runs,
     conflicts,

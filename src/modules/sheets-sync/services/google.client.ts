@@ -47,6 +47,8 @@ export interface SheetMapping {
   column_map: Record<string, string>
   conflict_rule: string
   progress_sheet_url: string | null
+  sync_enabled: boolean
+  sync_disabled_reason: "manual" | "permission_lost" | null
 }
 
 export interface FirstSyncResult {
@@ -83,6 +85,14 @@ export function saveSheetMapping(
   return authedJson<{ id: string; sheet_tab: string; first_sync: FirstSyncResult }>(
     `/api/projects/${projectId}/sheet/mapping`,
     { method: "PUT", body: JSON.stringify(body) }
+  )
+}
+
+// task 6.9 — turn background sync on/off for the project (SPEC §5.5 R4)
+export function setSheetSyncEnabled(projectId: string, enabled: boolean) {
+  return authedJson<{ sync_enabled: boolean }>(
+    `/api/projects/${projectId}/sheet/mapping`,
+    { method: "PATCH", body: JSON.stringify({ sync_enabled: enabled }) }
   )
 }
 
@@ -127,6 +137,8 @@ export interface SyncConflictView {
 
 export interface SheetSyncLog {
   configured: boolean
+  sync_enabled: boolean
+  sync_disabled_reason: "manual" | "permission_lost" | null
   last_run: SyncRunView | null
   runs: SyncRunView[]
   conflicts: SyncConflictView[]

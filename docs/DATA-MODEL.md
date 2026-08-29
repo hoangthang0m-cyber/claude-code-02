@@ -116,6 +116,15 @@ Access:
   (`syncAllProjectSheets`) only touches a project whose `lifecycle` is `running`
   — `done` / `archived` keep their mapping but are left alone until reopened
   (§5.1 R3); it reports a `skipped` count alongside `ok` / `errors`.
+- `SheetSyncMapping.sync_enabled` (task 6.9; absent → `true` for mappings saved
+  before the flag) is the per-project on/off switch (SPEC §5.5 R4). `false` stops
+  every sync — background **and** manual "đồng bộ ngay" (409) — while touching no
+  data on either side. `sync_disabled_reason` records why: `"manual"` (a manager
+  flipped it via `PATCH /api/projects/[id]/sheet/mapping`) or `"permission_lost"`
+  (a run hit a 401/403/409 from Google, so `runSync` paused the project itself
+  and queued a `sync_issue` notification to every manager — R4 first bullet).
+  `sync_disabled_at` stamps when; both reason and timestamp are cleared when
+  sync is turned back on.
 - `Notification` uses `recipient_id` (per §6.1). The pre-existing, unused
   `notifications` rule keyed on `userId` has been replaced.
 - `AdsBinding` carries three fields beyond the §6.1 sketch: `active` (bool),

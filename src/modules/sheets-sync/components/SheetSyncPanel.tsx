@@ -251,7 +251,11 @@ export function SheetSyncPanel({ projectId }: { projectId: string }) {
       </div>
 
       {hasMapping && (
-        <SheetSyncLog projectId={projectId} refreshSignal={logSignal} />
+        <SheetSyncLog
+          projectId={projectId}
+          refreshSignal={logSignal}
+          canToggle
+        />
       )}
     </section>
   )

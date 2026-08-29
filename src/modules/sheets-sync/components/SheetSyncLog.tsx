@@ -1,16 +1,20 @@
 "use client"
 
 import * as React from "react"
+import { toast } from "sonner"
 
 import {
   getSheetSyncLog,
+  setSheetSyncEnabled,
   type SheetSyncLog as SheetSyncLogData,
   type SyncRunView,
 } from "@/modules/sheets-sync/services/google.client"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 
-// SPEC §5.5 R3 / R4, task 6.8: per-project sync status + log — last sync time,
-// result, rows read/written, and the recent conflict list.
+// SPEC §5.5 R3 / R4, tasks 6.8 / 6.9: per-project sync status + log — last sync
+// time, result, rows read/written, the recent conflict list, and the on/off
+// switch (6.9) with its paused-reason banner.
 
 const RESULT_META: Record<
   string,
@@ -36,13 +40,18 @@ function ResultBadge({ result }: { result: SyncRunView["result"] }) {
 export function SheetSyncLog({
   projectId,
   refreshSignal,
+  canToggle = false,
 }: {
   projectId: string
   /** bump to refetch after a manual "đồng bộ ngay" */
   refreshSignal?: number
+  /** show the on/off switch — the viewer is a project manager */
+  canToggle?: boolean
 }) {
   const [data, setData] = React.useState<SheetSyncLogData | null>(null)
   const [error, setError] = React.useState<string | null>(null)
+  const [localSignal, setLocalSignal] = React.useState(0)
+  const [toggling, setToggling] = React.useState(false)
 
   React.useEffect(() => {
     let cancelled = false
@@ -60,29 +69,69 @@ export function SheetSyncLog({
     return () => {
       cancelled = true
     }
-  }, [projectId, refreshSignal])
+  }, [projectId, refreshSignal, localSignal])
+
+  async function toggle(enabled: boolean) {
+    setToggling(true)
+    try {
+      await setSheetSyncEnabled(projectId, enabled)
+      toast.success(enabled ? "Đã bật lại đồng bộ" : "Đã tạm dừng đồng bộ")
+      setLocalSignal((n) => n + 1)
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Không đổi được trạng thái")
+    } finally {
+      setToggling(false)
+    }
+  }
 
   if (error) {
     return <p className="text-xs text-destructive">{error}</p>
   }
   if (!data || !data.configured) return null
 
-  const { last_run, runs, conflicts } = data
+  const { last_run, runs, conflicts, sync_enabled, sync_disabled_reason } = data
 
   return (
     <div className="flex flex-col gap-3 border-t pt-3">
       <div className="flex flex-wrap items-center gap-2 text-sm">
         <span className="font-medium">Trạng thái đồng bộ</span>
+        {sync_enabled ? (
+          <Badge variant="secondary">Đang bật</Badge>
+        ) : (
+          <Badge variant="destructive">Đã tạm dừng</Badge>
+        )}
+        {canToggle && (
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={toggling}
+            onClick={() => toggle(!sync_enabled)}
+          >
+            {sync_enabled ? "Tạm dừng đồng bộ" : "Bật lại đồng bộ"}
+          </Button>
+        )}
+      </div>
+
+      {!sync_enabled && (
+        <p className="text-xs text-muted-foreground">
+          {sync_disabled_reason === "permission_lost"
+            ? "Hệ thống mất quyền đọc/ghi Google Sheet nên đã tự tạm dừng. Cấp lại quyền cho sheet rồi bấm “Bật lại đồng bộ”."
+            : "Đồng bộ nền đang tắt. Dữ liệu hai bên được giữ nguyên; bật lại bất cứ lúc nào."}
+        </p>
+      )}
+
+      <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+        <span>Lần gần nhất:</span>
         {last_run ? (
           <>
             <ResultBadge result={last_run.result} />
-            <span className="text-xs text-muted-foreground">
+            <span>
               {fmt(last_run.finished_at ?? last_run.started_at)} ·{" "}
               {last_run.rows_read} đọc / {last_run.rows_written} ghi
             </span>
           </>
         ) : (
-          <span className="text-xs text-muted-foreground">Chưa đồng bộ lần nào</span>
+          <span>Chưa đồng bộ lần nào</span>
         )}
       </div>
 

@@ -32,6 +32,11 @@ import { snapshotOf } from "@/modules/sheets-sync/services/sheetRows"
 
 const SYNC_ACTOR = "sheet-sync"
 
+// task 6.9: a project's sheet sync can be paused. `manual` = a manager turned it
+// off (SPEC §5.5 R4); `permission_lost` = a sync run lost read/write access and
+// the job paused itself + notified the managers (R4 first bullet).
+export type SyncDisabledReason = "manual" | "permission_lost"
+
 export interface SheetMappingView {
   spreadsheet_id: string
   sheet_tab: string
@@ -39,6 +44,8 @@ export interface SheetMappingView {
   column_map: Record<string, string>
   conflict_rule: string
   progress_sheet_url: string | null
+  sync_enabled: boolean
+  sync_disabled_reason: SyncDisabledReason | null
 }
 
 export async function getSheetMapping(
@@ -61,8 +68,40 @@ export async function getSheetMapping(
       column_map: (d.column_map ?? {}) as Record<string, string>,
       conflict_rule: d.conflict_rule === "sheet_wins" ? "sheet_wins" : "system_wins",
       progress_sheet_url: (project.data()?.progress_sheet_url as string) ?? null,
+      // absent → enabled (existing mappings predate the flag)
+      sync_enabled: d.sync_enabled !== false,
+      sync_disabled_reason:
+        (d.sync_disabled_reason as SyncDisabledReason) ?? null,
     },
   }
+}
+
+// SPEC §5.5 R4: a manager turns background sync on/off for their project.
+// Turning it off stops every background + manual sync but touches no data on
+// either side (task 6.9); turning it back on clears the pause reason.
+export async function setSheetSyncEnabled(
+  actor: AuthedUser,
+  projectId: string,
+  enabled: boolean
+): Promise<{ sync_enabled: boolean }> {
+  const scope = await requireProjectScope(actor.uid, projectId)
+  requireProjectManager(scope)
+
+  const db = getAdminDb()
+  const ref = db.collection(COLLECTIONS.sheetSyncMappings).doc(projectId)
+  if (!(await ref.get()).exists) {
+    throw new HttpError(409, "Dự án chưa cấu hình đồng bộ Google Sheets")
+  }
+  await ref.set(
+    {
+      sync_enabled: enabled,
+      sync_disabled_reason: enabled ? FieldValue.delete() : "manual",
+      sync_disabled_at: enabled ? FieldValue.delete() : FieldValue.serverTimestamp(),
+      updated_at: FieldValue.serverTimestamp(),
+    },
+    { merge: true }
+  )
+  return { sync_enabled: enabled }
 }
 
 // Verify + peek the header row so the config screen can offer real column names
