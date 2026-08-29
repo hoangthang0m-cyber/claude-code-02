@@ -66,7 +66,19 @@ _Built in checklist group 7.2._
 
 ## 3. Per running project: attach the Google Sheet + column mapping (§6.9 step 3)
 
-_Built in checklist group 7.6._
+Manager: **project page → "Đồng bộ Google Sheets" panel** → paste the sheet URL →
+**Kiểm tra** → map the columns → **Lưu & đồng bộ lần đầu**. Needs the manager's
+Google account connected first (**/ad-accounts → "Kết nối Google"**).
+
+Requires `GOOGLE_OAUTH_CLIENT_ID` / `GOOGLE_OAUTH_CLIENT_SECRET` (OAuth 2.0 Web
+client, redirect URIs in `docs/ENV.md`) and the manager on the consent screen's
+**Test users**.
+
+Tasks 6.1–6.3 were verified end-to-end against a real sheet
+(`1-4IHMAx9-piWBH_TXOdWVkadx2_CnMZfsbGzdmrMb9s`, tab `nội dung`) shared with the
+`hem-sheets@hem-manager-506802` service account as Editor — the SA token drives
+`verifySheetAccess` / `runFirstSheetSync` / `syncSystemToSheet` directly, which
+sidesteps the browser OAuth consent for automated checks.
 
 ## 4. Connect the Meta Ad Account, bind content items (§6.9 step 4)
 
