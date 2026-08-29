@@ -1,28 +1,64 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
 const { fx } = vi.hoisted(() => ({
-  fx: { docs: [] as Array<Record<string, unknown>>, clauses: [] as string[] },
+  fx: {
+    docs: [] as Array<Record<string, unknown>>,
+    clauses: [] as string[],
+    byId: {} as Record<string, Record<string, unknown> | undefined>,
+    updateSpy: vi.fn(),
+    batchUpdateSpy: vi.fn(),
+    batchCommitSpy: vi.fn(),
+  },
 }))
 
 const ts = (ms: number) => ({ toMillis: () => ms })
 
 vi.mock("@/lib/server/firebaseAdmin", () => {
+  const docHandle = (id: string) => ({
+    ref: { update: (v: unknown) => fx.updateSpy(id, v) },
+    update: (v: unknown) => fx.updateSpy(id, v),
+    get: async () => {
+      const data = fx.byId[id]
+      return { exists: data !== undefined, data: () => data }
+    },
+  })
   const query = (name: string, clauses: string[]) => ({
     where: (f: string, _op: string, v: unknown) => {
       fx.clauses.push(`${f}=${String(v)}`)
       return query(name, [...clauses, f])
     },
     get: async () => ({
-      docs: fx.docs.map((d, i) => ({ id: (d.id as string) ?? `n${i}`, data: () => d })),
+      docs: fx.docs.map((d, i) => {
+        const id = (d.id as string) ?? `n${i}`
+        return {
+          id,
+          data: () => d,
+          ref: { update: (v: unknown) => fx.batchUpdateSpy(id, v) },
+        }
+      }),
     }),
   })
   return {
-    getAdminDb: () => ({ collection: (name: string) => query(name, []) }),
+    getAdminDb: () => ({
+      collection: (name: string) => ({
+        ...query(name, []),
+        doc: (id: string) => docHandle(id),
+      }),
+      batch: () => ({
+        update: (ref: { update: (v: unknown) => void }, v: unknown) =>
+          ref.update(v),
+        commit: fx.batchCommitSpy,
+      }),
+    }),
   }
 })
 
 import type { AuthedUser } from "@/lib/server/auth"
-import { listNotifications } from "@/modules/notifications/services/notifications.server"
+import {
+  listNotifications,
+  markAllNotificationsRead,
+  markNotificationRead,
+} from "@/modules/notifications/services/notifications.server"
 
 const me: AuthedUser = { uid: "u1", email: null, system_role: "staff" }
 
@@ -40,6 +76,10 @@ const note = (over: Record<string, unknown> = {}) => ({
 beforeEach(() => {
   fx.docs = []
   fx.clauses = []
+  fx.byId = {}
+  fx.updateSpy.mockReset()
+  fx.batchUpdateSpy.mockReset()
+  fx.batchCommitSpy.mockReset().mockResolvedValue(undefined)
 })
 
 describe("listNotifications (SPEC §5.7 R2, task 7.3)", () => {
@@ -92,5 +132,57 @@ describe("listNotifications (SPEC §5.7 R2, task 7.3)", () => {
   it("empty inbox → zero count, empty list", async () => {
     const r = await listNotifications(me)
     expect(r).toEqual({ unread_count: 0, items: [] })
+  })
+})
+
+describe("markNotificationRead (SPEC §5.7 R2, task 7.4)", () => {
+  it("404 for an unknown id", async () => {
+    await expect(markNotificationRead(me, "nope")).rejects.toMatchObject({
+      status: 404,
+    })
+  })
+
+  it("403 for someone else's notification", async () => {
+    fx.byId.n1 = note({ recipient_id: "u2" })
+    await expect(markNotificationRead(me, "n1")).rejects.toMatchObject({
+      status: 403,
+    })
+    expect(fx.updateSpy).not.toHaveBeenCalled()
+  })
+
+  it("marks an unread notification read", async () => {
+    fx.byId.n1 = note({ read_at: null })
+    const r = await markNotificationRead(me, "n1")
+    expect(r.id).toBe("n1")
+    expect(typeof r.read_at).toBe("number")
+    expect(fx.updateSpy).toHaveBeenCalledWith("n1", expect.anything())
+  })
+
+  it("already read → no write, returns the existing timestamp", async () => {
+    fx.byId.n1 = note({ read_at: ts(777) })
+    const r = await markNotificationRead(me, "n1")
+    expect(r.read_at).toBe(777)
+    expect(fx.updateSpy).not.toHaveBeenCalled()
+  })
+})
+
+describe("markAllNotificationsRead (SPEC §5.7 R2 — 'badge về 0')", () => {
+  it("marks every unread one and reports the count", async () => {
+    fx.docs = [
+      note({ id: "a", read_at: null }),
+      note({ id: "b", read_at: ts(1) }),
+      note({ id: "c", read_at: null }),
+    ]
+    const r = await markAllNotificationsRead(me)
+    expect(r).toEqual({ marked: 2 })
+    expect(fx.batchUpdateSpy.mock.calls.map((c) => c[0]).sort()).toEqual(["a", "c"])
+    expect(fx.batchCommitSpy).toHaveBeenCalledTimes(1)
+  })
+
+  it("nothing unread → no batch, marked 0", async () => {
+    fx.docs = [note({ id: "a", read_at: ts(1) })]
+    const r = await markAllNotificationsRead(me)
+    expect(r).toEqual({ marked: 0 })
+    expect(fx.batchCommitSpy).not.toHaveBeenCalled()
   })
 })

@@ -825,7 +825,7 @@ Mỗi task đủ nhỏ để làm trong một phiên; kèm cách verify. Làm th
 - [x] 7.1 Kênh realtime theo "phòng" `project_id` (WebSocket/SSE) + fallback polling 10–15s; verify bảng nội dung cập nhật khi người khác đổi trạng thái, tự kết nối lại khi mất kết nối
 - [x] 7.2 Notification engine sinh `Notification` theo bảng sự kiện → người nhận (mục 5.7 R1); verify test từng loại sự kiện ra đúng người, không tự thông báo cho người gây ra
 - [x] 7.3 API đếm chưa đọc + danh sách gần nhất phục vụ polling 30s; verify badge số đúng
-- [ ] 7.4 UI chuông (badge, dropdown, mở → đánh dấu đã đọc + điều hướng đúng đối tượng, "đánh dấu tất cả đã đọc"); verify end-to-end
+- [x] 7.4 UI chuông (badge, dropdown, mở → đánh dấu đã đọc + điều hướng đúng đối tượng, "đánh dấu tất cả đã đọc"); verify end-to-end
 - [ ] 7.5 `NotificationPreference` bật/tắt theo nhóm; verify tắt một nhóm thì ngừng sinh thông báo nhóm đó cho người đó
 - [ ] 7.6 Đẩy cập nhật chỉ số dashboard qua kênh realtime; verify chỉ số đổi trong vài giây khi có thay đổi liên quan
 

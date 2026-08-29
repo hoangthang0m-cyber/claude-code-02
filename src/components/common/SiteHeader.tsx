@@ -2,6 +2,7 @@
 
 import { usePathname } from "next/navigation"
 
+import { NotificationBell } from "@/modules/notifications/components/NotificationBell"
 import { Separator } from "@/components/ui/separator"
 import { SidebarTrigger } from "@/components/ui/sidebar"
 
@@ -28,6 +29,9 @@ export function SiteHeader() {
           className="mx-2 h-4 data-vertical:self-auto"
         />
         <h1 className="text-base font-medium">{title}</h1>
+        <div className="ml-auto">
+          <NotificationBell />
+        </div>
       </div>
     </header>
   )

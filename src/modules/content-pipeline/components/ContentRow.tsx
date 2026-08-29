@@ -86,7 +86,7 @@ export function ContentRow({
   }
 
   return (
-    <TableRow>
+    <TableRow id={`item-${item.id}`} className="scroll-mt-20 target:bg-primary/10">
       <TableCell className="font-medium">
         <div className="flex flex-wrap items-center gap-1.5">
           <span>{item.code}</span>

@@ -48,8 +48,23 @@ Preference filtering (§5.7 R4) layers onto the recipient list in task 7.5.
 newest-first and capped in memory (no composite index, same as the other list
 endpoints). `unread_count` counts **every** unread notification, not just the
 page, so the bell badge is exact even when the list is truncated. The client
-(`notifications.client.ts`) polls it every 30s — the mark-read mutations and the
-bell UI come in task 7.4.
+(`notifications.client.ts`) polls it every 30s.
+
+## The bell (task 7.4)
+
+`components/NotificationBell.tsx` in the dashboard header (`SiteHeader`):
+
+- badge = `unread_count` (`99+` past 99), hidden at 0;
+- a popover dropdown lists the recent items — unread ones get a dot + tint;
+- clicking an item marks it read (`PATCH /api/notifications/[id]`) and routes to
+  `notificationHref(n)` — the content item's project page anchored `#item-<id>`
+  (there is no standalone item route), else the project page, else `/campaigns`;
+- "Đánh dấu tất cả đã đọc" → `POST /api/notifications/read-all` (`markAll`),
+  badge to 0.
+
+`hooks/useNotifications.ts` polls every 30s and applies mark-read optimistically,
+reconciling on the next poll (or an immediate refresh on failure). Mark-read is
+recipient-only, enforced server-side (`markNotificationRead` / `firestore.rules`).
 
 
 **Not yet wired:** `content_overdue` has no trigger — "becoming overdue" is a

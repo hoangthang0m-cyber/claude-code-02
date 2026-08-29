@@ -1,6 +1,9 @@
+import { FieldValue } from "firebase-admin/firestore"
+
 import { COLLECTIONS, type NotificationType } from "@/lib/domain"
 import type { AuthedUser } from "@/lib/server/auth"
 import { getAdminDb } from "@/lib/server/firebaseAdmin"
+import { HttpError } from "@/lib/server/http"
 
 // SPEC §5.7 R2 / §6.6, task 7.3: the read side of the notification bell. The
 // client polls this every 30s (a channel separate from realtime, so the history
@@ -64,4 +67,52 @@ export async function listNotifications(
     unread_count: all.filter((n) => n.read_at == null).length,
     items: all.slice(0, limit),
   }
+}
+
+// SPEC §5.7 R2, task 7.4: opening a notification marks it read. Only the
+// recipient may do this (also enforced by firestore.rules); an unknown id is a
+// 404, someone else's is a 403. Already-read → no-op.
+export async function markNotificationRead(
+  actor: AuthedUser,
+  notificationId: string
+): Promise<{ id: string; read_at: number }> {
+  const ref = getAdminDb()
+    .collection(COLLECTIONS.notifications)
+    .doc(notificationId)
+  const snap = await ref.get()
+  if (!snap.exists) throw new HttpError(404, "Không tìm thấy thông báo")
+  if (snap.data()?.recipient_id !== actor.uid) {
+    throw new HttpError(403, "Không phải thông báo của bạn")
+  }
+
+  const existing = toMillis(snap.data()?.read_at)
+  if (existing != null) return { id: notificationId, read_at: existing }
+
+  const now = Date.now()
+  await ref.update({ read_at: FieldValue.serverTimestamp() })
+  return { id: notificationId, read_at: now }
+}
+
+// SPEC §5.7 R2: "đánh dấu tất cả đã đọc" → badge back to 0.
+export async function markAllNotificationsRead(
+  actor: AuthedUser
+): Promise<{ marked: number }> {
+  const db = getAdminDb()
+  const snap = await db
+    .collection(COLLECTIONS.notifications)
+    .where("recipient_id", "==", actor.uid)
+    .get()
+
+  const unread = snap.docs.filter((d) => d.data().read_at == null)
+  if (unread.length === 0) return { marked: 0 }
+
+  // Firestore batches cap at 500 writes.
+  for (let i = 0; i < unread.length; i += 450) {
+    const batch = db.batch()
+    for (const d of unread.slice(i, i + 450)) {
+      batch.update(d.ref, { read_at: FieldValue.serverTimestamp() })
+    }
+    await batch.commit()
+  }
+  return { marked: unread.length }
 }
