@@ -107,6 +107,15 @@ Access:
   (task 6.6); `conflict_rule` (`system_wins` default) decides `chosen_side`, and
   on `system_wins` the sheet value is not applied — the next push writes the
   system value back down.
+- `SyncRun` is written once per background/manual sync attempt (task 6.8), so
+  the "last sync" time, result and rows read/written come straight off the newest
+  `kind: "sheets"` doc. The sync-status/log screen (`GET
+  /api/projects/[id]/sheet/sync`) reads the project's `syncRuns` + `syncConflicts`
+  and sorts/caps in memory (no composite index, same as the other list
+  endpoints); any project member may read it. The background cron
+  (`syncAllProjectSheets`) only touches a project whose `lifecycle` is `running`
+  — `done` / `archived` keep their mapping but are left alone until reopened
+  (§5.1 R3); it reports a `skipped` count alongside `ok` / `errors`.
 - `Notification` uses `recipient_id` (per §6.1). The pre-existing, unused
   `notifications` rule keyed on `userId` has been replaced.
 - `AdsBinding` carries three fields beyond the §6.1 sketch: `active` (bool),

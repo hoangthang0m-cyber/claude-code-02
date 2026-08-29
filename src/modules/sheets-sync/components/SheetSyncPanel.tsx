@@ -16,6 +16,7 @@ import {
   syncSheetNow,
   type SheetPreview,
 } from "@/modules/sheets-sync/services/google.client"
+import { SheetSyncLog } from "@/modules/sheets-sync/components/SheetSyncLog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -43,6 +44,7 @@ export function SheetSyncPanel({ projectId }: { projectId: string }) {
   const [saving, setSaving] = React.useState(false)
   const [syncing, setSyncing] = React.useState(false)
   const [hasMapping, setHasMapping] = React.useState(false)
+  const [logSignal, setLogSignal] = React.useState(0)
 
   React.useEffect(() => {
     let cancelled = false
@@ -94,6 +96,7 @@ export function SheetSyncPanel({ projectId }: { projectId: string }) {
         conflict_rule: conflictRule,
       })
       setHasMapping(true)
+      setLogSignal((n) => n + 1)
       toast.success(
         `Đã lưu (tab "${sheet_tab}"). Đồng bộ lần đầu: ${first_sync.created} tạo mới, ` +
           `${first_sync.updated} cập nhật` +
@@ -112,6 +115,7 @@ export function SheetSyncPanel({ projectId }: { projectId: string }) {
     setSyncing(true)
     try {
       const { pull, push } = await syncSheetNow(projectId)
+      setLogSignal((n) => n + 1)
       toast.success(
         `Sheet→hệ thống: ${pull.created} tạo, ${pull.updated} cập nhật` +
           (pull.mapping_errors ? `, ${pull.mapping_errors} lỗi ánh xạ` : "") +
@@ -245,6 +249,10 @@ export function SheetSyncPanel({ projectId }: { projectId: string }) {
           </Button>
         )}
       </div>
+
+      {hasMapping && (
+        <SheetSyncLog projectId={projectId} refreshSignal={logSignal} />
+      )}
     </section>
   )
 }

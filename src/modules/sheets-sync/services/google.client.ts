@@ -102,3 +102,36 @@ export function syncSheetNow(projectId: string) {
     method: "POST",
   })
 }
+
+// task 6.8 — sync status + log screen (SPEC §5.5 R3 / R4)
+export interface SyncRunView {
+  id: string
+  kind: "sheets" | "ads"
+  started_at: number | null
+  finished_at: number | null
+  result: "ok" | "warning" | "error" | null
+  rows_read: number
+  rows_written: number
+  message: string | null
+}
+
+export interface SyncConflictView {
+  id: string
+  content_item_id: string
+  field: string
+  system_value: string
+  sheet_value: string
+  chosen_side: string
+  created_at: number | null
+}
+
+export interface SheetSyncLog {
+  configured: boolean
+  last_run: SyncRunView | null
+  runs: SyncRunView[]
+  conflicts: SyncConflictView[]
+}
+
+export function getSheetSyncLog(projectId: string) {
+  return authedJson<SheetSyncLog>(`/api/projects/${projectId}/sheet/sync`)
+}

@@ -6,6 +6,9 @@ const { fx } = vi.hoisted(() => ({
     mappingExists: true,
     managers: ["u-mgr"] as string[],
     mappings: ["p1", "p2"] as string[],
+    lifecycles: {} as Record<string, string>,
+    runs: [] as Array<Record<string, unknown>>,
+    conflicts: [] as Array<Record<string, unknown>>,
     pushResult: { rows_matched: 3, cells_written: 5 },
     pullResult: {
       rows_read: 4,
@@ -20,6 +23,8 @@ const { fx } = vi.hoisted(() => ({
     snapshotSpy: vi.fn(),
   },
 }))
+
+const ts = (ms: number) => ({ toMillis: () => ms })
 
 vi.mock("@/modules/sheets-sync/services/sheetPush.server", () => ({
   syncSystemToSheet: vi.fn(async () => {
@@ -48,25 +53,40 @@ vi.mock("@/modules/sheets-sync/services/googleConnection.server", () => ({
 }))
 
 vi.mock("@/lib/server/firebaseAdmin", () => {
+  const snap = (docs: unknown[]) => ({
+    size: docs.length,
+    empty: docs.length === 0,
+    docs,
+  })
   const query = (name: string, clauses: string[]) => ({
     where: (f: string) => query(name, [...clauses, f]),
     limit: () => query(name, clauses),
     get: async () => {
       if (name === "projectMembers" && clauses.includes("user_id")) {
         return fx.actorRole == null
-          ? { empty: true, docs: [] }
-          : { empty: false, docs: [{ data: () => ({ project_role: fx.actorRole }) }] }
+          ? snap([])
+          : snap([{ data: () => ({ project_role: fx.actorRole }) }])
       }
       if (name === "projectMembers" && clauses.includes("project_role")) {
-        return { docs: fx.managers.map((u) => ({ data: () => ({ user_id: u }) })) }
+        return snap(fx.managers.map((u) => ({ data: () => ({ user_id: u }) })))
       }
       if (name === "sheetSyncMappings") {
-        return {
-          size: fx.mappings.length,
-          docs: fx.mappings.map((id) => ({ id })),
-        }
+        return snap(fx.mappings.map((id) => ({ id })))
       }
-      return { empty: true, docs: [] }
+      if (name === "syncRuns") {
+        return snap(
+          fx.runs.map((r, i) => ({ id: (r.id as string) ?? `run-${i}`, data: () => r }))
+        )
+      }
+      if (name === "syncConflicts") {
+        return snap(
+          fx.conflicts.map((c, i) => ({
+            id: (c.id as string) ?? `cf-${i}`,
+            data: () => c,
+          }))
+        )
+      }
+      return snap([])
     },
   })
   return {
@@ -74,20 +94,28 @@ vi.mock("@/lib/server/firebaseAdmin", () => {
     getAdminDb: () => ({
       collection: (name: string) => ({
         ...query(name, []),
-        doc: () => ({
-          id: `${name}-1`,
-          get: async () =>
-            name === "sheetSyncMappings"
-              ? {
-                  exists: fx.mappingExists,
-                  data: () => ({
-                    spreadsheet_id: "1abc",
-                    sheet_tab: "T",
-                    header_row: 1,
-                    column_map: { code: "Mã" },
-                  }),
-                }
-              : { exists: false },
+        doc: (id?: string) => ({
+          id: id ?? `${name}-1`,
+          get: async () => {
+            if (name === "sheetSyncMappings") {
+              return {
+                exists: fx.mappingExists,
+                data: () => ({
+                  spreadsheet_id: "1abc",
+                  sheet_tab: "T",
+                  header_row: 1,
+                  column_map: { code: "Mã" },
+                }),
+              }
+            }
+            if (name === "projects") {
+              return {
+                exists: true,
+                data: () => ({ lifecycle: fx.lifecycles[id ?? ""] ?? "running" }),
+              }
+            }
+            return { exists: false }
+          },
           set: name === "syncRuns" ? fx.syncRunSpy : fx.snapshotSpy,
         }),
       }),
@@ -97,6 +125,7 @@ vi.mock("@/lib/server/firebaseAdmin", () => {
 
 import type { AuthedUser } from "@/lib/server/auth"
 import {
+  getProjectSheetSyncLog,
   syncAllProjectSheets,
   syncProjectSheetNow,
 } from "@/modules/sheets-sync/services/sheetSync.server"
@@ -108,6 +137,9 @@ beforeEach(() => {
   fx.mappingExists = true
   fx.managers = ["u-mgr"]
   fx.mappings = ["p1", "p2"]
+  fx.lifecycles = {}
+  fx.runs = []
+  fx.conflicts = []
   fx.pushResult = { rows_matched: 3, cells_written: 5 }
   fx.pullResult = {
     rows_read: 4,
@@ -196,14 +228,98 @@ describe("syncProjectSheetNow (SPEC §5.5 R2)", () => {
 })
 
 describe("syncAllProjectSheets (cron)", () => {
-  it("runs every mapped project and tallies results", async () => {
+  it("runs every mapped running project and tallies results", async () => {
     const s = await syncAllProjectSheets()
-    expect(s).toEqual({ projects: 2, ok: 2, errors: 0 })
+    expect(s).toEqual({ projects: 2, ok: 2, errors: 0, skipped: 0 })
   })
 
   it("counts failures without aborting the batch", async () => {
     fx.pushThrows = true
     const s = await syncAllProjectSheets()
-    expect(s).toEqual({ projects: 2, ok: 0, errors: 2 })
+    expect(s).toEqual({ projects: 2, ok: 0, errors: 2, skipped: 0 })
+  })
+
+  it("skips a project that is not running (task 6.8)", async () => {
+    fx.lifecycles = { p2: "archived" }
+    const s = await syncAllProjectSheets()
+    expect(s).toEqual({ projects: 2, ok: 1, errors: 0, skipped: 1 })
+    expect(fx.syncRunSpy).toHaveBeenCalledTimes(1) // only the running project
+  })
+})
+
+describe("getProjectSheetSyncLog (SPEC §5.5 R4, task 6.8)", () => {
+  it("403 for a non-member", async () => {
+    fx.actorRole = null
+    await expect(getProjectSheetSyncLog(mgr, "p1")).rejects.toMatchObject({
+      status: 403,
+    })
+  })
+
+  it("returns sheets runs newest-first with last_run + rows read/written", async () => {
+    fx.actorRole = "staff"
+    fx.runs = [
+      {
+        id: "r1",
+        project_id: "p1",
+        kind: "sheets",
+        started_at: ts(1000),
+        finished_at: ts(1500),
+        result: "ok",
+        rows_read: 3,
+        rows_written: 7,
+        message: "xong",
+      },
+      {
+        id: "r2",
+        project_id: "p1",
+        kind: "sheets",
+        started_at: ts(5000),
+        finished_at: ts(5500),
+        result: "warning",
+        rows_read: 1,
+        rows_written: 0,
+      },
+      { id: "r3", project_id: "p1", kind: "ads", started_at: ts(9000) },
+    ]
+    const log = await getProjectSheetSyncLog(mgr, "p1")
+    expect(log.configured).toBe(true)
+    expect(log.runs.map((r) => r.id)).toEqual(["r2", "r1"]) // newest first, ads excluded
+    expect(log.last_run).toMatchObject({ id: "r2", result: "warning" })
+    expect(log.runs[1]).toMatchObject({ rows_read: 3, rows_written: 7, finished_at: 1500 })
+  })
+
+  it("returns conflicts newest-first", async () => {
+    fx.conflicts = [
+      {
+        id: "c1",
+        project_id: "p1",
+        content_item_id: "ci1",
+        field: "deadline",
+        system_value: "a",
+        sheet_value: "b",
+        chosen_side: "system",
+        created_at: ts(200),
+      },
+      {
+        id: "c2",
+        project_id: "p1",
+        content_item_id: "ci2",
+        field: "topic",
+        system_value: "x",
+        sheet_value: "y",
+        chosen_side: "sheet",
+        created_at: ts(900),
+      },
+    ]
+    const log = await getProjectSheetSyncLog(mgr, "p1")
+    expect(log.conflicts.map((c) => c.id)).toEqual(["c2", "c1"])
+    expect(log.conflicts[0]).toMatchObject({ field: "topic", chosen_side: "sheet" })
+  })
+
+  it("configured is false when the project has no mapping", async () => {
+    fx.mappingExists = false
+    const log = await getProjectSheetSyncLog(mgr, "p1")
+    expect(log.configured).toBe(false)
+    expect(log.last_run).toBeNull()
   })
 })
