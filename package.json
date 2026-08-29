@@ -9,7 +9,11 @@
     "start": "next start",
     "lint": "eslint",
     "format": "prettier --write \"**/*.{ts,tsx}\"",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "users:list": "node scripts/list-users.mjs",
+    "seed:manager": "node scripts/seed-manager.mjs",
+    "rules:deploy": "npx --yes firebase-tools deploy --only firestore:rules --project hem-manager --non-interactive"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",
@@ -21,6 +25,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "firebase": "^12.18.0",
+    "firebase-admin": "^13.10.0",
     "googleapis": "^176.0.0",
     "lucide-react": "^1.33.0",
     "next": "16.2.6",
@@ -42,9 +47,11 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.2.6",
+    "playwright-core": "^1.62.1",
     "prettier": "^3.8.3",
     "prettier-plugin-tailwindcss": "^0.8.0",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^3.2.7"
   }
 }

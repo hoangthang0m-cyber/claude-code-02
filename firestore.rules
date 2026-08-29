@@ -16,6 +16,13 @@ service cloud.firestore {
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin";
     }
 
+    // Content Performance Tracker: membership is a projectMembers/ doc whose id
+    // is `${projectId}__${uid}` (see projectMemberDocId).
+    function isProjectMember(projectId) {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/projectMembers/$(projectId + '__' + request.auth.uid));
+    }
+
     // users/ — danh bạ nhân sự: mọi thành viên đăng nhập đọc được (dropdown nhân sự thực hiện...),
     // chỉ chính chủ được sửa hồ sơ mình
     match /users/{userId} {
@@ -52,17 +59,96 @@ service cloud.firestore {
       allow update, delete: if isSignedIn() && resource.data.createdBy == request.auth.uid;
     }
 
-    // projects/ — thành viên được mời (members) mới đọc được, chỉ admin dự án (admins) được sửa/xóa
+    // === Content Performance Tracker (docs/SPEC.md) ===
+    // Mọi ghi vào các collection này đi qua route handler + firebase-admin
+    // (SPEC §2, §5.3: chặn ở tầng server, không chỉ ẩn ở UI). Client chỉ đọc,
+    // qua Firebase Web SDK / onSnapshot, để có realtime (SPEC §6.6).
+    // Đọc giới hạn cho thành viên dự án (SPEC §5.1 R4 "không phải thành viên
+    // cố mở ... từ chối").
+
     match /projects/{projectId} {
-      allow read: if isSignedIn() && request.auth.uid in resource.data.members;
-      allow create: if isSignedIn();
-      allow update, delete: if isSignedIn() && request.auth.uid in resource.data.admins;
+      allow read: if isProjectMember(projectId);
+      allow write: if false;
     }
 
-    // notifications/ — chỉ chính chủ (userId trên document) được đọc/sửa/xóa
+    match /projectMembers/{memberId} {
+      // get: own membership row, or any row of a project you belong to.
+      allow get: if isSignedIn() && (
+        request.auth.uid == resource.data.user_id ||
+        isProjectMember(resource.data.project_id)
+      );
+      // list: only `where("user_id", "==", <me>)` — Firestore can't prove a
+      // list safe when the rule contains exists(); listing a project's members
+      // goes through GET /api/projects/[id]/members instead.
+      allow list: if isSignedIn() && request.auth.uid == resource.data.user_id;
+      allow write: if false;
+    }
+
+    // contentItems đọc-scoping siết ở nhóm 7.3 (còn vướng rule collectionGroup
+    // của /campaigns cũ ở trên).
+    match /contentItems/{contentItemId} {
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
+
+    match /statusHistory/{entryId} {
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
+
+    match /comments/{commentId} {
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
+
+    // Chứa token_encrypted — client KHÔNG được đọc (SPEC §1.5). Toàn bộ qua server.
+    match /adAccountConnections/{connectionId} {
+      allow read, write: if false;
+    }
+
+    // Chứa refresh_token_encrypted của Google (SPEC §6.3). Toàn bộ qua server.
+    match /googleConnections/{uid} {
+      allow read, write: if false;
+    }
+
+    match /adsBindings/{bindingId} {
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
+
+    match /adsMetrics/{metricId} {
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
+
+    match /sheetSyncMappings/{mappingId} {
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
+
+    match /syncRuns/{runId} {
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
+
+    match /syncConflicts/{conflictId} {
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
+
+    // notifications/ — chủ nhân (recipient_id) đọc + đánh dấu đã đọc; engine
+    // tạo/xoá qua server (SPEC §5.7 R1/R2).
     match /notifications/{notificationId} {
-      allow create: if isOwner(request.resource.data.userId);
-      allow read, update, delete: if isOwner(resource.data.userId);
+      allow read, update: if isOwner(resource.data.recipient_id);
+      allow create, delete: if false;
+    }
+
+    // notificationPreferences/ — mỗi người tự bật/tắt nhóm của mình (SPEC §5.7 R4).
+    match /notificationPreferences/{preferenceId} {
+      allow read, delete: if isOwner(resource.data.user_id);
+      allow create: if isOwner(request.resource.data.user_id);
+      allow update: if isOwner(resource.data.user_id)
+        && isOwner(request.resource.data.user_id);
     }
   }
 }

@@ -1,0 +1,536 @@
+import { beforeEach, describe, expect, it, vi } from "vitest"
+
+const { fx } = vi.hoisted(() => ({
+  fx: {
+    itemExists: true,
+    status: "chua_bat_dau" as string,
+    assigneeId: "u1" as string | null,
+    scriptUrl: "https://docs.google.com/document/d/s1" as string | null,
+    videoUrl: "https://drive.google.com/file/d/v1" as string | null,
+    actorRole: "manager" as "manager" | "staff" | null,
+    lifecycle: "running" as "running" | "done" | "archived" | null,
+    hasBinding: false,
+    managers: [] as string[],
+    historyDocs: [] as Array<Record<string, unknown>>,
+    updateSpy: vi.fn(),
+    setSpy: vi.fn(),
+    commitSpy: vi.fn(),
+  },
+}))
+
+vi.mock("@/lib/server/firebaseAdmin", () => {
+  const query = (collection: string, clauses: string[]) => ({
+    where: (f: string) => query(collection, [...clauses, f]),
+    limit: () => query(collection, clauses),
+    get: async () => {
+      if (collection === "projectMembers" && clauses.includes("user_id")) {
+        return fx.actorRole == null
+          ? { empty: true, docs: [] }
+          : {
+              empty: false,
+              docs: [{ data: () => ({ project_role: fx.actorRole }) }],
+            }
+      }
+      if (collection === "projectMembers" && clauses.includes("project_role")) {
+        return { docs: fx.managers.map((u) => ({ data: () => ({ user_id: u }) })) }
+      }
+      if (collection === "adsBindings") {
+        return fx.hasBinding
+          ? { empty: false, docs: [{ id: "b1" }] }
+          : { empty: true, docs: [] }
+      }
+      if (collection === "statusHistory") {
+        return {
+          docs: fx.historyDocs.map((h, i) => ({ id: `h${i}`, data: () => h })),
+        }
+      }
+      return { empty: true, docs: [] }
+    },
+  })
+  return {
+    getAdminAuth: () => ({}),
+    getAdminDb: () => ({
+      collection: (name: string) => ({
+        ...query(name, []),
+        doc: () => ({
+          id: `${name}-1`,
+          get: async () => {
+            if (name === "contentItems") {
+              return {
+                exists: fx.itemExists,
+                data: () => ({
+                  project_id: "p1",
+                  code: "V1",
+                  status: fx.status,
+                  assignee_id: fx.assigneeId,
+                  script_url: fx.scriptUrl,
+                  video_url: fx.videoUrl,
+                }),
+              }
+            }
+            return {
+              exists: fx.lifecycle != null,
+              data: () => ({ lifecycle: fx.lifecycle }),
+            }
+          },
+          update: fx.updateSpy,
+        }),
+      }),
+      batch: () => ({
+        update: fx.updateSpy,
+        set: fx.setSpy,
+        commit: fx.commitSpy,
+      }),
+    }),
+  }
+})
+
+import type { AuthedUser } from "@/lib/server/auth"
+import {
+  executeTransition,
+  listStatusHistory,
+} from "@/modules/production-workflow/services/workflow.server"
+
+const actor: AuthedUser = { uid: "u1", email: null, system_role: "staff" }
+
+beforeEach(() => {
+  fx.itemExists = true
+  fx.status = "chua_bat_dau"
+  fx.assigneeId = "u1"
+  fx.scriptUrl = "https://docs.google.com/document/d/s1"
+  fx.videoUrl = "https://drive.google.com/file/d/v1"
+  fx.actorRole = "manager"
+  fx.lifecycle = "running"
+  fx.hasBinding = false
+  fx.managers = []
+  fx.historyDocs = []
+  fx.updateSpy.mockReset().mockResolvedValue(undefined)
+  fx.setSpy.mockReset()
+  fx.commitSpy.mockReset().mockResolvedValue(undefined)
+})
+
+describe("executeTransition — state-machine gate (SPEC §5.3 R1)", () => {
+  it("404 when the item does not exist", async () => {
+    fx.itemExists = false
+    await expect(
+      executeTransition(actor, "c1", { to: "viet_kich_ban" })
+    ).rejects.toMatchObject({ status: 404 })
+  })
+
+  it("403 when the caller is not a project member", async () => {
+    fx.actorRole = null
+    await expect(
+      executeTransition(actor, "c1", { to: "viet_kich_ban" })
+    ).rejects.toMatchObject({ status: 403 })
+  })
+
+  it("409 when the project is archived", async () => {
+    fx.lifecycle = "archived"
+    await expect(
+      executeTransition(actor, "c1", { to: "viet_kich_ban" })
+    ).rejects.toMatchObject({ status: 409 })
+  })
+
+  it("applies a legal transition and stamps updated_by", async () => {
+    const r = await executeTransition(actor, "c1", { to: "viet_kich_ban" })
+    expect(r).toEqual({ id: "c1", from: "chua_bat_dau", to: "viet_kich_ban" })
+    // batch.update(ref, patch)
+    expect(fx.updateSpy.mock.calls[0][1]).toMatchObject({
+      status: "viet_kich_ban",
+      updated_by: "u1",
+    })
+    expect(fx.commitSpy).toHaveBeenCalled()
+  })
+
+  it("rejects an illegal skip (quay_dung → da_duyet) with 409, no write", async () => {
+    fx.status = "quay_dung"
+    await expect(
+      executeTransition(actor, "c1", { to: "da_duyet" })
+    ).rejects.toMatchObject({ status: 409 })
+    expect(fx.updateSpy).not.toHaveBeenCalled()
+  })
+
+  it("rejects a same-state transition with 409", async () => {
+    fx.status = "quay_dung"
+    await expect(
+      executeTransition(actor, "c1", { to: "quay_dung" })
+    ).rejects.toMatchObject({ status: 409 })
+  })
+
+  it("rejects an unknown target status with 400 (schema)", async () => {
+    await expect(
+      executeTransition(actor, "c1", { to: "posted" })
+    ).rejects.toMatchObject({ status: 400 })
+  })
+
+  it("rejects a return with no reason (SPEC §5.3 R3)", async () => {
+    fx.status = "cho_duyet_video"
+    await expect(
+      executeTransition(actor, "c1", { to: "quay_dung" })
+    ).rejects.toMatchObject({ status: 400 })
+    expect(fx.updateSpy).not.toHaveBeenCalled()
+  })
+
+  it("allows a return when a reason is given", async () => {
+    fx.status = "cho_duyet_video"
+    const r = await executeTransition(actor, "c1", {
+      to: "quay_dung",
+      reason: "Âm thanh chưa đạt",
+    })
+    expect(r.to).toBe("quay_dung")
+  })
+})
+
+describe("executeTransition — work step ownership + link (SPEC §2, §5.3 R2, task 4.3)", () => {
+  it("rejects a work step by someone who is not the assignee (403, no write)", async () => {
+    fx.status = "chua_bat_dau"
+    fx.assigneeId = "u2"
+    await expect(
+      executeTransition(actor, "c1", { to: "viet_kich_ban" })
+    ).rejects.toMatchObject({ status: 403 })
+    expect(fx.updateSpy).not.toHaveBeenCalled()
+  })
+
+  it("rejects a work step on an unassigned item (403)", async () => {
+    fx.status = "chua_bat_dau"
+    fx.assigneeId = null
+    await expect(
+      executeTransition(actor, "c1", { to: "viet_kich_ban" })
+    ).rejects.toMatchObject({ status: 403 })
+  })
+
+  it("lets the assignee run a work step", async () => {
+    fx.status = "chua_bat_dau"
+    fx.assigneeId = "u1"
+    const r = await executeTransition(actor, "c1", { to: "viet_kich_ban" })
+    expect(r.to).toBe("viet_kich_ban")
+  })
+
+  it("rejects a script submit when script_url is missing (400, no write)", async () => {
+    fx.status = "viet_kich_ban"
+    fx.scriptUrl = null
+    await expect(
+      executeTransition(actor, "c1", { to: "cho_duyet_kich_ban" })
+    ).rejects.toMatchObject({ status: 400 })
+    expect(fx.updateSpy).not.toHaveBeenCalled()
+  })
+
+  it("rejects a video submit when video_url is blank whitespace (400)", async () => {
+    fx.status = "quay_dung"
+    fx.videoUrl = "   "
+    await expect(
+      executeTransition(actor, "c1", { to: "cho_duyet_video" })
+    ).rejects.toMatchObject({ status: 400 })
+  })
+
+  it("allows a script submit when script_url is present", async () => {
+    fx.status = "viet_kich_ban"
+    fx.scriptUrl = "https://docs.google.com/document/d/abc"
+    const r = await executeTransition(actor, "c1", {
+      to: "cho_duyet_kich_ban",
+    })
+    expect(r).toEqual({
+      id: "c1",
+      from: "viet_kich_ban",
+      to: "cho_duyet_kich_ban",
+    })
+  })
+
+  it("allows a video submit when video_url is present", async () => {
+    fx.status = "quay_dung"
+    fx.videoUrl = "https://drive.google.com/file/d/xyz"
+    const r = await executeTransition(actor, "c1", { to: "cho_duyet_video" })
+    expect(r.to).toBe("cho_duyet_video")
+  })
+})
+
+describe("executeTransition — approve is manager-only (SPEC §2, §5.3 R3, task 4.4)", () => {
+  it("lets a project manager approve a script (cho_duyet_kich_ban → quay_dung)", async () => {
+    fx.status = "cho_duyet_kich_ban"
+    fx.actorRole = "manager"
+    const r = await executeTransition(actor, "c1", { to: "quay_dung" })
+    expect(r).toEqual({
+      id: "c1",
+      from: "cho_duyet_kich_ban",
+      to: "quay_dung",
+    })
+  })
+
+  it("lets a project manager approve a video (cho_duyet_video → da_duyet)", async () => {
+    fx.status = "cho_duyet_video"
+    fx.actorRole = "manager"
+    const r = await executeTransition(actor, "c1", { to: "da_duyet" })
+    expect(r.to).toBe("da_duyet")
+  })
+
+  it("rejects a staff member approving a script (403, no write)", async () => {
+    fx.status = "cho_duyet_kich_ban"
+    fx.actorRole = "staff"
+    await expect(
+      executeTransition(actor, "c1", { to: "quay_dung" })
+    ).rejects.toMatchObject({ status: 403 })
+    expect(fx.updateSpy).not.toHaveBeenCalled()
+  })
+
+  it("rejects a staff member approving a video (403)", async () => {
+    fx.status = "cho_duyet_video"
+    fx.actorRole = "staff"
+    await expect(
+      executeTransition(actor, "c1", { to: "da_duyet" })
+    ).rejects.toMatchObject({ status: 403 })
+  })
+})
+
+describe("executeTransition — return is manager-only + reason required (SPEC §5.3 R3, task 4.5)", () => {
+  it("lets a project manager return a script with a reason (cho_duyet_kich_ban → viet_kich_ban)", async () => {
+    fx.status = "cho_duyet_kich_ban"
+    fx.actorRole = "manager"
+    const r = await executeTransition(actor, "c1", {
+      to: "viet_kich_ban",
+      reason: "Mở bài chưa rõ thông điệp",
+    })
+    expect(r).toEqual({
+      id: "c1",
+      from: "cho_duyet_kich_ban",
+      to: "viet_kich_ban",
+    })
+  })
+
+  it("rejects a manager return with no reason (400, no write)", async () => {
+    fx.status = "cho_duyet_kich_ban"
+    fx.actorRole = "manager"
+    await expect(
+      executeTransition(actor, "c1", { to: "viet_kich_ban" })
+    ).rejects.toMatchObject({ status: 400 })
+    expect(fx.updateSpy).not.toHaveBeenCalled()
+  })
+
+  it("rejects a manager return with a blank reason (400, schema)", async () => {
+    fx.status = "cho_duyet_video"
+    fx.actorRole = "manager"
+    await expect(
+      executeTransition(actor, "c1", { to: "quay_dung", reason: "   " })
+    ).rejects.toMatchObject({ status: 400 })
+  })
+
+  it("rejects a staff member returning a script (403, no write)", async () => {
+    fx.status = "cho_duyet_kich_ban"
+    fx.actorRole = "staff"
+    await expect(
+      executeTransition(actor, "c1", {
+        to: "viet_kich_ban",
+        reason: "gửi lại đi",
+      })
+    ).rejects.toMatchObject({ status: 403 })
+    expect(fx.updateSpy).not.toHaveBeenCalled()
+  })
+
+  it("rejects a staff member returning a video (403)", async () => {
+    fx.status = "cho_duyet_video"
+    fx.actorRole = "staff"
+    await expect(
+      executeTransition(actor, "c1", { to: "quay_dung", reason: "làm lại" })
+    ).rejects.toMatchObject({ status: 403 })
+  })
+})
+
+describe("executeTransition — publish da_duyet → da_len_ads (SPEC §5.3 R4, task 4.6)", () => {
+  it("path A: allows a manager when the item has an ads binding (no confirm needed)", async () => {
+    fx.status = "da_duyet"
+    fx.actorRole = "manager"
+    fx.hasBinding = true
+    const r = await executeTransition(actor, "c1", { to: "da_len_ads" })
+    expect(r).toEqual({ id: "c1", from: "da_duyet", to: "da_len_ads" })
+  })
+
+  it("path B: allows a manager with confirm:true when there is no binding, and returns the reminder", async () => {
+    fx.status = "da_duyet"
+    fx.actorRole = "manager"
+    fx.hasBinding = false
+    const r = await executeTransition(actor, "c1", {
+      to: "da_len_ads",
+      confirm: true,
+    })
+    expect(r).toEqual({
+      id: "c1",
+      from: "da_duyet",
+      to: "da_len_ads",
+      reminder: "attach_campaign",
+    })
+  })
+
+  it("rejects a manager with no binding and no confirm (400, no write)", async () => {
+    fx.status = "da_duyet"
+    fx.actorRole = "manager"
+    fx.hasBinding = false
+    await expect(
+      executeTransition(actor, "c1", { to: "da_len_ads" })
+    ).rejects.toMatchObject({ status: 400 })
+    expect(fx.updateSpy).not.toHaveBeenCalled()
+  })
+
+  it("rejects a staff member even with a binding and confirm (403, no write)", async () => {
+    fx.status = "da_duyet"
+    fx.actorRole = "staff"
+    fx.hasBinding = true
+    await expect(
+      executeTransition(actor, "c1", { to: "da_len_ads", confirm: true })
+    ).rejects.toMatchObject({ status: 403 })
+    expect(fx.updateSpy).not.toHaveBeenCalled()
+  })
+})
+
+describe("executeTransition — StatusHistory logging (SPEC §5.3 R5, task 4.7)", () => {
+  it("writes a history row (from/to/actor) in the same batch as the status change", async () => {
+    await executeTransition(actor, "c1", { to: "viet_kich_ban" })
+    const historyWrite = fx.setSpy.mock.calls[0][1]
+    expect(historyWrite).toMatchObject({
+      content_item_id: "c1",
+      from_status: "chua_bat_dau",
+      to_status: "viet_kich_ban",
+      actor_id: "u1",
+    })
+    expect(historyWrite.created_at).toBeDefined()
+    expect(historyWrite.reason).toBeUndefined()
+    expect(fx.commitSpy).toHaveBeenCalledTimes(1)
+  })
+
+  it("records the reason on a return", async () => {
+    fx.status = "cho_duyet_video"
+    fx.actorRole = "manager"
+    await executeTransition(actor, "c1", {
+      to: "quay_dung",
+      reason: "Âm thanh chưa đạt",
+    })
+    expect(fx.setSpy.mock.calls[0][1]).toMatchObject({
+      from_status: "cho_duyet_video",
+      to_status: "quay_dung",
+      reason: "Âm thanh chưa đạt",
+    })
+  })
+
+  it("does not carry a reason onto a non-return transition", async () => {
+    fx.status = "chua_bat_dau"
+    await executeTransition(actor, "c1", {
+      to: "viet_kich_ban",
+      reason: "stray",
+    })
+    expect(fx.setSpy.mock.calls[0][1].reason).toBeUndefined()
+  })
+
+  it("writes no history when the transition is rejected", async () => {
+    fx.status = "quay_dung"
+    await expect(
+      executeTransition(actor, "c1", { to: "da_duyet" })
+    ).rejects.toMatchObject({ status: 409 })
+    expect(fx.setSpy).not.toHaveBeenCalled()
+    expect(fx.commitSpy).not.toHaveBeenCalled()
+  })
+})
+
+describe("executeTransition — event notifications (SPEC §5.7 R1, task 7.2)", () => {
+  const notifs = () =>
+    fx.setSpy.mock.calls
+      .map((c) => c[1] as Record<string, unknown>)
+      .filter((d) => typeof d.recipient_id === "string")
+
+  it("submit for review → notifies the project managers", async () => {
+    fx.status = "viet_kich_ban"
+    fx.assigneeId = "u1" // the actor does their own work step
+    fx.managers = ["mgr-1", "mgr-2"]
+    await executeTransition(actor, "c1", { to: "cho_duyet_kich_ban" })
+
+    const n = notifs()
+    expect(n.map((x) => x.recipient_id).sort()).toEqual(["mgr-1", "mgr-2"])
+    expect(n[0]).toMatchObject({
+      type: "review_requested",
+      content_item_id: "c1",
+      project_id: "p1",
+      message: "Hạng mục V1 đang chờ duyệt kịch bản",
+    })
+  })
+
+  it("approve → notifies the assignee (not the approving manager)", async () => {
+    fx.status = "cho_duyet_kich_ban"
+    fx.actorRole = "manager"
+    fx.assigneeId = "u2"
+    fx.managers = ["u1"]
+    await executeTransition(actor, "c1", { to: "quay_dung" })
+
+    const n = notifs()
+    expect(n).toHaveLength(1)
+    expect(n[0]).toMatchObject({
+      recipient_id: "u2",
+      type: "review_approved",
+      message: "Hạng mục V1 đã được duyệt",
+    })
+  })
+
+  it("return → notifies the assignee with the reason in the message", async () => {
+    fx.status = "cho_duyet_video"
+    fx.actorRole = "manager"
+    fx.assigneeId = "u2"
+    await executeTransition(actor, "c1", {
+      to: "quay_dung",
+      reason: "Tiếng ồn nền",
+    })
+
+    const n = notifs()
+    expect(n).toEqual([
+      expect.objectContaining({
+        recipient_id: "u2",
+        type: "review_returned",
+        message: "Hạng mục V1 bị trả lại: Tiếng ồn nền",
+      }),
+    ])
+  })
+
+  it("a plain advance (chua_bat_dau → viet_kich_ban) raises no notification", async () => {
+    fx.status = "chua_bat_dau"
+    fx.assigneeId = "u1"
+    fx.managers = ["mgr-1"]
+    await executeTransition(actor, "c1", { to: "viet_kich_ban" })
+    expect(notifs()).toHaveLength(0)
+  })
+})
+
+describe("listStatusHistory (SPEC §5.3 R5)", () => {
+  it("403 for a non-member", async () => {
+    fx.actorRole = null
+    await expect(listStatusHistory(actor, "c1")).rejects.toMatchObject({
+      status: 403,
+    })
+  })
+
+  it("returns entries oldest first regardless of the stored order", async () => {
+    fx.historyDocs = [
+      {
+        content_item_id: "c1",
+        from_status: "viet_kich_ban",
+        to_status: "cho_duyet_kich_ban",
+        actor_id: "u1",
+        created_at: { toMillis: () => 300 },
+      },
+      {
+        content_item_id: "c1",
+        from_status: "chua_bat_dau",
+        to_status: "viet_kich_ban",
+        actor_id: "u1",
+        created_at: { toMillis: () => 100 },
+      },
+      {
+        content_item_id: "c1",
+        from_status: "cho_duyet_kich_ban",
+        to_status: "quay_dung",
+        actor_id: "u-mgr",
+        created_at: { toMillis: () => 200 },
+      },
+    ]
+    const { entries } = await listStatusHistory(actor, "c1")
+    expect(entries.map((e) => e.to_status)).toEqual([
+      "viet_kich_ban",
+      "quay_dung",
+      "cho_duyet_kich_ban",
+    ])
+  })
+})
