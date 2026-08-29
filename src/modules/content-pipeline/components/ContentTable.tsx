@@ -78,7 +78,10 @@ export function ContentTable({
     [assignee, status, topic, overdue, sort]
   )
 
-  const { items, loading, error, refresh } = useContentItems(projectId, params)
+  const { items, loading, error, refresh, realtimeStatus } = useContentItems(
+    projectId,
+    params
+  )
   const { members } = useProjectMembers(projectId)
   const { users } = useUsers()
 
@@ -106,7 +109,17 @@ export function ContentTable({
   return (
     <section className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-sm font-semibold">Hạng mục nội dung</h2>
+        <div className="flex items-center gap-2">
+          <h2 className="text-sm font-semibold">Hạng mục nội dung</h2>
+          {realtimeStatus === "offline" && (
+            <span
+              className="text-xs text-muted-foreground"
+              title="Kênh cập nhật tức thời bị gián đoạn — đang tự kết nối lại, tạm thời làm mới định kỳ"
+            >
+              ● mất kết nối tức thời — đang làm mới định kỳ
+            </span>
+          )}
+        </div>
         <ToggleGroup
           value={[view]}
           onValueChange={(v) => {

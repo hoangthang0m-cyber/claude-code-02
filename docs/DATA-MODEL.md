@@ -150,6 +150,29 @@ Access:
   cumulative snapshot (`date_preset=maximum`) with `data_as_of = now`; cadence
   6h / 12h / 24h by lifecycle + delivery status (Q5).
 
+## Realtime (SPEC §6.6 / §5.6 R3, task 7.1)
+
+The realtime "room" for a project is a **client** Firestore listener scoped to
+`contentItems where project_id == <projectId>` (`useProjectRealtime`) — this is
+the WebSocket/SSE channel §6.6 asks for (the Firebase Web SDK streams it). The
+listener does **not** render those docs: the filtered/sorted content list still
+comes from `GET /api/projects/[id]/content` (task 5.2, and the `contentItems`
+read rule is tightened in a later task). It is only a change signal + a
+connection gauge:
+
+- a server snapshot carrying a doc change → `useContentItems` refetches the list;
+- while the channel is `live` the list also polls slowly (60s safety net); while
+  it is `offline` it polls at the SPEC §6.6 fallback rate (12s, within 10–15s);
+- the Firebase SDK reconnects on its own; on recovery the channel forces one
+  resync refetch (§6.6 R3: never sit on stale rows silently) and the table shows
+  a "mất kết nối tức thời" note while `offline`.
+
+The pure fold (`nextRealtimeStatus` / `pollIntervalMs` / `didReconnect` /
+`shouldRefetchOnSnapshot`) lives in `content-pipeline/services/realtime.ts` and
+is unit-tested; the `onSnapshot` wiring is the thin hook around it. In-app
+notifications stay a separate channel (30s poll, task 7.3) so history does not
+depend on the realtime connection.
+
 ## Transitional note
 
 The pre-existing `/campaigns` feature stores content in the
