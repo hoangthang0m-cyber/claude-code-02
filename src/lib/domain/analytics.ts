@@ -67,3 +67,76 @@ export function computeProgressDashboard(
   }
   return d
 }
+
+// ── Per-person workload (SPEC §5.6 R2, task 8.2) ────────────────────────────
+
+// A content person's job on an item ends at `da_duyet` (approval); after that
+// it belongs to the ads side. So "đang thực hiện" excludes da_duyet + da_len_ads
+// and "hoàn tất" / the lead-time endpoint are both measured at `da_duyet`.
+const DONE_FOR_ASSIGNEE = new Set<ContentStatus>(["da_duyet", "da_len_ads"])
+
+export interface PersonItemInput {
+  status: ContentStatus
+  deadline_ms: number | null
+  /** earliest StatusHistory `created_at` for this item, ms (work first moved) —
+   *  the "nhận việc" proxy, since assignment is not in StatusHistory */
+  started_ms: number | null
+  /** `created_at` of this item's `to_status == "da_duyet"` history entry, ms;
+   *  null if it never reached approval */
+  approved_ms: number | null
+}
+
+export interface PersonPerformance {
+  in_progress: number
+  completed_in_period: number
+  overdue: number
+  has_overdue: boolean
+  /** mean (approved_ms − started_ms) over the items completed in the period;
+   *  null when none were */
+  avg_lead_time_ms: number | null
+}
+
+export const EMPTY_PERSON_PERFORMANCE: PersonPerformance = {
+  in_progress: 0,
+  completed_in_period: 0,
+  overdue: 0,
+  has_overdue: false,
+  avg_lead_time_ms: null,
+}
+
+export function computePersonPerformance(
+  items: readonly PersonItemInput[],
+  period: { from_ms: number; to_ms: number },
+  nowMs: number
+): PersonPerformance {
+  let inProgress = 0
+  let overdue = 0
+  let completed = 0
+  const leadTimes: number[] = []
+
+  for (const item of items) {
+    if (!DONE_FOR_ASSIGNEE.has(item.status)) inProgress++
+    if (isOverdue(item.deadline_ms, item.status, nowMs)) overdue++
+
+    const approvedInPeriod =
+      item.approved_ms != null &&
+      item.approved_ms >= period.from_ms &&
+      item.approved_ms < period.to_ms
+    if (approvedInPeriod) {
+      completed++
+      if (item.started_ms != null && item.approved_ms! >= item.started_ms) {
+        leadTimes.push(item.approved_ms! - item.started_ms)
+      }
+    }
+  }
+
+  return {
+    in_progress: inProgress,
+    completed_in_period: completed,
+    overdue,
+    has_overdue: overdue > 0,
+    avg_lead_time_ms: leadTimes.length
+      ? Math.round(leadTimes.reduce((a, b) => a + b, 0) / leadTimes.length)
+      : null,
+  }
+}

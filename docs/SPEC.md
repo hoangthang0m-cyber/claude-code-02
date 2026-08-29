@@ -832,7 +832,7 @@ Mỗi task đủ nhỏ để làm trong một phiên; kèm cách verify. Làm th
 ### 7.8 Progress analytics
 
 - [x] 8.1 API dashboard tiến độ thời gian thực (tổng, đang sản xuất, chờ duyệt, quá hạn, đã lên ads, ads đang chạy) trong phạm vi dự án manager quản lý; verify số khớp dữ liệu mẫu
-- [ ] 8.2 API "theo nhân sự" (đang thực hiện, hoàn tất trong kỳ, quá hạn, thời gian TB nhận→da_duyet tính từ StatusHistory); verify test công thức
+- [x] 8.2 API "theo nhân sự" (đang thực hiện, hoàn tất trong kỳ, quá hạn, thời gian TB nhận→da_duyet tính từ StatusHistory); verify test công thức
 - [ ] 8.3 API báo cáo tuần/tháng (throughput, tỷ lệ đúng hạn, số lần trả lại, tổng spend, tổng messages, ROAS TB có trọng số, top hạng mục theo ROAS); verify kỳ rỗng trả về 0 + nhãn "chưa có dữ liệu"
 - [ ] 8.4 API so sánh kỳ với kỳ liền trước (chênh lệch tuyệt đối + %); verify test hai kỳ có dữ liệu
 - [ ] 8.5 Xuất báo cáo và bảng "theo nhân sự" ra CSV/Excel; verify tệp tải về chứa đúng chỉ số đang xem

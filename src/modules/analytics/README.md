@@ -31,3 +31,22 @@ The pure formula (`computeProgressDashboard`) lives in `src/lib/domain/analytics
 and is unit-tested against sample data; the service (`dashboard.server.ts`) just
 gathers the rows (chunked `in` queries, no composite index). Realtime push is
 task 7.6 (`useDashboardRealtime`).
+
+## Per-person workload (task 8.2)
+
+`GET /api/dashboard/people?from=<ms>&to=<ms>` → one row per person:
+
+| field | meaning |
+|---|---|
+| `in_progress` | assigned + status ∉ {da_duyet, da_len_ads} — the person's job ends at approval |
+| `completed_in_period` | items whose `to_status == "da_duyet"` StatusHistory entry falls in `[from, to)` |
+| `overdue` / `has_overdue` | assigned + `is_overdue` (§6.7) |
+| `avg_lead_time_ms` | mean (`da_duyet` time − item's **earliest** StatusHistory time) over the items completed in the period; `null` when none |
+
+"nhận việc" is proxied by the item's first StatusHistory entry — assignment
+isn't recorded in StatusHistory, and the checklist says the lead time is computed
+**from StatusHistory**. `from`/`to` (epoch ms) bound the period; default is the
+current UTC calendar month. The report's week-start / timezone rule (Open
+Question Q4) is not needed here — the caller passes explicit bounds — and lands
+with task 8.3. Scope (`resolveAnalyticsScope`, shared with 8.1): manager → every
+member of their managed projects; anyone else → just their own row.

@@ -197,17 +197,26 @@ scope a room by, and the ads sync is a ~6h cron with no interactive change to
 miss; those numbers refresh on the dashboard's own poll (≤60s). Adding
 `AdsMetric.project_id` for a true ads room is an open call for the user.
 
-## Progress dashboard (SPEC §5.6 R1, task 8.1)
+## Progress dashboard (SPEC §5.6, tasks 8.1 / 8.2)
 
-No new collection. `GET /api/dashboard` (`analytics/services/dashboard.server.ts`)
-reads `projectMembers` for the caller, then `contentItems` (+ `adsMetrics` for
-the "ads đang chạy" count) for the in-scope projects, and folds them with the
-pure `computeProgressDashboard` (`src/lib/domain/analytics.ts`). All chunked `in`
-queries + in-memory counting — no composite index. `total = in_production +
-pending_review + published`; the status→bucket split is defined by
-`PENDING_REVIEW_STATUSES` (`cho_duyet_*`), `da_len_ads` (published), and the
-complement (in production). Manager → over managed projects; anyone else → over
-their own assigned items (§5.6 R1 bullet 3).
+No new collection. `resolveAnalyticsScope` (shared) reads `projectMembers` for
+the caller: a project manager → `mode: "manager"` over the projects they manage;
+anyone else → `mode: "staff"` over their own assigned items (§5.6 R1 bullet 3).
+
+- **`GET /api/dashboard` (8.1)** reads `contentItems` (+ `adsMetrics` for "ads
+  đang chạy") in scope and folds them with `computeProgressDashboard`
+  (`src/lib/domain/analytics.ts`). `total = in_production + pending_review +
+  published`; the split is `PENDING_REVIEW_STATUSES` (`cho_duyet_*`), `da_len_ads`
+  (published), and the complement (in production). `overdue` / `ads_running`
+  overlay the buckets.
+- **`GET /api/dashboard/people?from&to` (8.2)** joins `contentItems` with the
+  `statusHistory` of those items: `avg_lead_time_ms` = mean (`da_duyet` entry
+  time − the item's earliest history entry time) over items approved in
+  `[from, to)`. "nhận việc" is proxied by that earliest entry because assignment
+  isn't in StatusHistory. `from`/`to` are epoch ms; default = current UTC month
+  (Q4's week-start/timezone rule is a task-8.3 concern).
+
+All chunked `in` queries + in-memory counting — no composite index.
 
 ## Transitional note
 

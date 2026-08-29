@@ -12,6 +12,10 @@ import {
   pickCurrentMetric,
   toMetricView,
 } from "@/modules/ads-performance/services/adsMetrics.server"
+import {
+  chunkedIn,
+  resolveAnalyticsScope,
+} from "@/modules/analytics/services/scope.server"
 
 // SPEC §5.6 R1, task 8.1: the live progress dashboard.
 //
@@ -32,38 +36,11 @@ function tsMs(v: unknown): number | null {
   return typeof t?.toMillis === "function" ? t.toMillis() : null
 }
 
-async function chunkedIn<T>(
-  ids: string[],
-  run: (batch: string[]) => Promise<T[]>
-): Promise<T[]> {
-  const out: T[] = []
-  for (let i = 0; i < ids.length; i += 30) {
-    out.push(...(await run(ids.slice(i, i + 30))))
-  }
-  return out
-}
-
 export async function getProgressDashboard(
   actor: AuthedUser
 ): Promise<ProgressDashboardResult> {
   const db = getAdminDb()
-
-  const memberships = await db
-    .collection(COLLECTIONS.projectMembers)
-    .where("user_id", "==", actor.uid)
-    .get()
-  const rows = memberships.docs.map((d) => d.data())
-  const managed = [
-    ...new Set(
-      rows
-        .filter((r) => r.project_role === "manager")
-        .map((r) => String(r.project_id))
-    ),
-  ]
-  const allProjects = [...new Set(rows.map((r) => String(r.project_id)))]
-
-  const mode: "manager" | "staff" = managed.length > 0 ? "manager" : "staff"
-  const scopeProjects = mode === "manager" ? managed : allProjects
+  const { mode, project_ids: scopeProjects } = await resolveAnalyticsScope(actor)
 
   if (scopeProjects.length === 0) {
     return {

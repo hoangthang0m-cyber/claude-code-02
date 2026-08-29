@@ -3,8 +3,10 @@ import { describe, expect, it } from "vitest"
 import {
   IN_PRODUCTION_STATUSES,
   PENDING_REVIEW_STATUSES,
+  computePersonPerformance,
   computeProgressDashboard,
   type DashboardItemInput,
+  type PersonItemInput,
 } from "@/lib/domain/analytics"
 
 const NOW = Date.UTC(2026, 8, 1) // 2026-09-01
@@ -113,6 +115,90 @@ describe("progress-dashboard ads đang chạy", () => {
     )
     expect(d.ads_running).toBe(2)
     expect(d.published).toBe(2)
+  })
+})
+
+describe("computePersonPerformance (SPEC §5.6 R2, task 8.2)", () => {
+  const PERIOD = { from_ms: Date.UTC(2026, 8, 1), to_ms: Date.UTC(2026, 9, 1) }
+  const pItem = (over: Partial<PersonItemInput>): PersonItemInput => ({
+    status: "viet_kich_ban",
+    deadline_ms: null,
+    started_ms: null,
+    approved_ms: null,
+    ...over,
+  })
+
+  it("in_progress excludes da_duyet and da_len_ads", () => {
+    const p = computePersonPerformance(
+      [
+        pItem({ status: "chua_bat_dau" }),
+        pItem({ status: "quay_dung" }),
+        pItem({ status: "da_duyet" }),
+        pItem({ status: "da_len_ads" }),
+      ],
+      PERIOD,
+      NOW
+    )
+    expect(p.in_progress).toBe(2)
+  })
+
+  it("overdue counts the person's late items and sets the flag", () => {
+    const p = computePersonPerformance(
+      [
+        pItem({ status: "quay_dung", deadline_ms: NOW - DAY }),
+        pItem({ status: "viet_kich_ban", deadline_ms: NOW + DAY }),
+        pItem({ status: "da_len_ads", deadline_ms: NOW - DAY }), // published, not overdue
+      ],
+      PERIOD,
+      NOW
+    )
+    expect(p.overdue).toBe(1)
+    expect(p.has_overdue).toBe(true)
+  })
+
+  it("completed_in_period counts only da_duyet timestamps inside [from, to)", () => {
+    const p = computePersonPerformance(
+      [
+        pItem({ approved_ms: PERIOD.from_ms }), // inclusive start → in
+        pItem({ approved_ms: PERIOD.from_ms + DAY }), // in
+        pItem({ approved_ms: PERIOD.from_ms - DAY }), // before → out
+        pItem({ approved_ms: PERIOD.to_ms }), // exclusive end → out
+        pItem({ approved_ms: null }), // never approved → out
+      ],
+      PERIOD,
+      NOW
+    )
+    expect(p.completed_in_period).toBe(2)
+  })
+
+  it("avg_lead_time_ms is the mean (approved − started) over in-period items", () => {
+    const p = computePersonPerformance(
+      [
+        pItem({ started_ms: PERIOD.from_ms, approved_ms: PERIOD.from_ms + 2 * DAY }),
+        pItem({ started_ms: PERIOD.from_ms, approved_ms: PERIOD.from_ms + 4 * DAY }),
+        // approved before this period → not in the average
+        pItem({ started_ms: 0, approved_ms: PERIOD.from_ms - DAY }),
+      ],
+      PERIOD,
+      NOW
+    )
+    expect(p.completed_in_period).toBe(2)
+    expect(p.avg_lead_time_ms).toBe(3 * DAY)
+  })
+
+  it("an in-period completion with no start entry is counted but excluded from the average", () => {
+    const p = computePersonPerformance(
+      [pItem({ started_ms: null, approved_ms: PERIOD.from_ms + DAY })],
+      PERIOD,
+      NOW
+    )
+    expect(p.completed_in_period).toBe(1)
+    expect(p.avg_lead_time_ms).toBeNull()
+  })
+
+  it("nobody completed in the period → avg is null", () => {
+    const p = computePersonPerformance([pItem({ status: "quay_dung" })], PERIOD, NOW)
+    expect(p).toMatchObject({ completed_in_period: 0, avg_lead_time_ms: null })
   })
 })
 
