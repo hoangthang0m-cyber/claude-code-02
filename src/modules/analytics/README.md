@@ -67,8 +67,17 @@ over **the cohort of content that hit `da_len_ads` inside the period**:
 **§8 Q4 (answered):** the period is resolved server-side in **Asia/Ho_Chi_Minh
 (UTC+7, no DST)** with a **Monday** week start (`resolveReportPeriod` in
 `src/lib/domain/reportPeriod.ts`, unit-tested — it also yields the
-immediately-preceding period's bounds, which task 8.4 reuses). The response
-echoes the resolved `period`. Ads figures are the
-**cohort's lifetime** AdsMetric, not a period delta — the sync writes cumulative
-snapshots (§6.1 Q1), and the report is about "the ads performance of this
-period's content".
+immediately-preceding period's bounds). The response echoes the resolved
+`period`. Ads figures are the **cohort's lifetime** AdsMetric, not a period
+delta — the sync writes cumulative snapshots (§6.1 Q1), and the report is about
+"the ads performance of this period's content".
+
+## Period comparison (task 8.4)
+
+`GET /api/dashboard/report?…&compare=1` runs the same report for the requested
+period **and** `resolveReportPeriod`'s previous period, and adds `deltas` — a
+`MetricDelta` (`abs`, `pct`, `direction`) per scalar metric (`COMPARED_METRICS`;
+`top_by_roas` / `has_data` excluded). `pct` is `null` when the previous period's
+value was 0 (no baseline). `computeMetricDelta` / `comparePeriodReports` are pure
+and unit-tested; `reportForWindow` (shared by 8.3 and 8.4) does the gathering for
+one `[start, end)`.

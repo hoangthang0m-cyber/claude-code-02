@@ -19,6 +19,7 @@ describe("resolveReportPeriod — month (SPEC §8 Q4)", () => {
     expect(p.previous).toEqual({
       start: localMidnight(2026, 8, 1),
       end: localMidnight(2026, 9, 1),
+      start_date: "2026-08-01",
     })
     expect(p.start_date).toBe("2026-09-01")
   })
@@ -40,7 +41,8 @@ describe("resolveReportPeriod — week (Monday start, ISO-8601)", () => {
     const p = resolveReportPeriod("week", "2026-09-16")
     expect(p.start_date).toBe("2026-09-14") // Monday
     expect(p.end - p.start).toBe(WEEK)
-    expect(p.previous).toEqual({ start: p.start - WEEK, end: p.start })
+    expect(p.previous).toMatchObject({ start: p.start - WEEK, end: p.start })
+    expect(p.previous.start_date).toBe("2026-09-07")
   })
 
   it("Monday maps to itself", () => {

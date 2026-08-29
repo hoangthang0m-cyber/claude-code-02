@@ -235,3 +235,54 @@ export function computePeriodReport(
     top_by_roas: topByRoas,
   }
 }
+
+// ── Period-over-period comparison (SPEC §5.6 R4, task 8.4) ─────────────────
+
+// The scalar metrics compared against the previous period (`top_by_roas` and
+// `has_data` are not).
+export const COMPARED_METRICS = [
+  "throughput",
+  "on_time",
+  "on_time_rate",
+  "returns",
+  "total_spend",
+  "total_messages",
+  "weighted_roas",
+] as const
+
+export type ComparedMetric = (typeof COMPARED_METRICS)[number]
+
+export interface MetricDelta {
+  current: number
+  previous: number
+  /** current − previous */
+  abs: number
+  /** (current − previous) / previous; null when there is no baseline (previous 0) */
+  pct: number | null
+  direction: "up" | "down" | "flat"
+}
+
+export function computeMetricDelta(
+  current: number,
+  previous: number
+): MetricDelta {
+  const abs = current - previous
+  return {
+    current,
+    previous,
+    abs,
+    pct: previous === 0 ? null : abs / previous,
+    direction: abs > 0 ? "up" : abs < 0 ? "down" : "flat",
+  }
+}
+
+export function comparePeriodReports(
+  current: PeriodReport,
+  previous: PeriodReport
+): Record<ComparedMetric, MetricDelta> {
+  const out = {} as Record<ComparedMetric, MetricDelta>
+  for (const m of COMPARED_METRICS) {
+    out[m] = computeMetricDelta(current[m], previous[m])
+  }
+  return out
+}

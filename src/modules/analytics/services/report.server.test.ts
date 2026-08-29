@@ -54,10 +54,15 @@ vi.mock("@/lib/server/firebaseAdmin", () => {
 })
 
 import type { AuthedUser } from "@/lib/server/auth"
-import { getPeriodReport } from "@/modules/analytics/services/report.server"
+import {
+  getPeriodComparison,
+  getPeriodReport,
+} from "@/modules/analytics/services/report.server"
 
 // September 2026 in Asia/Ho_Chi_Minh
 const SEP_START = Date.UTC(2026, 8, 1) - 7 * 3600 * 1000
+const AUG_START = Date.UTC(2026, 7, 1) - 7 * 3600 * 1000
+const DAY = 86400_000
 const mgr: AuthedUser = { uid: "mgr", email: null, system_role: "manager" }
 
 beforeEach(() => {
@@ -119,6 +124,37 @@ describe("getPeriodReport (SPEC §5.6 R3, task 8.3)", () => {
     const r = await getPeriodReport(mgr, "month", "2026-09-15")
     expect(r.has_data).toBe(false)
     expect(r.returns).toBe(1)
+  })
+
+  it("comparison: current + previous period reports with per-metric deltas (task 8.4)", async () => {
+    fx.items = [
+      { id: "s1", project_id: "p1", code: "S1", deadline: ts(SEP_START + 20 * DAY) },
+      { id: "s2", project_id: "p1", code: "S2", deadline: ts(SEP_START + 20 * DAY) },
+      { id: "a1", project_id: "p1", code: "A1", deadline: ts(AUG_START + 20 * DAY) },
+    ]
+    fx.history = [
+      // September (current): 2 published, 1 return
+      { content_item_id: "s1", from_status: "da_duyet", to_status: "da_len_ads", created_at: ts(SEP_START + 3 * DAY) },
+      { content_item_id: "s2", from_status: "da_duyet", to_status: "da_len_ads", created_at: ts(SEP_START + 4 * DAY) },
+      { content_item_id: "s1", from_status: "cho_duyet_video", to_status: "quay_dung", created_at: ts(SEP_START + 1 * DAY) },
+      // August (previous): 1 published, 0 returns
+      { content_item_id: "a1", from_status: "da_duyet", to_status: "da_len_ads", created_at: ts(AUG_START + 5 * DAY) },
+    ]
+    fx.metrics = [
+      { id: "m-s1", content_item_id: "s1", source: "synced", spend: 100, messages: 3, roas: 4, ctr: 0, cost_per_purchase: 0, delivery_status: "active", captured_at: ts(9e12), data_as_of: ts(0) },
+      { id: "m-s2", content_item_id: "s2", source: "synced", spend: 100, messages: 3, roas: 4, ctr: 0, cost_per_purchase: 0, delivery_status: "active", captured_at: ts(9e12), data_as_of: ts(0) },
+      { id: "m-a1", content_item_id: "a1", source: "synced", spend: 100, messages: 5, roas: 2, ctr: 0, cost_per_purchase: 0, delivery_status: "active", captured_at: ts(9e12), data_as_of: ts(0) },
+    ]
+
+    const r = await getPeriodComparison(mgr, "month", "2026-09-15")
+
+    expect(r.period).toMatchObject({ start_date: "2026-09-01" })
+    expect(r.previous_period).toMatchObject({ start_date: "2026-08-01" })
+    expect(r.current).toMatchObject({ throughput: 2, returns: 1, total_spend: 200 })
+    expect(r.previous).toMatchObject({ throughput: 1, returns: 0, total_spend: 100 })
+    expect(r.deltas.throughput).toMatchObject({ abs: 1, direction: "up", pct: 1 })
+    expect(r.deltas.returns).toMatchObject({ abs: 1, pct: null }) // previous had 0
+    expect(r.deltas.weighted_roas).toMatchObject({ abs: 2, direction: "up" }) // 4 vs 2
   })
 
   it("staff mode: only the caller's own items", async () => {

@@ -14,7 +14,7 @@ export interface ReportPeriod {
   /** epoch ms, exclusive — local midnight of the day after the last */
   end: number
   /** the immediately-preceding period of the same kind */
-  previous: { start: number; end: number }
+  previous: { start: number; end: number; start_date: string }
   /** the local calendar date the period starts on, YYYY-MM-DD */
   start_date: string
 }
@@ -59,7 +59,7 @@ export function resolveReportPeriod(
       kind,
       start,
       end,
-      previous: { start: prevStart, end: start },
+      previous: { start: prevStart, end: start, start_date: isoDate(prevStart) },
       start_date: isoDate(start),
     }
   }
@@ -73,7 +73,11 @@ export function resolveReportPeriod(
     kind,
     start,
     end: start + WEEK,
-    previous: { start: start - WEEK, end: start },
+    previous: {
+      start: start - WEEK,
+      end: start,
+      start_date: isoDate(start - WEEK),
+    },
     start_date: isoDate(start),
   }
 }

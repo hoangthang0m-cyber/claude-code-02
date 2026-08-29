@@ -224,6 +224,9 @@ anyone else → `mode: "staff"` over their own assigned items (§5.6 R1 bullet 3
   **§8 Q4 (answered 2026-08-29):** the period is resolved server-side in
   **Asia/Ho_Chi_Minh (UTC+7, no DST)**, **Monday** week start — `resolveReportPeriod`
   (`src/lib/domain/reportPeriod.ts`); it also gives the previous period for 8.4.
+- **`…&compare=1` (8.4)** runs `reportForWindow` for the requested period and the
+  previous one and returns `{ current, previous, deltas }`. `deltas[metric]` =
+  `{ abs, pct, direction }`; `pct` is `null` when the previous value was 0.
 
 All chunked `in` queries + in-memory counting — no composite index.
 

@@ -1,11 +1,15 @@
 import { describe, expect, it } from "vitest"
 
 import {
+  COMPARED_METRICS,
   IN_PRODUCTION_STATUSES,
   PENDING_REVIEW_STATUSES,
+  comparePeriodReports,
+  computeMetricDelta,
   computePeriodReport,
   computePersonPerformance,
   computeProgressDashboard,
+  EMPTY_PERIOD_REPORT,
   type DashboardItemInput,
   type PersonItemInput,
   type ReportCohortItem,
@@ -299,5 +303,54 @@ describe("computePeriodReport (SPEC §5.6 R3, task 8.3)", () => {
       2
     )
     expect(r.top_by_roas.map((t) => t.code)).toEqual(["B", "C"])
+  })
+})
+
+describe("computeMetricDelta / comparePeriodReports (SPEC §5.6 R4, task 8.4)", () => {
+  it("absolute change + direction", () => {
+    expect(computeMetricDelta(12, 8)).toMatchObject({ abs: 4, direction: "up" })
+    expect(computeMetricDelta(5, 9)).toMatchObject({ abs: -4, direction: "down" })
+    expect(computeMetricDelta(7, 7)).toMatchObject({ abs: 0, direction: "flat" })
+  })
+
+  it("percentage change relative to the previous period", () => {
+    expect(computeMetricDelta(150, 100).pct).toBeCloseTo(0.5)
+    expect(computeMetricDelta(80, 100).pct).toBeCloseTo(-0.2)
+  })
+
+  it("no baseline (previous 0) → pct is null, abs still reported", () => {
+    expect(computeMetricDelta(4, 0)).toMatchObject({ abs: 4, pct: null, direction: "up" })
+    expect(computeMetricDelta(0, 0)).toMatchObject({ abs: 0, pct: null, direction: "flat" })
+  })
+
+  it("compares every scalar metric, not top_by_roas / has_data", () => {
+    const cur = {
+      ...EMPTY_PERIOD_REPORT,
+      has_data: true,
+      throughput: 10,
+      on_time: 8,
+      on_time_rate: 0.8,
+      returns: 2,
+      total_spend: 500,
+      total_messages: 40,
+      weighted_roas: 3,
+    }
+    const prev = {
+      ...EMPTY_PERIOD_REPORT,
+      has_data: true,
+      throughput: 5,
+      on_time: 5,
+      on_time_rate: 1,
+      returns: 4,
+      total_spend: 250,
+      total_messages: 40,
+      weighted_roas: 2,
+    }
+    const d = comparePeriodReports(cur, prev)
+    expect(Object.keys(d).sort()).toEqual([...COMPARED_METRICS].sort())
+    expect(d.throughput).toMatchObject({ abs: 5, direction: "up" })
+    expect(d.returns).toMatchObject({ abs: -2, direction: "down" })
+    expect(d.total_messages).toMatchObject({ abs: 0, direction: "flat", pct: 0 })
+    expect(d.on_time_rate.pct).toBeCloseTo(-0.2)
   })
 })
