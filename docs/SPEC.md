@@ -841,7 +841,14 @@ Mỗi task đủ nhỏ để làm trong một phiên; kèm cách verify. Làm th
 
 ### 7.9 Kiểm thử & xác minh tích hợp
 
-- [ ] 9.1 Test phân quyền theo phạm vi dự án xuyên mọi tính năng (không thao tác/không xem xuyên dự án)
+- [x] 9.1 Test phân quyền theo phạm vi dự án xuyên mọi tính năng (không thao tác/không xem xuyên dự án)
+      — server: `src/lib/permissions/crossProjectScope.test.ts` (26 entry points, outsider → 403).
+      — client-read GAP (chưa xử lý): `firestore.rules` vẫn để `contentItems` / `statusHistory` /
+        `comments` / `adsBindings` / `adsMetrics` / `sheetSyncMappings` / `syncRuns` / `syncConflicts`
+        `allow read: if isSignedIn()` — người đăng nhập đọc được dữ liệu dự án khác qua truy vấn
+        Firestore trực tiếp. Siết được ghi chú hoãn "nhóm 7.3" nhưng chưa làm; siết mà giữ được
+        listener realtime (`onSnapshot where project_id ==`) cần quyết định kiến trúc (list-provability
+        với `isProjectMember` dùng `exists()`). Chờ user quyết.
 - [ ] 9.2 Test state machine sản xuất đầy đủ (mục 5.3) gồm hai bước duyệt và trả lại
 - [ ] 9.3 Test đồng bộ 2 chiều Google Sheets: nạp lần đầu, sửa hai chiều, thêm/xoá dòng, xung đột, mất quyền
 - [ ] 9.4 Test tích hợp Meta Ads API với mock: đồng bộ định kỳ, nhiều ad/hạng mục, rate limit, token hỏng, ads dừng
