@@ -75,13 +75,18 @@ Access:
 - `AdAccountConnection.project_owner_id` is read as the **user id of the manager
   who ran the Meta OAuth** (SPEC §5.4 R1, §6.4).
 - `SheetSyncMapping` doc id = `project_id` (one per project, SPEC §5.5 R1) and
-  carries `updated_at` beyond the sketch. `column_map` keys are the system field
-  names in `SHEET_INBOUND_FIELDS` (+ ads fields for the push-down, task 6.5);
-  `code` is mandatory (the row key). Saving one runs the first sheet→system
-  pull, matching/creating `ContentItem`s by `code` and setting their
-  `sheet_row_ref = code` (SPEC §6.3's natural-key row match). Invalid enum
+  carries `updated_at` + `snapshot` beyond the sketch. `column_map` keys are the
+  system field names in `SHEET_INBOUND_FIELDS` (+ ads fields for the push-down,
+  task 6.5); `code` is mandatory (the row key). Saving one runs the first
+  sheet→system pull, matching/creating `ContentItem`s by `code` and setting
+  their `sheet_row_ref = code` (SPEC §6.3's natural-key row match). Invalid enum
   values (status / content_format) and unresolved assignee names are skipped
   per-field with a warning, not a failure (SPEC §5.5 R1).
+- `SheetSyncMapping.snapshot` (task 6.4) is `{ <code>: { <field>: <cell> } }` —
+  the mapped cell values at the previous sync. The delta pull diffs the sheet
+  against it, so only changed cells / new rows are applied; it is re-captured
+  after every sync. Not in the §6.1 sketch (§6.3 mandates a snapshot but gives
+  it no home).
 - `googleConnections` (task 6.1) is a collection NOT in the §6.1 sketch — §6.3
   mandates storing the manager's Google refresh token but §6.1 gives it no home.
   Doc id = the manager's user id; `{ user_id, email, refresh_token_encrypted,

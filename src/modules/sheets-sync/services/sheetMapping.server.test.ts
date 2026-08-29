@@ -338,7 +338,9 @@ describe("runFirstSheetSync (SPEC §5.5 R1)", () => {
       ["V001", "bậy bạ"],
     ]
     await runFirstSheetSync("p1", cfg, "tok")
-    const syncRun = fx.batchSet.mock.calls.at(-1)?.[1] as Record<string, unknown>
+    const syncRun = fx.batchSet.mock.calls
+      .map((c) => c[1] as Record<string, unknown>)
+      .find((d) => d.kind === "sheets")
     expect(syncRun).toMatchObject({ kind: "sheets", result: "warning" })
   })
 })

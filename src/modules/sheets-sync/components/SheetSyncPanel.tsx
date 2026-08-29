@@ -106,9 +106,11 @@ export function SheetSyncPanel({ projectId }: { projectId: string }) {
   async function syncNow() {
     setSyncing(true)
     try {
-      const { push } = await syncSheetNow(projectId)
+      const { pull, push } = await syncSheetNow(projectId)
       toast.success(
-        `Đã ghi ${push.cells_written} ô xuống sheet (${push.rows_matched} dòng khớp)`
+        `Sheet→hệ thống: ${pull.created} tạo, ${pull.updated} cập nhật` +
+          (pull.mapping_errors ? `, ${pull.mapping_errors} lỗi ánh xạ` : "") +
+          `. Hệ thống→sheet: ${push.cells_written} ô.`
       )
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Không đồng bộ được")

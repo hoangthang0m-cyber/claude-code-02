@@ -86,9 +86,19 @@ export function saveSheetMapping(
   )
 }
 
+export interface SheetSyncResult {
+  pull: {
+    rows_read: number
+    created: number
+    updated: number
+    mapping_errors: number
+    messages: string[]
+  }
+  push: { rows_matched: number; cells_written: number }
+}
+
 export function syncSheetNow(projectId: string) {
-  return authedJson<{ push: { rows_matched: number; cells_written: number } }>(
-    `/api/projects/${projectId}/sheet/sync`,
-    { method: "POST" }
-  )
+  return authedJson<SheetSyncResult>(`/api/projects/${projectId}/sheet/sync`, {
+    method: "POST",
+  })
 }

@@ -10,15 +10,22 @@ import { getAdminDb } from "@/lib/server/firebaseAdmin"
 import { HttpError } from "@/lib/server/http"
 import { getGoogleAccessToken } from "@/modules/sheets-sync/services/googleConnection.server"
 import {
+  captureSnapshot,
+  runDeltaSheetSync,
+  type SheetPullResult,
+} from "@/modules/sheets-sync/services/sheetPull.server"
+import {
   syncSystemToSheet,
   type SheetPushResult,
 } from "@/modules/sheets-sync/services/sheetPush.server"
+import type { SheetSnapshot } from "@/modules/sheets-sync/services/sheetRows"
 
-// SPEC §5.5 R2, task 6.3: run one two-way sync for a project. Task 6.3 wires the
-// system → sheet direction; task 6.4 adds sheet → system to the same entry
-// point, task 6.6 the conflict handling.
+// SPEC §5.5 R2: run one two-way sync for a project. sheet → system (delta vs
+// snapshot, task 6.4) runs first, then system → sheet (task 6.3); the snapshot
+// is re-captured after. Same-field conflict handling is task 6.6.
 
 export interface SheetSyncResult {
+  pull: SheetPullResult
   push: SheetPushResult
 }
 
@@ -28,6 +35,7 @@ interface MappingDoc {
   header_row: number
   column_map: Record<string, string>
   owner_uid: string
+  snapshot: SheetSnapshot
 }
 
 async function loadMapping(projectId: string): Promise<MappingDoc> {
@@ -57,7 +65,16 @@ async function loadMapping(projectId: string): Promise<MappingDoc> {
     header_row: Number(d.header_row ?? 1),
     column_map: (d.column_map ?? {}) as Record<string, string>,
     owner_uid: ownerUid,
+    snapshot: (d.snapshot ?? {}) as SheetSnapshot,
   }
+}
+
+const EMPTY_PULL: SheetPullResult = {
+  rows_read: 0,
+  created: 0,
+  updated: 0,
+  mapping_errors: 0,
+  messages: [],
 }
 
 async function runSync(projectId: string): Promise<SheetSyncResult> {
@@ -65,31 +82,49 @@ async function runSync(projectId: string): Promise<SheetSyncResult> {
   const db = getAdminDb()
   const startedAt = Timestamp.now()
 
-  let push: SheetPushResult
+  let pull: SheetPullResult = EMPTY_PULL
+  let push: SheetPushResult = { rows_matched: 0, cells_written: 0 }
   let error: string | null = null
+
   try {
     const token = await getGoogleAccessToken(mapping.owner_uid)
+    // 1. sheet → system (delta vs the last snapshot)
+    ;({ result: pull } = await runDeltaSheetSync(
+      projectId,
+      mapping,
+      token,
+      mapping.snapshot
+    ))
+    // 2. system → sheet
     push = await syncSystemToSheet(projectId, mapping, token)
+    // 3. persist the post-sync snapshot
+    const snapshot = await captureSnapshot(token, mapping)
+    await db
+      .collection(COLLECTIONS.sheetSyncMappings)
+      .doc(projectId)
+      .set({ snapshot }, { merge: true })
   } catch (e) {
-    push = { rows_matched: 0, cells_written: 0 }
     error = e instanceof HttpError ? e.message : "Đồng bộ thất bại"
   }
 
+  const mappingErrors = pull.mapping_errors
   await db.collection(COLLECTIONS.syncRuns).doc().set({
     project_id: projectId,
     kind: "sheets",
     started_at: startedAt,
     finished_at: FieldValue.serverTimestamp(),
-    result: error ? "error" : "ok",
-    rows_read: 0,
-    rows_written: push.cells_written,
+    result: error ? "error" : mappingErrors > 0 ? "warning" : "ok",
+    rows_read: pull.rows_read,
+    rows_written: pull.created + pull.updated + push.cells_written,
     message:
       error ??
-      `Ghi ${push.cells_written} ô xuống sheet (${push.rows_matched} dòng khớp)`,
+      `Sheet→hệ thống: ${pull.created} tạo, ${pull.updated} cập nhật` +
+        (mappingErrors ? `, ${mappingErrors} lỗi ánh xạ` : "") +
+        `. Hệ thống→sheet: ${push.cells_written} ô.`,
   })
 
   if (error) throw new HttpError(502, error)
-  return { push }
+  return { pull, push }
 }
 
 // Manual "đồng bộ ngay" (SPEC §5.5 R2). Manager only.

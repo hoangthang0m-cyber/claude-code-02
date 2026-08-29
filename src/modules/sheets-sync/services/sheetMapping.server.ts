@@ -23,6 +23,7 @@ import {
 import { HttpError } from "@/lib/server/http"
 import { parseOrThrow } from "@/lib/server/validate"
 import { getGoogleAccessToken } from "@/modules/sheets-sync/services/googleConnection.server"
+import { snapshotOf } from "@/modules/sheets-sync/services/sheetRows"
 
 // SPEC §5.5 R1, task 6.2: the SheetSyncMapping config — one per project, with
 // the header row, the column→field map and the conflict rule — plus the first
@@ -310,11 +311,19 @@ export async function runFirstSheetSync(
         : "Đồng bộ lần đầu xong",
   })
 
+  // baseline snapshot so the delta sync (task 6.4) has something to diff against
+  const codeCol = headers.indexOf(cfg.column_map.code ?? "")
+  batch.set(
+    db.collection(COLLECTIONS.sheetSyncMappings).doc(projectId),
+    { snapshot: snapshotOf({ headers, codeCol, dataRows }, cfg) },
+    { merge: true }
+  )
+
   await batch.commit()
   return result
 }
 
-async function memberNameMap(
+export async function memberNameMap(
   db: ReturnType<typeof getAdminDb>,
   projectId: string
 ): Promise<Map<string, string>> {

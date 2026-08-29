@@ -7,9 +7,17 @@ const { fx } = vi.hoisted(() => ({
     managers: ["u-mgr"] as string[],
     mappings: ["p1", "p2"] as string[],
     pushResult: { rows_matched: 3, cells_written: 5 },
+    pullResult: {
+      rows_read: 4,
+      created: 1,
+      updated: 1,
+      mapping_errors: 0,
+      messages: [] as string[],
+    },
     pushThrows: false,
     tokenThrows: false,
     syncRunSpy: vi.fn(),
+    snapshotSpy: vi.fn(),
   },
 }))
 
@@ -21,6 +29,13 @@ vi.mock("@/modules/sheets-sync/services/sheetPush.server", () => ({
     }
     return fx.pushResult
   }),
+}))
+vi.mock("@/modules/sheets-sync/services/sheetPull.server", () => ({
+  runDeltaSheetSync: vi.fn(async () => ({
+    result: fx.pullResult,
+    snapshot: {},
+  })),
+  captureSnapshot: vi.fn(async () => ({})),
 }))
 vi.mock("@/modules/sheets-sync/services/googleConnection.server", () => ({
   getGoogleAccessToken: vi.fn(async () => {
@@ -73,7 +88,7 @@ vi.mock("@/lib/server/firebaseAdmin", () => {
                   }),
                 }
               : { exists: false },
-          set: fx.syncRunSpy,
+          set: name === "syncRuns" ? fx.syncRunSpy : fx.snapshotSpy,
         }),
       }),
     }),
@@ -94,9 +109,17 @@ beforeEach(() => {
   fx.managers = ["u-mgr"]
   fx.mappings = ["p1", "p2"]
   fx.pushResult = { rows_matched: 3, cells_written: 5 }
+  fx.pullResult = {
+    rows_read: 4,
+    created: 1,
+    updated: 1,
+    mapping_errors: 0,
+    messages: [],
+  }
   fx.pushThrows = false
   fx.tokenThrows = false
   fx.syncRunSpy.mockReset().mockResolvedValue(undefined)
+  fx.snapshotSpy.mockReset().mockResolvedValue(undefined)
 })
 
 describe("syncProjectSheetNow (SPEC §5.5 R2)", () => {
@@ -121,16 +144,35 @@ describe("syncProjectSheetNow (SPEC §5.5 R2)", () => {
     })
   })
 
-  it("writes an ok SyncRun and returns the push result", async () => {
+  it("runs both directions, writes an ok SyncRun and persists the snapshot", async () => {
     const r = await syncProjectSheetNow(mgr, "p1")
     expect(r.push).toEqual({ rows_matched: 3, cells_written: 5 })
+    expect(r.pull).toMatchObject({ created: 1, updated: 1 })
     const run = fx.syncRunSpy.mock.calls[0][0] as Record<string, unknown>
     expect(run).toMatchObject({
       project_id: "p1",
       kind: "sheets",
       result: "ok",
-      rows_written: 5,
+      rows_read: 4,
+      rows_written: 1 + 1 + 5,
     })
+    // the post-sync snapshot is written back to the mapping doc
+    expect(fx.snapshotSpy).toHaveBeenCalledWith(
+      { snapshot: {} },
+      { merge: true }
+    )
+  })
+
+  it("marks the SyncRun a warning when the pull had mapping errors", async () => {
+    fx.pullResult = {
+      rows_read: 3,
+      created: 0,
+      updated: 1,
+      mapping_errors: 2,
+      messages: ["x"],
+    }
+    await syncProjectSheetNow(mgr, "p1")
+    expect(fx.syncRunSpy.mock.calls[0][0]).toMatchObject({ result: "warning" })
   })
 
   it("writes an error SyncRun and throws 502 when the push fails", async () => {
