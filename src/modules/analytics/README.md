@@ -81,3 +81,15 @@ period **and** `resolveReportPeriod`'s previous period, and adds `deltas` — a
 value was 0 (no baseline). `computeMetricDelta` / `comparePeriodReports` are pure
 and unit-tested; `reportForWindow` (shared by 8.3 and 8.4) does the gathering for
 one `[start, end)`.
+
+## CSV export (task 8.5)
+
+`?format=csv` on **either** dashboard endpoint (`/report` — report or comparison
+— and `/people`) returns the same numbers as a `text/csv` download
+(`Content-Disposition: attachment`). `src/lib/csv.ts` is a minimal RFC-4180
+writer with a UTF-8 BOM (so Excel reads Vietnamese — this is the "CSV hoặc
+Excel" of §5.6 R5; no real `.xlsx`, no new dependency). `reportExport.ts` shapes
+each result object into rows (`reportCsvRows` / `comparisonCsvRows` /
+`peopleCsvRows`), pure and unit-tested; the export always reflects the same
+`period` / `date` / `compare` params the caller passed, so the file matches
+what is on screen.
