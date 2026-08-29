@@ -853,7 +853,7 @@ Mỗi task đủ nhỏ để làm trong một phiên; kèm cách verify. Làm th
 - [x] 9.3 Test đồng bộ 2 chiều Google Sheets: nạp lần đầu, sửa hai chiều, thêm/xoá dòng, xung đột, mất quyền
 - [x] 9.4 Test tích hợp Meta Ads API với mock: đồng bộ định kỳ, nhiều ad/hạng mục, rate limit, token hỏng, ads dừng
 - [x] 9.5 Test báo cáo tuần/tháng và so sánh kỳ trên bộ dữ liệu có StatusHistory + AdsMetric trải nhiều kỳ
-- [ ] 9.6 Kiểm tra thủ công luồng chính end-to-end: tạo dự án → gắn sheet → nạp hạng mục → giao việc → viết/duyệt kịch bản → quay/duyệt video → gắn campaign → lên ads → số liệu về → đánh giá → xem dashboard và báo cáo tuần
+- [x] 9.6 Kiểm tra thủ công luồng chính end-to-end: tạo dự án → gắn sheet → nạp hạng mục → giao việc → viết/duyệt kịch bản → quay/duyệt video → gắn campaign → lên ads → số liệu về → đánh giá → xem dashboard và báo cáo tuần
 - [ ] 9.7 Kiểm tra realtime: hai phiên trình duyệt cùng dự án thấy thay đổi của nhau trong vài giây; mất kết nối rồi khôi phục không để dữ liệu cũ âm thầm
 
 ---
