@@ -816,7 +816,7 @@ Mỗi task đủ nhỏ để làm trong một phiên; kèm cách verify. Làm th
 - [x] 6.4 Đồng bộ sheet → hệ thống với delta theo snapshot; verify thêm dòng sheet tạo ContentItem mới, status không hợp lệ bị bỏ qua + đếm dòng lỗi
 - [x] 6.5 Đẩy số liệu ads xuống sheet một chiều (không đọc ngược, mục 6.2); verify cột báo cáo ads trên sheet cập nhật, sửa tay trên sheet không ảnh hưởng hệ thống
 - [x] 6.6 Phát hiện xung đột cùng field hai bên → áp `conflict_rule`, ghi `SyncConflict`; verify test kịch bản xung đột deadline
-- [ ] 6.7 Xoá dòng sheet → đánh dấu "mất liên kết", không xoá ContentItem, thông báo manager; verify test
+- [x] 6.7 Xoá dòng sheet → đánh dấu "mất liên kết", không xoá ContentItem, thông báo manager; verify test
 - [ ] 6.8 Job nền đồng bộ ≤ 5 phút/dự án running + nút "đồng bộ ngay" + màn hình trạng thái/nhật ký (`SyncRun`, `SyncConflict`); verify hiển thị thời điểm, kết quả, số dòng đọc/ghi
 - [ ] 6.9 Tắt đồng bộ ở cấp dự án dừng mọi job nền, giữ nguyên dữ liệu hai bên; verify test
 

@@ -8,6 +8,7 @@ const { fx } = vi.hoisted(() => ({
       code: string
       data?: Record<string, unknown>
     }>,
+    managers: ["u-mgr"] as string[],
     setSpy: vi.fn(),
     updateSpy: vi.fn(),
     commitSpy: vi.fn(),
@@ -22,17 +23,26 @@ vi.mock("@/modules/sheets-sync/services/sheetMapping.server", () => ({
 }))
 
 vi.mock("@/lib/server/firebaseAdmin", () => {
-  const query = (name: string) => ({
-    where: () => query(name),
-    get: async () =>
-      name === "contentItems"
-        ? {
-            docs: fx.existingItems.map((i) => ({
-              id: i.id,
-              data: () => ({ code: i.code, ...(i.data ?? {}) }),
-            })),
-          }
-        : { docs: [] },
+  const query = (name: string, clauses: string[] = []) => ({
+    where: (f: string) => query(name, [...clauses, f]),
+    get: async () => {
+      if (name === "contentItems") {
+        return {
+          docs: fx.existingItems.map((i) => ({
+            id: i.id,
+            data: () => ({
+              code: i.code,
+              sheet_row_ref: i.code,
+              ...(i.data ?? {}),
+            }),
+          })),
+        }
+      }
+      if (name === "projectMembers" && clauses.includes("project_role")) {
+        return { docs: fx.managers.map((u) => ({ data: () => ({ user_id: u }) })) }
+      }
+      return { docs: [] }
+    },
   })
   return {
     getAdminAuth: () => ({}),
@@ -62,6 +72,7 @@ const cfg = {
 beforeEach(() => {
   fx.rows = []
   fx.existingItems = []
+  fx.managers = ["u-mgr"]
   fx.setSpy.mockReset()
   fx.updateSpy.mockReset()
   fx.commitSpy.mockReset().mockResolvedValue(undefined)
@@ -206,13 +217,60 @@ describe("runDeltaSheetSync (SPEC §5.5 R2 / §6.3, task 6.4)", () => {
     expect(result.updated).toBe(1)
   })
 
-  it("leaves a row that was deleted from the sheet alone (task 6.7)", async () => {
+  it("a previously-synced row now gone from the sheet → unlink, keep the item, notify managers (task 6.7)", async () => {
     fx.existingItems = [{ id: "c1", code: "V001" }]
-    fx.rows = [["Mã", "TT", "CĐ"]] // no data rows
+    fx.managers = ["u-mgr", "u-mgr2"]
+    fx.rows = [["Mã", "TT", "CĐ"]] // header only — the data row was deleted
     const prev = { V001: { status: "quay_dung", topic: "NYC" } }
     const { result } = await runDeltaSheetSync("p1", cfg, "tok", prev)
-    expect(result).toMatchObject({ rows_read: 0, created: 0, updated: 0 })
+
+    expect(result).toMatchObject({ rows_read: 0, created: 0, updated: 0, unlinked: 1 })
+
+    // the ContentItem is kept, only unlinked
+    const patch = fx.updateSpy.mock.calls[0][1] as Record<string, unknown>
+    expect(patch.sheet_row_ref).toBeNull()
+    expect(patch).toHaveProperty("sheet_unlinked_at")
+
+    // every project manager is notified
+    const notes = fx.setSpy.mock.calls
+      .map((c) => c[1] as Record<string, unknown>)
+      .filter((d) => d.type === "sync_issue")
+    expect(notes.map((n) => n.recipient_id).sort()).toEqual(["u-mgr", "u-mgr2"])
+    expect(notes[0]).toMatchObject({ content_item_id: "c1", project_id: "p1" })
+  })
+
+  it("a row already unlinked and still gone → no repeat unlink / notification", async () => {
+    fx.existingItems = [
+      { id: "c1", code: "V001", data: { sheet_row_ref: null } },
+    ]
+    fx.rows = [["Mã", "TT", "CĐ"]]
+    const prev = { V001: { status: "quay_dung", topic: "NYC" } }
+    const { result } = await runDeltaSheetSync("p1", cfg, "tok", prev)
+
+    expect(result.unlinked).toBe(0)
     expect(fx.updateSpy).not.toHaveBeenCalled()
+    expect(fx.setSpy).not.toHaveBeenCalled()
+  })
+
+  it("a deleted row that reappears → re-link (clear sheet_unlinked_at) (task 6.7)", async () => {
+    fx.existingItems = [
+      {
+        id: "c1",
+        code: "V001",
+        data: { sheet_row_ref: null, status: "quay_dung", topic: "NYC" },
+      },
+    ]
+    fx.rows = [
+      ["Mã", "TT", "CĐ"],
+      ["V001", "quay_dung", "NYC"],
+    ]
+    // the row was absent last sync, so it is not in the snapshot
+    const { result } = await runDeltaSheetSync("p1", cfg, "tok", {})
+
+    expect(result.unlinked).toBe(0)
+    const patch = fx.updateSpy.mock.calls[0][1] as Record<string, unknown>
+    expect(patch.sheet_row_ref).toBe("V001")
+    expect(patch.sheet_unlinked_at).toBeNull()
   })
 
   it("bails out cleanly when the code column is missing", async () => {

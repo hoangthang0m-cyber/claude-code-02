@@ -2,6 +2,10 @@ import { FieldValue } from "firebase-admin/firestore"
 
 import { CONTENT_STATUSES, COLLECTIONS } from "@/lib/domain"
 import { getAdminDb } from "@/lib/server/firebaseAdmin"
+import {
+  projectManagerUids,
+  queueNotification,
+} from "@/modules/notifications/services/notify.server"
 import { memberNameMap } from "@/modules/sheets-sync/services/sheetMapping.server"
 import {
   readMappedSheet,
@@ -12,13 +16,16 @@ import {
   type SheetSnapshot,
 } from "@/modules/sheets-sync/services/sheetRows"
 
-// SPEC §5.5 R2 / R3 / §6.3, tasks 6.4 + 6.6: the sheet → system direction,
+// SPEC §5.5 R2 / R3 / §6.3, tasks 6.4 / 6.6 / 6.7: the sheet → system direction,
 // delta-driven. Reads the whole sheet, diffs it against the snapshot from the
-// previous sync, applies only the changed cells, and — when the same field
-// changed on BOTH sides since the last sync — applies the `conflict_rule` and
-// logs a `SyncConflict` (task 6.6). New rows become new ContentItems. Invalid
-// enum values are skipped per-field with a warning (SPEC §5.5 R1). Row
-// deletions are task 6.7.
+// previous sync, applies only the changed cells, and:
+//  - same field changed on BOTH sides → apply `conflict_rule` + log
+//    `SyncConflict` (task 6.6)
+//  - a previously-synced row now missing from the sheet → keep the ContentItem,
+//    null its `sheet_row_ref`, stamp `sheet_unlinked_at`, notify the project
+//    managers (task 6.7)
+// New rows become new ContentItems; invalid enum values are skipped per-field
+// with a warning (SPEC §5.5 R1).
 
 const SYNC_ACTOR = "sheet-sync"
 
@@ -28,6 +35,7 @@ export interface SheetPullResult {
   updated: number
   mapping_errors: number
   conflicts: number
+  unlinked: number
   messages: string[]
 }
 
@@ -44,6 +52,7 @@ export async function runDeltaSheetSync(
     updated: 0,
     mapping_errors: 0,
     conflicts: 0,
+    unlinked: 0,
     messages: [],
   }
   const sheetWins = cfg.conflict_rule === "sheet_wins"
@@ -144,14 +153,48 @@ export async function runDeltaSheetSync(
       }
     }
 
-    if (touched) {
+    // re-link a row that had been marked "lost" and is now back in the sheet
+    const needsRelink = existingItem.data.sheet_row_ref !== code
+    if (touched || needsRelink) {
       batch.update(db.collection(COLLECTIONS.contentItems).doc(existingItem.id), {
         ...patch,
         sheet_row_ref: code,
+        ...(needsRelink ? { sheet_unlinked_at: null } : {}),
         updated_at: FieldValue.serverTimestamp(),
         updated_by: SYNC_ACTOR,
       })
-      result.updated++
+      if (touched) result.updated++
+      ops++
+    }
+  }
+
+  // ── rows that were synced last time but are now gone from the sheet
+  //    (SPEC §5.5 R2 / §6.3, task 6.7) ──
+  const missing = Object.keys(prevSnapshot).filter(
+    (code) =>
+      !(code in current) &&
+      itemByCode.get(code)?.data.sheet_row_ref // still linked
+  )
+  if (missing.length > 0) {
+    const managers = await projectManagerUids(db, projectId)
+    for (const code of missing) {
+      const item = itemByCode.get(code)!
+      batch.update(db.collection(COLLECTIONS.contentItems).doc(item.id), {
+        sheet_row_ref: null,
+        sheet_unlinked_at: FieldValue.serverTimestamp(),
+        updated_at: FieldValue.serverTimestamp(),
+        updated_by: SYNC_ACTOR,
+      })
+      for (const uid of managers) {
+        queueNotification(db, batch, {
+          recipient_id: uid,
+          type: "sync_issue",
+          content_item_id: item.id,
+          project_id: projectId,
+          message: `Hạng mục ${code} đã bị xoá khỏi Google Sheet — hệ thống giữ lại và đánh dấu "mất liên kết"`,
+        })
+      }
+      result.unlinked++
       ops++
     }
   }

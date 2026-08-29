@@ -29,7 +29,11 @@ export interface ContentItem {
   customer_research_url?: string
   status: ContentStatus
   evaluation?: string
-  sheet_row_ref?: string
+  sheet_row_ref?: string | null
+  // Set when the item's row was deleted from the sheet (SPEC §6.3, task 6.7):
+  // the item is kept, `sheet_row_ref` is nulled, this stamps when. Cleared if
+  // the row comes back. Beyond the §6.1 sketch.
+  sheet_unlinked_at?: Timestamp | null
   created_at: Timestamp
   updated_at: Timestamp
   // Required by SPEC §5.2 R1 ("người cập nhật"); the §6.1 sketch omits it.

@@ -95,6 +95,12 @@ Access:
   scopes[], state: connected|needs_reconnect, connected_at }`. Client has no
   access (firestore.rules `read, write: if false`); the Sheets sync reads it
   server-side and refreshes the access token per run.
+- `ContentItem.sheet_unlinked_at` (task 6.7) is a nullable Timestamp beyond the
+  §6.1 sketch. When a row that had been synced disappears from the sheet, the
+  delta pull keeps the `ContentItem`, sets `sheet_row_ref = null`, stamps
+  `sheet_unlinked_at`, and notifies every project manager (`Notification` type
+  `sync_issue`). It is cleared (`null`) and `sheet_row_ref` restored if a row
+  with that `code` reappears. An already-unlinked item is not re-notified.
 - `SyncConflict.system_value` / `sheet_value` store the **serialised string**
   form of each side's value, for the log (§5.5 R3). A conflict is detected when
   the same field's value differs from the last-sync `snapshot` on BOTH sides

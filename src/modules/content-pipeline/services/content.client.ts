@@ -25,6 +25,7 @@ export interface ContentListRow {
   customer_research_url?: string
   evaluation?: string
   ads_metric?: AdsMetricView | null
+  sheet_unlinked_at?: { _seconds: number } | { seconds: number } | null
   [key: string]: unknown
 }
 

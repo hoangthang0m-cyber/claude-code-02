@@ -77,6 +77,7 @@ const EMPTY_PULL: SheetPullResult = {
   updated: 0,
   mapping_errors: 0,
   conflicts: 0,
+  unlinked: 0,
   messages: [],
 }
 
@@ -110,7 +111,8 @@ async function runSync(projectId: string): Promise<SheetSyncResult> {
     error = e instanceof HttpError ? e.message : "Đồng bộ thất bại"
   }
 
-  const hasWarnings = pull.mapping_errors > 0 || pull.conflicts > 0
+  const hasWarnings =
+    pull.mapping_errors > 0 || pull.conflicts > 0 || pull.unlinked > 0
   await db.collection(COLLECTIONS.syncRuns).doc().set({
     project_id: projectId,
     kind: "sheets",
@@ -123,6 +125,7 @@ async function runSync(projectId: string): Promise<SheetSyncResult> {
       error ??
       `Sheet→hệ thống: ${pull.created} tạo, ${pull.updated} cập nhật` +
         (pull.conflicts ? `, ${pull.conflicts} xung đột` : "") +
+        (pull.unlinked ? `, ${pull.unlinked} mất liên kết` : "") +
         (pull.mapping_errors ? `, ${pull.mapping_errors} lỗi ánh xạ` : "") +
         `. Hệ thống→sheet: ${push.cells_written} ô.`,
   })
