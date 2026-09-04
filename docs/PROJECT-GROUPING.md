@@ -128,8 +128,13 @@ người dùng) — chỉ stat cards + báo cáo tuần/tháng + so sánh kỳ.
   script `npm run backfill:sort-index -- --write` (chạy một lần trên prod, giống
   `seed:manager` / `rules:deploy`). Task 4.1 vẫn tự fallback về `created_at` khi
   thiếu `sort_index`.
-- [ ] 1.4 Refactor hàm tổng hợp `progress-analytics` nhận một TẬP `project_id`;
-  verify test hồi quy: chỉ số cấp dự án không đổi
+- [x] 1.4 Refactor hàm tổng hợp `progress-analytics` nhận một TẬP `project_id`;
+  verify test hồi quy: chỉ số cấp dự án không đổi. `ScopedView { mode,
+  project_ids, uid }` + core `progressDashboardForScope` /
+  `periodReportForScope` / `periodComparisonForScope` (task 5.1/5.3/5.4 gọi
+  thẳng); `getProgressDashboard(actor)` / `getPeriodReport(actor)` giờ là wrapper
+  mỏng qua `resolveAnalyticsScope`. `people.server.ts` giữ nguyên cấp dự án
+  (roll-up nhóm không có bảng theo nhân sự).
 
 ### 4.2 Quản lý nhóm (CRUD)
 
