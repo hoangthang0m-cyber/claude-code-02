@@ -4,7 +4,9 @@ import {
   COLLECTIONS,
   isProjectGroupWritable,
   projectGroupCreateSchema,
+  projectGroupLifecycleSchema,
   projectGroupUpdateSchema,
+  type ProjectGroupLifecycle,
 } from "@/lib/domain"
 import { requireSystemManager } from "@/lib/permissions/projectScope"
 import type { AuthedUser } from "@/lib/server/auth"
@@ -66,4 +68,31 @@ export async function updateProjectGroup(
 
   await ref.update(input)
   return { id: groupId }
+}
+
+// task 2.3 — archive a group or restore it. Manager-only. Archiving hides the
+// group from the default project list (task 4.1) but changes NOTHING about its
+// projects — they keep running (spec). No cascade.
+export async function setProjectGroupLifecycle(
+  actor: AuthedUser,
+  groupId: string,
+  body: unknown
+): Promise<{ id: string; lifecycle: ProjectGroupLifecycle }> {
+  requireSystemManager(actor)
+
+  const { lifecycle: target } = parseOrThrow(projectGroupLifecycleSchema, body)
+
+  const ref = getAdminDb().collection(COLLECTIONS.projectGroups).doc(groupId)
+  const snap = await ref.get()
+  if (!snap.exists) {
+    throw new HttpError(404, "Không tìm thấy nhóm")
+  }
+
+  const from = snap.data()?.lifecycle as ProjectGroupLifecycle | undefined
+  if (from === target) {
+    throw new HttpError(400, `Nhóm đã ở trạng thái "${target}"`)
+  }
+
+  await ref.update({ lifecycle: target })
+  return { id: groupId, lifecycle: target }
 }

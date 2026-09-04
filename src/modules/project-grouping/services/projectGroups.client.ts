@@ -1,5 +1,9 @@
 import { authedJson } from "@/lib/api/authedFetch"
-import type { ProjectGroupCreate, ProjectGroupUpdate } from "@/lib/domain"
+import type {
+  ProjectGroupCreate,
+  ProjectGroupLifecycle,
+  ProjectGroupUpdate,
+} from "@/lib/domain"
 
 // Client wrappers for the project-grouping APIs (project-grouping change §2).
 // Every call carries the Firebase ID token; the server enforces manager-only.
@@ -16,4 +20,14 @@ export function updateProjectGroup(groupId: string, body: ProjectGroupUpdate) {
     method: "PATCH",
     body: JSON.stringify(body),
   })
+}
+
+export function setProjectGroupLifecycle(
+  groupId: string,
+  lifecycle: ProjectGroupLifecycle
+) {
+  return authedJson<{ id: string; lifecycle: ProjectGroupLifecycle }>(
+    `/api/project-groups/${groupId}/lifecycle`,
+    { method: "POST", body: JSON.stringify({ lifecycle }) }
+  )
 }

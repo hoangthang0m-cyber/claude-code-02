@@ -10,6 +10,7 @@ import {
   projectCreateSchema,
   projectGroupCreateSchema,
   projectGroupId,
+  projectGroupLifecycleSchema,
   projectGroupUpdateSchema,
 } from "@/lib/domain"
 
@@ -108,6 +109,18 @@ describe("projectGroupUpdateSchema", () => {
     })
     expect(r.success).toBe(true)
     if (r.success) expect("lifecycle" in r.data).toBe(false)
+  })
+})
+
+describe("projectGroupLifecycleSchema (task 2.3)", () => {
+  it("accepts active and archived", () => {
+    expect(projectGroupLifecycleSchema.safeParse({ lifecycle: "active" }).success).toBe(true)
+    expect(projectGroupLifecycleSchema.safeParse({ lifecycle: "archived" }).success).toBe(true)
+  })
+
+  it("rejects any other value (no 'done' like Project)", () => {
+    expect(projectGroupLifecycleSchema.safeParse({ lifecycle: "done" }).success).toBe(false)
+    expect(projectGroupLifecycleSchema.safeParse({}).success).toBe(false)
   })
 })
 

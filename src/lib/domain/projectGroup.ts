@@ -1,7 +1,10 @@
 import type { Timestamp } from "firebase/firestore"
 import { z } from "zod"
 
-import { type ProjectGroupLifecycle } from "@/lib/domain/enums"
+import {
+  PROJECT_GROUP_LIFECYCLES,
+  type ProjectGroupLifecycle,
+} from "@/lib/domain/enums"
 import type { Project } from "@/lib/domain/project"
 
 // project-grouping change (design.md Decision 1):
@@ -45,6 +48,12 @@ export function isProjectGroupWritable(
 ): boolean {
   return lifecycle !== "archived"
 }
+
+// task 2.3 — archive / restore is a plain active ⇄ archived toggle (no "done"
+// state, unlike Project). Its own validated path, separate from name/description.
+export const projectGroupLifecycleSchema = z.object({
+  lifecycle: z.enum(PROJECT_GROUP_LIFECYCLES),
+})
 
 // task 1.2 — the bucket a project belongs to. A project doc written before this
 // change has no `group_id`, so it reads back as `null` ("Chưa phân nhóm"). One

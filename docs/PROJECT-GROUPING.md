@@ -147,8 +147,11 @@ người dùng) — chỉ stat cards + báo cáo tuần/tháng + so sánh kỳ.
   `PATCH /api/project-groups/[groupId]` → `updateProjectGroup` (manager-only,
   body rỗng → 400, không tồn tại → 404, nhóm archived → 409, không đụng
   `lifecycle`). Helper `isProjectGroupWritable`.
-- [ ] 2.3 API lưu trữ / bỏ lưu trữ nhóm; verify nhóm archived ẩn khỏi danh sách
-  mặc định, hiện qua bộ lọc "đã lưu trữ", dự án trong nhóm vẫn hoạt động
+- [x] 2.3 API lưu trữ / bỏ lưu trữ nhóm; verify nhóm archived ẩn khỏi danh sách
+  mặc định, hiện qua bộ lọc "đã lưu trữ", dự án trong nhóm vẫn hoạt động.
+  `POST /api/project-groups/[groupId]/lifecycle` → `setProjectGroupLifecycle`
+  (toggle `active` ⇄ `archived`, cùng trạng thái → 400, KHÔNG cascade sang
+  project). `projectGroupLifecycleSchema`. Phần ẩn/lọc danh sách kiểm ở task 4.1.
 - [ ] 2.4 API xoá nhóm với xác nhận; verify dự án của nhóm chuyển `group_id =
   NULL`, không dự án nào bị xoá
 - [ ] 2.5 Giới hạn toàn bộ API mục 2 cho `system_role = manager`; verify Nhân sự

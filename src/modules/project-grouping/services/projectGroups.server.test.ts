@@ -32,6 +32,7 @@ vi.mock("@/lib/server/firebaseAdmin", () => {
 import type { AuthedUser } from "@/lib/server/auth"
 import {
   createProjectGroup,
+  setProjectGroupLifecycle,
   updateProjectGroup,
 } from "@/modules/project-grouping/services/projectGroups.server"
 
@@ -153,5 +154,57 @@ describe("updateProjectGroup (project-grouping task 2.2)", () => {
     })
     const [patch] = docUpdate.mock.calls[0]
     expect(patch).toEqual({ name: "Chỉ tên" })
+  })
+})
+
+describe("setProjectGroupLifecycle (project-grouping task 2.3)", () => {
+  beforeEach(() => {
+    fx.groups = {
+      live: { name: "Đang chạy", lifecycle: "active" },
+      old: { name: "Cũ", lifecycle: "archived" },
+    }
+  })
+
+  it("rejects a staff account with 403", async () => {
+    await expect(
+      setProjectGroupLifecycle(staff, "live", { lifecycle: "archived" })
+    ).rejects.toMatchObject({ status: 403 })
+    expect(docUpdate).not.toHaveBeenCalled()
+  })
+
+  it("rejects a lifecycle outside active | archived with 400", async () => {
+    await expect(
+      setProjectGroupLifecycle(manager, "live", { lifecycle: "done" })
+    ).rejects.toMatchObject({ status: 400 })
+  })
+
+  it("404 when the group does not exist", async () => {
+    await expect(
+      setProjectGroupLifecycle(manager, "nope", { lifecycle: "archived" })
+    ).rejects.toMatchObject({ status: 404 })
+  })
+
+  it("400 when the group is already in that lifecycle", async () => {
+    await expect(
+      setProjectGroupLifecycle(manager, "live", { lifecycle: "active" })
+    ).rejects.toMatchObject({ status: 400 })
+    expect(docUpdate).not.toHaveBeenCalled()
+  })
+
+  it("archives: writes only { lifecycle } — the group's projects are untouched", async () => {
+    const r = await setProjectGroupLifecycle(manager, "live", {
+      lifecycle: "archived",
+    })
+    expect(r).toEqual({ id: "live", lifecycle: "archived" })
+    expect(docUpdate).toHaveBeenCalledTimes(1)
+    expect(docUpdate).toHaveBeenCalledWith({ lifecycle: "archived" })
+  })
+
+  it("restores an archived group", async () => {
+    const r = await setProjectGroupLifecycle(manager, "old", {
+      lifecycle: "active",
+    })
+    expect(r).toEqual({ id: "old", lifecycle: "active" })
+    expect(docUpdate).toHaveBeenCalledWith({ lifecycle: "active" })
   })
 })
