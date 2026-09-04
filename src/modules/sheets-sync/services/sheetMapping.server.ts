@@ -169,9 +169,6 @@ export async function saveSheetMapping(
   await assertProjectWritable(projectId)
 
   const input = parseOrThrow(sheetMappingSaveSchema, body)
-  if (!input.column_map.code) {
-    throw new HttpError(400, 'Bắt buộc ánh xạ cột "Mã hạng mục" (code)')
-  }
 
   const parsed = parseSheetUrl(input.url)
   if (!parsed) throw new HttpError(400, "Link không phải Google Sheets hợp lệ")

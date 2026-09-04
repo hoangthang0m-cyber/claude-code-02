@@ -254,10 +254,27 @@ describe("saveSheetMapping", () => {
     })
   })
 
-  it("400 when the code column is not mapped", async () => {
-    await expect(
-      saveSheetMapping(mgr, "p1", { ...base, column_map: { status: "Trạng thái" } })
-    ).rejects.toMatchObject({ status: 400 })
+  it("saves even without a column_map — columns are recognised by the fixed schema", async () => {
+    fx.rows = [
+      ["Mã", "Trạng thái"],
+      ["V001", "viet_kich_ban"],
+    ]
+    const r = await saveSheetMapping(mgr, "p1", {
+      url: SHEET_URL,
+      header_row: 1,
+      conflict_rule: "system_wins",
+    })
+    expect(r.first_sync.created).toBe(1)
+  })
+
+  it("first sync reports it (no items) when the sheet has no recognisable Mã column", async () => {
+    fx.rows = [
+      ["Deadline", "Trạng thái"],
+      ["01/09/2026", "viet_kich_ban"],
+    ]
+    const r = await saveSheetMapping(mgr, "p1", { ...base })
+    expect(r.first_sync.created).toBe(0)
+    expect(r.first_sync.messages.join(" ")).toMatch(/Mã/)
   })
 
   it("403 when the manager only has read access", async () => {

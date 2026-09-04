@@ -122,10 +122,16 @@ export function isAdsSheetField(field: string): boolean {
 
 // Save request from the config screen (SPEC §5.5 R1). `spreadsheet_id` /
 // `sheet_tab` are resolved from `url` + the verify step, not sent in the body.
+// `column_map` is no longer used — columns are recognised by the fixed schema
+// (sheets-sync-fixed-schema §2) — but is still accepted so old clients don't
+// break; the migration (that change's §1) drops it.
 export const sheetMappingSaveSchema = z.object({
   url: z.string().trim().min(1),
   header_row: z.number().int().positive().default(1),
-  column_map: z.record(z.string().trim().min(1), z.string().trim().min(1)),
+  column_map: z
+    .record(z.string().trim().min(1), z.string().trim().min(1))
+    .optional()
+    .default({}),
   conflict_rule: z.enum(SYNC_CONFLICT_RULES).default("system_wins"),
 })
 
