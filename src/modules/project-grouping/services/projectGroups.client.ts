@@ -31,3 +31,10 @@ export function setProjectGroupLifecycle(
     { method: "POST", body: JSON.stringify({ lifecycle }) }
   )
 }
+
+export function deleteProjectGroup(groupId: string) {
+  return authedJson<{ id: string; projects_reassigned: number }>(
+    `/api/project-groups/${groupId}`,
+    { method: "DELETE" }
+  )
+}

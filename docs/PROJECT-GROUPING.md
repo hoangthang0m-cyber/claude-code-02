@@ -152,8 +152,11 @@ người dùng) — chỉ stat cards + báo cáo tuần/tháng + so sánh kỳ.
   `POST /api/project-groups/[groupId]/lifecycle` → `setProjectGroupLifecycle`
   (toggle `active` ⇄ `archived`, cùng trạng thái → 400, KHÔNG cascade sang
   project). `projectGroupLifecycleSchema`. Phần ẩn/lọc danh sách kiểm ở task 4.1.
-- [ ] 2.4 API xoá nhóm với xác nhận; verify dự án của nhóm chuyển `group_id =
-  NULL`, không dự án nào bị xoá
+- [x] 2.4 API xoá nhóm với xác nhận; verify dự án của nhóm chuyển `group_id =
+  NULL`, không dự án nào bị xoá. `DELETE /api/project-groups/[groupId]` →
+  `deleteProjectGroup`: batch `update({ group_id: null })` cho mọi project
+  `where group_id == id` + `delete` doc nhóm; trả `projects_reassigned`. Xác
+  nhận là việc của UI.
 - [ ] 2.5 Giới hạn toàn bộ API mục 2 cho `system_role = manager`; verify Nhân sự
   bị từ chối
 

@@ -96,3 +96,32 @@ export async function setProjectGroupLifecycle(
   await ref.update({ lifecycle: target })
   return { id: groupId, lifecycle: target }
 }
+
+// task 2.4 — delete a group. Manager-only. "ON DELETE SET NULL": every project
+// in the group has `group_id` cleared to null (→ "Chưa phân nhóm"); NO project
+// is deleted. The caller (UI) is responsible for the confirmation prompt.
+export async function deleteProjectGroup(
+  actor: AuthedUser,
+  groupId: string
+): Promise<{ id: string; projects_reassigned: number }> {
+  requireSystemManager(actor)
+
+  const db = getAdminDb()
+  const ref = db.collection(COLLECTIONS.projectGroups).doc(groupId)
+  const snap = await ref.get()
+  if (!snap.exists) {
+    throw new HttpError(404, "Không tìm thấy nhóm")
+  }
+
+  const members = await db
+    .collection(COLLECTIONS.projects)
+    .where("group_id", "==", groupId)
+    .get()
+
+  const batch = db.batch()
+  members.docs.forEach((d) => batch.update(d.ref, { group_id: null }))
+  batch.delete(ref)
+  await batch.commit()
+
+  return { id: groupId, projects_reassigned: members.size }
+}
