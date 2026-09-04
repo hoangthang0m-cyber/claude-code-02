@@ -203,16 +203,16 @@ người dùng) — chỉ stat cards + báo cáo tuần/tháng + so sánh kỳ.
 
 ### 4.5 Trang tổng hợp roll-up cấp nhóm
 
-- [ ] 5.1 API dashboard cấp nhóm (nhận `group_id`, tập dự án con ∩ quyền, gọi
-  hàm 1.4); verify chỉ số cộng dồn khớp tổng thủ công
-- [ ] 5.2 Loại dự án ngoài quyền + trả "đang tính N/M dự án"; verify test
-- [ ] 5.3 API báo cáo tuần/tháng cấp nhóm; verify nhóm rỗng ⇒ 0 + nhãn "nhóm
-  chưa có dự án"
-- [ ] 5.4 API so sánh kỳ cấp nhóm; verify test hai kỳ có dữ liệu
-- [ ] 5.5 Xuất báo cáo nhóm ra CSV: cột tách theo từng dự án con, không có "tổng
-  hợp toàn nhóm"; verify cấu trúc tệp
-- [ ] 5.6 Màn hình trang tổng hợp nhóm (stat cards + báo cáo + toggle so sánh +
-  nút xuất, KHÔNG có bảng theo nhân sự); verify điều hướng từ khối nhóm
+- [x] 5.1-5.5 `groupRollup.server.ts`: `resolveGroupScope` (nhóm → dự án con ∩
+  dự án viewer làm manager; viewer không quản lý gì → 403). `GET
+  /api/project-groups/[id]/dashboard` và `.../report[?compare=1][&format=csv]`
+  → `getGroupDashboard` / `getGroupPeriodReport` / `getGroupPeriodComparison` /
+  `getGroupReportPerProject`, tất cả gọi core §1.4. `projects_counted/total` +
+  `group_empty`. CSV (`groupReportCsvRows`): cột theo dự án con, không có "Tổng
+  nhóm". 6 test.
+- [x] 5.6 `/campaigns/groups/[groupId]` → `GroupRollupView`: stat cards + báo
+  cáo tuần/tháng + toggle so sánh + Xuất CSV, KHÔNG có bảng theo nhân sự. Link
+  "Xem tổng hợp" ở header khối nhóm. UI **chưa test trên trình duyệt**.
 
 ### 4.6 Kiểm thử & xác minh tích hợp
 
