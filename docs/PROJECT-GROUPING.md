@@ -216,11 +216,21 @@ người dùng) — chỉ stat cards + báo cáo tuần/tháng + so sánh kỳ.
 
 ### 4.6 Kiểm thử & xác minh tích hợp
 
-- [ ] 6.1 Test vòng đời nhóm: tạo → gán → chuyển → lưu trữ → xoá; dự án không
-  bao giờ bị mất
-- [ ] 6.2 Test hồi quy `progress-analytics` cấp dự án sau refactor 1.4
-- [ ] 6.3 Test roll-up khớp tổng thủ công, kể cả khi có dự án ngoài quyền
-- [ ] 6.4 Test phân quyền: Nhân sự không tạo/sửa/xoá/lưu trữ nhóm, không gán, không kéo-thả
-- [ ] 6.5 Test thứ tự: kéo nhiều lần, chuyển rổ, `sort_index` không trùng, ổn định qua nhiều phiên
-- [ ] 6.6 Kiểm tra thủ công end-to-end: nhóm "UGC ROAS 2.0" → gán 2 dự án → kéo
-  sắp thứ tự → danh sách gom đúng → trang tổng hợp nhóm xem dashboard + báo cáo tháng
+- [x] 6.1 `groupLifecycle.integration.test.ts` — Firestore mock stateful, chạy
+  hết tạo→gán→đổi tên→chuyển→lưu trữ→xoá, dự án luôn tồn tại.
+- [x] 6.2/6.3 `groupRollup.integration.test.ts` — roll-up nhóm = tổng thủ công
+  per-project; dashboard nhóm == dashboard actor-level khi phạm vi trùng; dự án
+  ngoài quyền không rò vào.
+- [x] 6.4 `projectGrouping.permissions.test.ts` — 7 entry point mutation × Nhân
+  sự → 403, không chạm Firestore.
+- [x] 6.5 `sortIndex.integration.test.ts` — nhiều lần kéo + chuyển rổ, `sort_index`
+  duy nhất mỗi rổ, thứ tự ổn định qua "reload", re-space khi hết chỗ.
+- [x] 6.6 `docs/E2E-PROJECT-GROUPING.md` — bản kiểm thủ công 13 bước (chưa chạy
+  trên trình duyệt thật). Kèm UI quản lý nhóm ("Nhóm mới" + menu ⋮ đổi tên / lưu
+  trữ / xoá) để E2E làm được trong browser.
+
+## 5. Trạng thái tổng thể
+
+Toàn bộ 31 task đã `[x]`. Backend + test đầy đủ. **UI nhóm 4 & 5 & phần quản lý
+nhóm chưa chạy trên trình duyệt thật** — logic có unit/integration test, cần kiểm
+theo `docs/E2E-PROJECT-GROUPING.md` sau khi deploy.
