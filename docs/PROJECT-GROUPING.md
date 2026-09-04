@@ -186,18 +186,20 @@ người dùng) — chỉ stat cards + báo cáo tuần/tháng + so sánh kỳ.
 
 ### 4.4 Danh sách dự án theo nhóm
 
-- [ ] 4.1 API danh sách gom theo nhóm + khối "Chưa phân nhóm", mỗi nhóm kèm số
-  lượng, dự án sắp theo `sort_index` tăng dần; verify cấu trúc + thứ tự
-- [ ] 4.2 Màn hình danh sách: bọc thẻ dự án trong khối nhóm mở/thu, giữ nguyên
-  component thẻ; verify dự án chưa phân nhóm hiển thị y như trước
-- [ ] 4.3 Lưu trạng thái mở/thu từng nhóm ở client (localStorage); verify tải
-  lại giữ nguyên
-- [ ] 4.4 Nhóm rỗng vẫn hiển thị (số lượng 0 + nút gán dự án); verify quan sát
-- [ ] 4.5 API cập nhật thứ tự (chèn giữa hai lân cận, reindex khi hết chỗ);
-  verify thứ tự đúng sau nhiều lần kéo
-- [ ] 4.6 UI kéo-thả trong một khối (chỉ manager); verify lưu ở server, người
-  khác tải lại thấy thứ tự mới, kéo nhóm A không ảnh hưởng nhóm B / "Chưa phân
-  nhóm"
+- [x] 4.1 API danh sách gom theo nhóm — hàm thuần `groupProjectsForList` + hook
+  `useGroupedProjects` (2 read realtime nên list vẫn live).
+- [x] 4.2 Màn hình `GroupedProjectList` thay `ProjectList`: khối mở/thu, giữ
+  nguyên `ProjectCard`.
+- [x] 4.3 `useCollapsedGroups` (useSyncExternalStore + localStorage) — tải lại
+  giữ trạng thái mở/thu.
+- [x] 4.4 Nhóm rỗng hiện với viền đứt; menu "＋ dự án" ở header khối (manager) →
+  `setProjectGroup`.
+- [x] 4.5 `computeReorder` + `PATCH /api/projects/[projectId]/order`
+  (`reorderProject`) — midpoint / re-space, cùng rổ, manager-only.
+- [x] 4.6 Kéo-thả `@dnd-kit/sortable` trong khối (manager, khối >1, không cho
+  archived) → `reorderProject`; override thứ tự lạc quan.
+- ⚠️ Toàn bộ UI nhóm 4 **chưa test trên trình duyệt** (không chạy được browser ở
+  môi trường build). tsc + eslint + `next build` sạch.
 
 ### 4.5 Trang tổng hợp roll-up cấp nhóm
 
