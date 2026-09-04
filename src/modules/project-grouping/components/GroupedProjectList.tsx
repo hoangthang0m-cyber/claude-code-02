@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import Link from "next/link"
 import {
   DndContext,
   PointerSensor,
@@ -270,6 +271,15 @@ function Block({
               ))}
             </DropdownMenuContent>
           </DropdownMenu>
+        )}
+
+        {isManager && bucketId !== null && (
+          <Link
+            href={`/campaigns/groups/${bucketId}`}
+            className="text-xs text-primary hover:underline"
+          >
+            Xem tổng hợp
+          </Link>
         )}
       </div>
 
