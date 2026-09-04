@@ -157,8 +157,10 @@ người dùng) — chỉ stat cards + báo cáo tuần/tháng + so sánh kỳ.
   `deleteProjectGroup`: batch `update({ group_id: null })` cho mọi project
   `where group_id == id` + `delete` doc nhóm; trả `projects_reassigned`. Xác
   nhận là việc của UI.
-- [ ] 2.5 Giới hạn toàn bộ API mục 2 cho `system_role = manager`; verify Nhân sự
-  bị từ chối
+- [x] 2.5 Giới hạn toàn bộ API mục 2 cho `system_role = manager`; verify Nhân sự
+  bị từ chối. Mỗi API §2 gọi `requireSystemManager` ở dòng đầu; test tổng hợp
+  `projectGroups.permissions.test.ts` (4 entry point → 403, staff không chạm
+  Firestore).
 
 ### 4.3 Gán dự án vào nhóm
 
