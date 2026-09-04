@@ -38,6 +38,7 @@ import {
 } from "@/modules/project-grouping/services/projectGroups.client"
 import { ProjectCard } from "@/modules/project-workspace/components/ProjectCard"
 import { ProjectFormSheet } from "@/modules/project-workspace/components/ProjectFormSheet"
+import { deleteProject } from "@/modules/project-workspace/services/projects.client"
 import type { MyProject } from "@/modules/project-workspace/hooks/useMyProjects"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -46,6 +47,10 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -63,6 +68,14 @@ export function GroupedProjectList() {
   const { collapsed, toggle } = useCollapsedGroups()
 
   const allProjects = React.useMemo(() => collectProjects(grouped), [grouped])
+  const groupOptions = React.useMemo(
+    () =>
+      [...grouped.groups, ...grouped.archived].map((b) => ({
+        id: b.group.id,
+        name: b.group.name,
+      })),
+    [grouped]
+  )
 
   return (
     <div className="flex flex-col gap-4">
@@ -130,6 +143,7 @@ export function GroupedProjectList() {
               onToggle={() => toggle(block.group.id)}
               isManager={isManager}
               allProjects={allProjects}
+              groupOptions={groupOptions}
             />
           ))}
 
@@ -143,6 +157,7 @@ export function GroupedProjectList() {
             onToggle={() => toggle(UNGROUPED_KEY)}
             isManager={isManager}
             allProjects={allProjects}
+            groupOptions={groupOptions}
           />
 
           {showArchived &&
@@ -158,6 +173,7 @@ export function GroupedProjectList() {
                 onToggle={() => toggle(block.group.id)}
                 isManager={isManager}
                 allProjects={allProjects}
+                groupOptions={groupOptions}
                 archived
               />
             ))}
@@ -195,6 +211,7 @@ function Block({
   onToggle,
   isManager,
   allProjects,
+  groupOptions,
   archived,
 }: {
   blockKey: string
@@ -206,6 +223,7 @@ function Block({
   onToggle: () => void
   isManager: boolean
   allProjects: MyProject[]
+  groupOptions: Array<{ id: string; name: string }>
   archived?: boolean
 }) {
   void blockKey
@@ -398,7 +416,13 @@ function Block({
             >
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {ordered.map((p) => (
-                  <Row key={p.id} project={p} draggable={canDrag} />
+                  <Row
+                    key={p.id}
+                    project={p}
+                    draggable={canDrag}
+                    isManager={isManager}
+                    groupOptions={groupOptions}
+                  />
                 ))}
               </div>
             </SortableContext>
@@ -408,9 +432,52 @@ function Block({
   )
 }
 
-function Row({ project, draggable }: { project: MyProject; draggable: boolean }) {
+function Row({
+  project,
+  draggable,
+  isManager,
+  groupOptions,
+}: {
+  project: MyProject
+  draggable: boolean
+  isManager: boolean
+  groupOptions: Array<{ id: string; name: string }>
+}) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: project.id, disabled: !draggable })
+
+  const currentGroup = project.group_id ?? null
+
+  async function move(groupId: string | null) {
+    try {
+      await setProjectGroup(project.id, groupId)
+      toast.success("Đã chuyển nhóm")
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Không chuyển được")
+    }
+  }
+
+  async function remove() {
+    const typed = window
+      .prompt(
+        `Xoá vĩnh viễn dự án này? Toàn bộ hạng mục, lịch sử, bình luận và số ` +
+          `liệu ads sẽ mất, KHÔNG khôi phục được.\n\nGõ đúng tên để xác nhận:\n${project.name}`
+      )
+      ?.trim()
+    if (!typed) return
+    if (typed !== project.name.trim()) {
+      toast.error("Tên không khớp — đã huỷ")
+      return
+    }
+    try {
+      const r = await deleteProject(project.id, typed)
+      toast.success(
+        `Đã xoá "${project.name}" — ${r.content_items_deleted} hạng mục`
+      )
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Không xoá được")
+    }
+  }
 
   return (
     <div
@@ -418,17 +485,60 @@ function Row({ project, draggable }: { project: MyProject; draggable: boolean })
       style={{ transform: CSS.Transform.toString(transform), transition }}
       className={cn("relative", isDragging && "z-10 opacity-70")}
     >
-      {draggable && (
-        <button
-          type="button"
-          className="absolute top-2 right-2 z-10 cursor-grab rounded p-1 text-muted-foreground hover:bg-muted active:cursor-grabbing"
-          aria-label="Kéo để sắp thứ tự"
-          {...attributes}
-          {...listeners}
-        >
-          <GripVerticalIcon className="size-4" />
-        </button>
-      )}
+      <div className="absolute top-1.5 right-1.5 z-10 flex items-center gap-0.5">
+        {draggable && (
+          <button
+            type="button"
+            className="cursor-grab rounded p-1 text-muted-foreground hover:bg-muted active:cursor-grabbing"
+            aria-label="Kéo để sắp thứ tự"
+            {...attributes}
+            {...listeners}
+          >
+            <GripVerticalIcon className="size-4" />
+          </button>
+        )}
+        {isManager && (
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <button
+                  type="button"
+                  className="rounded p-1 text-muted-foreground hover:bg-muted"
+                  aria-label="Tuỳ chọn dự án"
+                />
+              }
+            >
+              <MoreVerticalIcon className="size-4" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger>Chuyển nhóm</DropdownMenuSubTrigger>
+                <DropdownMenuSubContent className="max-h-72 overflow-y-auto">
+                  <DropdownMenuItem
+                    disabled={currentGroup === null}
+                    onClick={() => move(null)}
+                  >
+                    Chưa phân nhóm
+                  </DropdownMenuItem>
+                  {groupOptions.map((g) => (
+                    <DropdownMenuItem
+                      key={g.id}
+                      disabled={currentGroup === g.id}
+                      onClick={() => move(g.id)}
+                    >
+                      {g.name}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuSubContent>
+              </DropdownMenuSub>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem variant="destructive" onClick={remove}>
+                Xoá dự án vĩnh viễn
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+      </div>
       <ProjectCard project={project} />
     </div>
   )
