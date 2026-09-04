@@ -77,6 +77,14 @@ export function projectGroupId(
 // bucket every time.
 export const SORT_INDEX_STEP = 100
 
+// task 3.2 — the `sort_index` for a project appended to the END of a bucket:
+// one step past the bucket's current max (or the first step if empty). Used on
+// create (task 3.3) and on assign / move (task 3.2).
+export function nextSortIndex(bucketIndices: readonly number[]): number {
+  const max = bucketIndices.reduce((m, n) => (n > m ? n : m), 0)
+  return max + SORT_INDEX_STEP
+}
+
 // task 1.3 — backfill `sort_index` for projects that lack one. Within each
 // bucket (a `group_id` value, or the group_id-less bucket) the un-indexed
 // projects are appended after the bucket's current max, in `created_at` order

@@ -7,6 +7,7 @@ import {
   SORT_INDEX_STEP,
   computeSortIndexBackfill,
   isProjectGroupWritable,
+  nextSortIndex,
   projectCreateSchema,
   projectGroupAssignmentSchema,
   projectGroupCreateSchema,
@@ -237,5 +238,16 @@ describe("computeSortIndexBackfill (task 1.3)", () => {
       { id: "b", created_ms: 2, sort_index: 200 },
     ])
     expect(r.size).toBe(0)
+  })
+})
+
+describe("nextSortIndex (task 3.2)", () => {
+  it("first into an empty bucket → the first step", () => {
+    expect(nextSortIndex([])).toBe(SORT_INDEX_STEP)
+  })
+
+  it("otherwise → one step past the bucket's max, order-independent", () => {
+    expect(nextSortIndex([100, 300, 200])).toBe(400)
+    expect(nextSortIndex([250])).toBe(350)
   })
 })

@@ -1,6 +1,7 @@
 import {
   COLLECTIONS,
   isProjectGroupWritable,
+  nextSortIndex,
   projectGroupAssignmentSchema,
 } from "@/lib/domain"
 import { requireSystemManager } from "@/lib/permissions/projectScope"
@@ -11,7 +12,39 @@ import { parseOrThrow } from "@/lib/server/validate"
 
 // project-grouping change §3 — a project's membership of a group. Distinct from
 // the group entity CRUD (§2, projectGroups.server.ts): here we only ever write
-// `Project.group_id`.
+// `Project.group_id` (+ `sort_index` when the bucket changes).
+
+type Db = ReturnType<typeof getAdminDb>
+
+// task 3.2 — the sort_index that puts a project at the END of a bucket. A bucket
+// is one `group_id` value, or the group_id-less bucket. Firestore can't query
+// "group_id missing", so the ungrouped bucket is found by scanning all projects
+// (fine at the design's "vài chục dự án" scale — same in-memory approach as the
+// analytics list endpoints).
+export async function endOfBucketSortIndex(
+  db: Db,
+  bucket: string | null,
+  excludeProjectId?: string
+): Promise<number> {
+  const docs =
+    bucket === null
+      ? (await db.collection(COLLECTIONS.projects).get()).docs.filter(
+          (d) => !d.data().group_id
+        )
+      : (
+          await db
+            .collection(COLLECTIONS.projects)
+            .where("group_id", "==", bucket)
+            .get()
+        ).docs
+
+  const indices = docs
+    .filter((d) => d.id !== excludeProjectId)
+    .map((d) => d.data().sort_index)
+    .filter((s): s is number => typeof s === "number")
+
+  return nextSortIndex(indices)
+}
 
 // task 3.1 — assign a project to a group, move it, or clear it. Manager-only
 // (design Decision 3). `group_id` is a scalar, so "no two groups" and
@@ -23,7 +56,7 @@ export async function setProjectGroup(
   actor: AuthedUser,
   projectId: string,
   body: unknown
-): Promise<{ id: string; group_id: string | null }> {
+): Promise<{ id: string; group_id: string | null; sort_index?: number }> {
   requireSystemManager(actor)
 
   const { group_id } = parseOrThrow(projectGroupAssignmentSchema, body)
@@ -48,6 +81,15 @@ export async function setProjectGroup(
     }
   }
 
-  await projectRef.update({ group_id })
-  return { id: projectId, group_id }
+  const currentBucket = (projectSnap.data()?.group_id ?? null) as string | null
+  const patch: { group_id: string | null; sort_index?: number } = { group_id }
+
+  // task 3.2 — only when the bucket actually changes: drop the project at the
+  // end of the new bucket. Re-assigning to the current group keeps its order.
+  if (currentBucket !== group_id) {
+    patch.sort_index = await endOfBucketSortIndex(db, group_id, projectId)
+  }
+
+  await projectRef.update(patch)
+  return { id: projectId, ...patch }
 }
