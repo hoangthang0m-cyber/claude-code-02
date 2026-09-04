@@ -16,15 +16,25 @@ import {
 } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
 import { toast } from "sonner"
-import { ChevronDownIcon, GripVerticalIcon, PlusIcon } from "lucide-react"
+import {
+  ChevronDownIcon,
+  FolderPlusIcon,
+  GripVerticalIcon,
+  MoreVerticalIcon,
+  PlusIcon,
+} from "lucide-react"
 
 import { useAuth } from "@/context/AuthContext"
 import type { GroupedProjectList as GroupedList } from "@/lib/domain"
 import { useCollapsedGroups } from "@/modules/project-grouping/hooks/useCollapsedGroups"
 import { useGroupedProjects } from "@/modules/project-grouping/hooks/useGroupedProjects"
 import {
+  createProjectGroup,
+  deleteProjectGroup,
   reorderProject,
   setProjectGroup,
+  setProjectGroupLifecycle,
+  updateProjectGroup,
 } from "@/modules/project-grouping/services/projectGroups.client"
 import { ProjectCard } from "@/modules/project-workspace/components/ProjectCard"
 import { ProjectFormSheet } from "@/modules/project-workspace/components/ProjectFormSheet"
@@ -66,6 +76,24 @@ export function GroupedProjectList() {
             />
             Nhóm đã lưu trữ
           </label>
+          {isManager && (
+            <Button
+              variant="outline"
+              onClick={async () => {
+                const name = window.prompt("Tên nhóm dự án mới")?.trim()
+                if (!name) return
+                try {
+                  await createProjectGroup({ name })
+                  toast.success("Đã tạo nhóm")
+                } catch (e) {
+                  toast.error(e instanceof Error ? e.message : "Không tạo được")
+                }
+              }}
+            >
+              <FolderPlusIcon />
+              Nhóm mới
+            </Button>
+          )}
           {isManager && (
             <ProjectFormSheet
               mode="create"
@@ -128,7 +156,7 @@ export function GroupedProjectList() {
                 bucketId={block.group.id}
                 collapsed={collapsed.has(block.group.id)}
                 onToggle={() => toggle(block.group.id)}
-                isManager={false}
+                isManager={isManager}
                 allProjects={allProjects}
                 archived
               />
@@ -273,13 +301,86 @@ function Block({
           </DropdownMenu>
         )}
 
-        {isManager && bucketId !== null && (
+        {isManager && bucketId !== null && !archived && (
           <Link
             href={`/campaigns/groups/${bucketId}`}
             className="text-xs text-primary hover:underline"
           >
             Xem tổng hợp
           </Link>
+        )}
+
+        {isManager && bucketId !== null && (
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="ml-auto size-7 text-muted-foreground"
+                  aria-label="Quản lý nhóm"
+                />
+              }
+            >
+              <MoreVerticalIcon className="size-4" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {!archived && (
+                <DropdownMenuItem
+                  onClick={async () => {
+                    const name = window
+                      .prompt("Tên nhóm", title)
+                      ?.trim()
+                    if (!name || name === title) return
+                    try {
+                      await updateProjectGroup(bucketId, { name })
+                      toast.success("Đã đổi tên")
+                    } catch (e) {
+                      toast.error(e instanceof Error ? e.message : "Lỗi")
+                    }
+                  }}
+                >
+                  Đổi tên
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuItem
+                onClick={async () => {
+                  try {
+                    await setProjectGroupLifecycle(
+                      bucketId,
+                      archived ? "active" : "archived"
+                    )
+                    toast.success(archived ? "Đã bỏ lưu trữ" : "Đã lưu trữ")
+                  } catch (e) {
+                    toast.error(e instanceof Error ? e.message : "Lỗi")
+                  }
+                }}
+              >
+                {archived ? "Bỏ lưu trữ" : "Lưu trữ"}
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                variant="destructive"
+                onClick={async () => {
+                  if (
+                    !window.confirm(
+                      `Xoá nhóm "${title}"? Dự án trong nhóm chuyển về "Chưa phân nhóm", không dự án nào bị xoá.`
+                    )
+                  )
+                    return
+                  try {
+                    const r = await deleteProjectGroup(bucketId)
+                    toast.success(
+                      `Đã xoá nhóm — ${r.projects_reassigned} dự án về "Chưa phân nhóm"`
+                    )
+                  } catch (e) {
+                    toast.error(e instanceof Error ? e.message : "Lỗi")
+                  }
+                }}
+              >
+                Xoá nhóm
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         )}
       </div>
 
