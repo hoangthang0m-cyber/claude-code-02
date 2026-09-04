@@ -138,7 +138,11 @@ người dùng) — chỉ stat cards + báo cáo tuần/tháng + so sánh kỳ.
 
 ### 4.2 Quản lý nhóm (CRUD)
 
-- [ ] 2.1 API tạo nhóm (name bắt buộc); verify từ chối thiếu name
+- [x] 2.1 API tạo nhóm (name bắt buộc); verify từ chối thiếu name. `POST
+  /api/project-groups` → `createProjectGroup` (manager-only qua
+  `requireSystemManager`, lifecycle "active"). Module mới
+  `src/modules/project-grouping/`. `requireSystemManager` đổi message sang chung
+  ("Chỉ Trưởng phòng được thực hiện thao tác này").
 - [ ] 2.2 API sửa nhóm (name, description); verify lưu + phản ánh trên danh sách
 - [ ] 2.3 API lưu trữ / bỏ lưu trữ nhóm; verify nhóm archived ẩn khỏi danh sách
   mặc định, hiện qua bộ lọc "đã lưu trữ", dự án trong nhóm vẫn hoạt động
