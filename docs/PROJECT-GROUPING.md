@@ -143,7 +143,10 @@ người dùng) — chỉ stat cards + báo cáo tuần/tháng + so sánh kỳ.
   `requireSystemManager`, lifecycle "active"). Module mới
   `src/modules/project-grouping/`. `requireSystemManager` đổi message sang chung
   ("Chỉ Trưởng phòng được thực hiện thao tác này").
-- [ ] 2.2 API sửa nhóm (name, description); verify lưu + phản ánh trên danh sách
+- [x] 2.2 API sửa nhóm (name, description); verify lưu + phản ánh trên danh sách.
+  `PATCH /api/project-groups/[groupId]` → `updateProjectGroup` (manager-only,
+  body rỗng → 400, không tồn tại → 404, nhóm archived → 409, không đụng
+  `lifecycle`). Helper `isProjectGroupWritable`.
 - [ ] 2.3 API lưu trữ / bỏ lưu trữ nhóm; verify nhóm archived ẩn khỏi danh sách
   mặc định, hiện qua bộ lọc "đã lưu trữ", dự án trong nhóm vẫn hoạt động
 - [ ] 2.4 API xoá nhóm với xác nhận; verify dự án của nhóm chuyển `group_id =

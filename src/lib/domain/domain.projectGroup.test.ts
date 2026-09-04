@@ -6,6 +6,7 @@ import {
   PROJECT_GROUP_LIFECYCLE_LABELS,
   SORT_INDEX_STEP,
   computeSortIndexBackfill,
+  isProjectGroupWritable,
   projectCreateSchema,
   projectGroupCreateSchema,
   projectGroupId,
@@ -28,6 +29,12 @@ describe("ProjectGroup: registry & enum wiring", () => {
       "active",
       "archived",
     ])
+  })
+
+  it("marks only an archived group read-only (task 2.2 / 2.3)", () => {
+    expect(isProjectGroupWritable("active")).toBe(true)
+    expect(isProjectGroupWritable("archived")).toBe(false)
+    expect(isProjectGroupWritable(undefined)).toBe(true)
   })
 })
 

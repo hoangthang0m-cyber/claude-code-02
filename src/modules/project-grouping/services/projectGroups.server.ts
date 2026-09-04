@@ -1,9 +1,15 @@
 import { FieldValue } from "firebase-admin/firestore"
 
-import { COLLECTIONS, projectGroupCreateSchema } from "@/lib/domain"
+import {
+  COLLECTIONS,
+  isProjectGroupWritable,
+  projectGroupCreateSchema,
+  projectGroupUpdateSchema,
+} from "@/lib/domain"
 import { requireSystemManager } from "@/lib/permissions/projectScope"
 import type { AuthedUser } from "@/lib/server/auth"
 import { getAdminDb } from "@/lib/server/firebaseAdmin"
+import { HttpError } from "@/lib/server/http"
 import { parseOrThrow } from "@/lib/server/validate"
 
 // project-grouping change §2 — CRUD for ProjectGroup. Every operation is
@@ -33,4 +39,31 @@ export async function createProjectGroup(
   })
 
   return { id: ref.id }
+}
+
+// task 2.2 — edit a group's name / description. Manager-only; an archived group
+// is read-only (spec). lifecycle is never touched here (task 2.3 owns it).
+export async function updateProjectGroup(
+  actor: AuthedUser,
+  groupId: string,
+  body: unknown
+): Promise<{ id: string }> {
+  requireSystemManager(actor)
+
+  const input = parseOrThrow(projectGroupUpdateSchema, body)
+  if (Object.keys(input).length === 0) {
+    throw new HttpError(400, "Không có trường nào để cập nhật")
+  }
+
+  const ref = getAdminDb().collection(COLLECTIONS.projectGroups).doc(groupId)
+  const snap = await ref.get()
+  if (!snap.exists) {
+    throw new HttpError(404, "Không tìm thấy nhóm")
+  }
+  if (!isProjectGroupWritable(snap.data()?.lifecycle as string | undefined)) {
+    throw new HttpError(409, "Nhóm đã lưu trữ — chỉ đọc")
+  }
+
+  await ref.update(input)
+  return { id: groupId }
 }

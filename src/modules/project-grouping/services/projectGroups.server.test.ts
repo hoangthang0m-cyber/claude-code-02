@@ -1,13 +1,28 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
-const { docSet } = vi.hoisted(() => ({ docSet: vi.fn() }))
+const { fx, docSet, docUpdate } = vi.hoisted(() => ({
+  fx: { groups: {} as Record<string, Record<string, unknown>> },
+  docSet: vi.fn(),
+  docUpdate: vi.fn(),
+}))
 
 vi.mock("@/lib/server/firebaseAdmin", () => {
   let counter = 0
   return {
     getAdminDb: () => ({
       collection: (name: string) => ({
-        doc: () => ({ id: `${name}-${++counter}`, set: docSet }),
+        doc: (id?: string) => {
+          const docId = id ?? `${name}-${++counter}`
+          return {
+            id: docId,
+            set: docSet,
+            update: docUpdate,
+            get: async () => ({
+              exists: docId in fx.groups,
+              data: () => fx.groups[docId],
+            }),
+          }
+        },
       }),
     }),
     getAdminAuth: () => ({}),
@@ -15,7 +30,10 @@ vi.mock("@/lib/server/firebaseAdmin", () => {
 })
 
 import type { AuthedUser } from "@/lib/server/auth"
-import { createProjectGroup } from "@/modules/project-grouping/services/projectGroups.server"
+import {
+  createProjectGroup,
+  updateProjectGroup,
+} from "@/modules/project-grouping/services/projectGroups.server"
 
 const manager: AuthedUser = {
   uid: "u-manager",
@@ -29,7 +47,9 @@ const staff: AuthedUser = {
 }
 
 beforeEach(() => {
+  fx.groups = {}
   docSet.mockReset().mockResolvedValue(undefined)
+  docUpdate.mockReset().mockResolvedValue(undefined)
 })
 
 describe("createProjectGroup (project-grouping task 2.1)", () => {
@@ -77,5 +97,61 @@ describe("createProjectGroup (project-grouping task 2.1)", () => {
     await createProjectGroup(manager, { name: "Nhóm A" })
     const [data] = docSet.mock.calls[0]
     expect("description" in data).toBe(false)
+  })
+})
+
+describe("updateProjectGroup (project-grouping task 2.2)", () => {
+  beforeEach(() => {
+    fx.groups = {
+      g1: { name: "Tên cũ", description: "cũ", lifecycle: "active" },
+      arch: { name: "Đã lưu", lifecycle: "archived" },
+    }
+  })
+
+  it("rejects a staff account with 403", async () => {
+    await expect(
+      updateProjectGroup(staff, "g1", { name: "Tên mới" })
+    ).rejects.toMatchObject({ status: 403 })
+    expect(docUpdate).not.toHaveBeenCalled()
+  })
+
+  it("rejects an empty body with 400", async () => {
+    await expect(updateProjectGroup(manager, "g1", {})).rejects.toMatchObject({
+      status: 400,
+    })
+  })
+
+  it("404 when the group does not exist", async () => {
+    await expect(
+      updateProjectGroup(manager, "nope", { name: "x" })
+    ).rejects.toMatchObject({ status: 404 })
+  })
+
+  it("409 when the group is archived (read-only)", async () => {
+    await expect(
+      updateProjectGroup(manager, "arch", { name: "x" })
+    ).rejects.toMatchObject({ status: 409 })
+    expect(docUpdate).not.toHaveBeenCalled()
+  })
+
+  it("persists a name + description edit", async () => {
+    const r = await updateProjectGroup(manager, "g1", {
+      name: "  Tên mới  ",
+      description: "mô tả mới",
+    })
+    expect(r).toEqual({ id: "g1" })
+    expect(docUpdate).toHaveBeenCalledWith({
+      name: "Tên mới",
+      description: "mô tả mới",
+    })
+  })
+
+  it("accepts a name-only edit and never writes lifecycle", async () => {
+    await updateProjectGroup(manager, "g1", {
+      name: "Chỉ tên",
+      lifecycle: "archived",
+    })
+    const [patch] = docUpdate.mock.calls[0]
+    expect(patch).toEqual({ name: "Chỉ tên" })
   })
 })

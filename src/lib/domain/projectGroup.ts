@@ -38,6 +38,14 @@ export const projectGroupUpdateSchema = projectGroupCreateSchema.partial()
 
 export type ProjectGroupUpdate = z.infer<typeof projectGroupUpdateSchema>
 
+// task 2.2 / 2.3 — an archived group is read-only (spec: "lưu trữ … chỉ đọc").
+// Mirrors `isProjectWritable`.
+export function isProjectGroupWritable(
+  lifecycle: ProjectGroupLifecycle | string | undefined
+): boolean {
+  return lifecycle !== "archived"
+}
+
 // task 1.2 — the bucket a project belongs to. A project doc written before this
 // change has no `group_id`, so it reads back as `null` ("Chưa phân nhóm"). One
 // shared normalizer, reused by list-grouping (task 4.1) and sort ordering
