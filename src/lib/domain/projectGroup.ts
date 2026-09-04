@@ -62,6 +62,12 @@ export const projectGroupAssignmentSchema = z.object({
   group_id: z.string().trim().min(1).nullable(),
 })
 
+// task 4.5 — reorder within the project's own bucket: `after_id` is the project
+// it should follow, or null to move it to the front.
+export const projectReorderSchema = z.object({
+  after_id: z.string().trim().min(1).nullable(),
+})
+
 // ── task 4.1: the grouped project list ──────────────────────────────────────
 
 // A project sorts within its bucket by `sort_index` ascending; a project with
@@ -164,6 +170,53 @@ export const SORT_INDEX_STEP = 100
 export function nextSortIndex(bucketIndices: readonly number[]): number {
   const max = bucketIndices.reduce((m, n) => (n > m ? n : m), 0)
   return max + SORT_INDEX_STEP
+}
+
+// task 4.5 — move `movedId` to sit right after `afterId` (or to the front when
+// `afterId` is null) within its bucket, and return the `sort_index` writes.
+// `bucket` is the bucket's CURRENT order (any order in — it is sorted here by
+// sort_index, ties by id). Normally only one write: the midpoint between the
+// two new neighbours. When the neighbours are adjacent integers (no gap left),
+// the whole bucket is re-spaced to 100·1, 100·2, … and every changed row is
+// returned. Idempotent-ish: dropping an item where it already is yields no-ops
+// filtered out, so the map only carries real changes.
+export function computeReorder(
+  bucket: readonly { id: string; sort_index?: number }[],
+  movedId: string,
+  afterId: string | null
+): Map<string, number> {
+  const ordered = [...bucket].sort(
+    (a, b) =>
+      (a.sort_index ?? Number.MAX_SAFE_INTEGER) -
+        (b.sort_index ?? Number.MAX_SAFE_INTEGER) || (a.id < b.id ? -1 : 1)
+  )
+  const rest = ordered.filter((p) => p.id !== movedId)
+  const pos = afterId === null ? 0 : rest.findIndex((p) => p.id === afterId) + 1
+
+  const prev = pos > 0 ? (rest[pos - 1].sort_index ?? 0) : 0
+  const nextNeighbour = rest[pos]?.sort_index
+  const next =
+    typeof nextNeighbour === "number" ? nextNeighbour : prev + 2 * SORT_INDEX_STEP
+
+  if (next - prev >= 2) {
+    const mid = Math.floor((prev + next) / 2)
+    const current = ordered.find((p) => p.id === movedId)?.sort_index
+    return current === mid ? new Map() : new Map([[movedId, mid]])
+  }
+
+  // no gap — re-space the whole bucket
+  const finalOrder = [
+    ...rest.slice(0, pos).map((p) => p.id),
+    movedId,
+    ...rest.slice(pos).map((p) => p.id),
+  ]
+  const out = new Map<string, number>()
+  const currentIndex = new Map(ordered.map((p) => [p.id, p.sort_index]))
+  finalOrder.forEach((id, i) => {
+    const value = (i + 1) * SORT_INDEX_STEP
+    if (currentIndex.get(id) !== value) out.set(id, value)
+  })
+  return out
 }
 
 // task 1.3 — backfill `sort_index` for projects that lack one. Within each

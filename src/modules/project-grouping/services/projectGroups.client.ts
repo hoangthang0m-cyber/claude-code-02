@@ -46,3 +46,15 @@ export function setProjectGroup(projectId: string, groupId: string | null) {
     { method: "PATCH", body: JSON.stringify({ group_id: groupId }) }
   )
 }
+
+// Reorder a project within its own bucket — place it right after `afterId`
+// (null → front). Returns the sort_index writes that were applied.
+export function reorderProject(projectId: string, afterId: string | null) {
+  return authedJson<{
+    id: string
+    updated: Array<{ id: string; sort_index: number }>
+  }>(`/api/projects/${projectId}/order`, {
+    method: "PATCH",
+    body: JSON.stringify({ after_id: afterId }),
+  })
+}

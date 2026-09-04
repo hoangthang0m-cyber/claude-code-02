@@ -5,6 +5,7 @@ import {
   PROJECT_GROUP_LIFECYCLES,
   PROJECT_GROUP_LIFECYCLE_LABELS,
   SORT_INDEX_STEP,
+  computeReorder,
   computeSortIndexBackfill,
   groupProjectsForList,
   isProjectGroupWritable,
@@ -318,5 +319,67 @@ describe("groupProjectsForList (task 4.1)", () => {
       groups
     )
     expect(r.groups[0].projects.map((x) => x.id)).toEqual(["y", "x"])
+  })
+})
+
+describe("computeReorder (task 4.5)", () => {
+  const bucket = [
+    { id: "a", sort_index: 100 },
+    { id: "b", sort_index: 200 },
+    { id: "c", sort_index: 300 },
+  ]
+
+  it("move to the front → midpoint below the first (one write)", () => {
+    const w = computeReorder(bucket, "c", null)
+    expect([...w]).toEqual([["c", 50]])
+  })
+
+  it("move between two neighbours → their midpoint (one write)", () => {
+    expect([...computeReorder(bucket, "a", "b")]).toEqual([["a", 250]])
+  })
+
+  it("move to the end → one step past the last", () => {
+    expect([...computeReorder(bucket, "a", "c")]).toEqual([["a", 400]])
+  })
+
+  it("no gap left → re-spaces the whole bucket, returns only real changes", () => {
+    const tight = [
+      { id: "a", sort_index: 1 },
+      { id: "b", sort_index: 2 },
+      { id: "c", sort_index: 3 },
+    ]
+    const w = computeReorder(tight, "c", null) // want order c, a, b
+    expect(w.get("c")).toBe(100)
+    expect(w.get("a")).toBe(200)
+    expect(w.get("b")).toBe(300)
+  })
+
+  it("dropping an item where it already sits (same computed index) → no writes", () => {
+    // b between a(100) and c(300) → midpoint 200 == b's current 200
+    expect(computeReorder(bucket, "b", "a").size).toBe(0)
+  })
+
+  it("stays consistent after many consecutive moves", () => {
+    const rows = [
+      { id: "a", sort_index: 100 },
+      { id: "b", sort_index: 200 },
+      { id: "c", sort_index: 300 },
+      { id: "d", sort_index: 400 },
+    ]
+    const order = () =>
+      [...rows].sort((x, y) => x.sort_index - y.sort_index).map((r) => r.id)
+    const apply = (moved: string, after: string | null) => {
+      for (const [id, si] of computeReorder(rows, moved, after)) {
+        rows.find((r) => r.id === id)!.sort_index = si
+      }
+    }
+
+    apply("d", null) // d a b c
+    apply("a", "c") // d b c a
+    apply("c", null) // c d b a
+    apply("b", "c") // c b d a
+    expect(order()).toEqual(["c", "b", "d", "a"])
+    // and every index is still unique
+    expect(new Set(rows.map((r) => r.sort_index)).size).toBe(4)
   })
 })

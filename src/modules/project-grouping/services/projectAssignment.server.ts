@@ -1,8 +1,10 @@
 import {
   COLLECTIONS,
+  computeReorder,
   isProjectGroupWritable,
   nextSortIndex,
   projectGroupAssignmentSchema,
+  projectReorderSchema,
 } from "@/lib/domain"
 import { requireSystemManager } from "@/lib/permissions/projectScope"
 import type { AuthedUser } from "@/lib/server/auth"
@@ -12,33 +14,32 @@ import { parseOrThrow } from "@/lib/server/validate"
 
 // project-grouping change §3 — a project's membership of a group. Distinct from
 // the group entity CRUD (§2, projectGroups.server.ts): here we only ever write
-// `Project.group_id` (+ `sort_index` when the bucket changes).
+// `Project.group_id` (+ `sort_index` when the bucket changes or is reordered).
 
 type Db = ReturnType<typeof getAdminDb>
 
-// task 3.2 — the sort_index that puts a project at the END of a bucket. A bucket
-// is one `group_id` value, or the group_id-less bucket. Firestore can't query
-// "group_id missing", so the ungrouped bucket is found by scanning all projects
-// (fine at the design's "vài chục dự án" scale — same in-memory approach as the
-// analytics list endpoints).
+// The projects in one bucket — a `group_id` value, or the group_id-less bucket.
+// Firestore can't query "group_id missing", so the ungrouped bucket is found by
+// scanning all projects (fine at the design's "vài chục dự án" scale — same
+// in-memory approach as the analytics list endpoints).
+async function bucketDocs(db: Db, bucket: string | null) {
+  if (bucket === null) {
+    return (await db.collection(COLLECTIONS.projects).get()).docs.filter(
+      (d) => !d.data().group_id
+    )
+  }
+  return (
+    await db.collection(COLLECTIONS.projects).where("group_id", "==", bucket).get()
+  ).docs
+}
+
+// task 3.2 — the sort_index that puts a project at the END of a bucket.
 export async function endOfBucketSortIndex(
   db: Db,
   bucket: string | null,
   excludeProjectId?: string
 ): Promise<number> {
-  const docs =
-    bucket === null
-      ? (await db.collection(COLLECTIONS.projects).get()).docs.filter(
-          (d) => !d.data().group_id
-        )
-      : (
-          await db
-            .collection(COLLECTIONS.projects)
-            .where("group_id", "==", bucket)
-            .get()
-        ).docs
-
-  const indices = docs
+  const indices = (await bucketDocs(db, bucket))
     .filter((d) => d.id !== excludeProjectId)
     .map((d) => d.data().sort_index)
     .filter((s): s is number => typeof s === "number")
@@ -99,4 +100,57 @@ export async function setProjectGroup(
 
   await projectRef.update(patch)
   return { id: projectId, ...patch }
+}
+
+// task 4.5 — reorder a project within its OWN bucket: place it right after
+// `after_id` (or at the front when null). `after_id` must be another project in
+// the same bucket. Writes the midpoint sort_index, or re-spaces the whole
+// bucket when no gap is left. Cross-bucket moves go through setProjectGroup.
+export async function reorderProject(
+  actor: AuthedUser,
+  projectId: string,
+  body: unknown
+): Promise<{ id: string; updated: Array<{ id: string; sort_index: number }> }> {
+  requireSystemManager(actor)
+
+  const { after_id } = parseOrThrow(projectReorderSchema, body)
+  if (after_id === projectId) {
+    throw new HttpError(400, "after_id không thể là chính dự án đang di chuyển")
+  }
+  const db = getAdminDb()
+
+  const projectSnap = await db.collection(COLLECTIONS.projects).doc(projectId).get()
+  if (!projectSnap.exists) {
+    throw new HttpError(404, "Không tìm thấy dự án")
+  }
+  const bucket = (projectSnap.data()?.group_id ?? null) as string | null
+
+  const docs = await bucketDocs(db, bucket)
+  const ids = new Set(docs.map((d) => d.id))
+  if (!ids.has(projectId)) {
+    // scan/where race — project not in the bucket we just read
+    throw new HttpError(409, "Dự án không còn trong rổ này — thử lại")
+  }
+  if (after_id !== null && !ids.has(after_id)) {
+    throw new HttpError(400, "after_id không thuộc cùng rổ với dự án")
+  }
+
+  const writes = computeReorder(
+    docs.map((d) => ({ id: d.id, sort_index: d.data().sort_index })),
+    projectId,
+    after_id
+  )
+
+  if (writes.size > 0) {
+    const batch = db.batch()
+    for (const [id, sort_index] of writes) {
+      batch.update(db.collection(COLLECTIONS.projects).doc(id), { sort_index })
+    }
+    await batch.commit()
+  }
+
+  return {
+    id: projectId,
+    updated: [...writes].map(([id, sort_index]) => ({ id, sort_index })),
+  }
 }
