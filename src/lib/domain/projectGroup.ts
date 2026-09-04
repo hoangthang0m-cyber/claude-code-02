@@ -47,3 +47,46 @@ export function projectGroupId(
 ): string | null {
   return project.group_id ?? null
 }
+
+// task 1.3 — spacing between adjacent `sort_index` values, so a drag can insert
+// a project between two neighbours (task 4.5) without reindexing the whole
+// bucket every time.
+export const SORT_INDEX_STEP = 100
+
+// task 1.3 — backfill `sort_index` for projects that lack one. Within each
+// bucket (a `group_id` value, or the group_id-less bucket) the un-indexed
+// projects are appended after the bucket's current max, in `created_at` order
+// (id breaks ties), gapped by SORT_INDEX_STEP. Returns id → new sort_index only
+// for the projects it assigns; a project that already has `sort_index` keeps it
+// and is not in the result. Idempotent: re-running only places any newly
+// un-indexed project at the end of its bucket, never disturbing existing order
+// (same "goes to the end of the new bucket" rule as task 3.2).
+export function computeSortIndexBackfill(
+  projects: ReadonlyArray<{
+    id: string
+    group_id?: string | null
+    created_ms: number
+    sort_index?: number
+  }>
+): Map<string, number> {
+  const buckets = new Map<
+    string | null,
+    { indexed: number[]; pending: { id: string; created_ms: number }[] }
+  >()
+  for (const p of projects) {
+    const key = p.group_id ?? null
+    const b = buckets.get(key) ?? { indexed: [], pending: [] }
+    if (typeof p.sort_index === "number") b.indexed.push(p.sort_index)
+    else b.pending.push({ id: p.id, created_ms: p.created_ms })
+    buckets.set(key, b)
+  }
+
+  const out = new Map<string, number>()
+  for (const { indexed, pending } of buckets.values()) {
+    const start = indexed.length ? Math.max(...indexed) : 0
+    pending
+      .sort((a, b) => a.created_ms - b.created_ms || (a.id < b.id ? -1 : 1))
+      .forEach((p, i) => out.set(p.id, start + (i + 1) * SORT_INDEX_STEP))
+  }
+  return out
+}

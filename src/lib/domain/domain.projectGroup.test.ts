@@ -4,6 +4,8 @@ import {
   COLLECTIONS,
   PROJECT_GROUP_LIFECYCLES,
   PROJECT_GROUP_LIFECYCLE_LABELS,
+  SORT_INDEX_STEP,
+  computeSortIndexBackfill,
   projectCreateSchema,
   projectGroupCreateSchema,
   projectGroupId,
@@ -126,5 +128,72 @@ describe("Project.group_id (task 1.2)", () => {
     })
     expect(r.success).toBe(true)
     if (r.success) expect("group_id" in r.data).toBe(false)
+  })
+})
+
+// task 1.3 — Project.sort_index backfill.
+describe("computeSortIndexBackfill (task 1.3)", () => {
+  it("assigns 100, 200, 300… in created_at order within the ungrouped bucket", () => {
+    const r = computeSortIndexBackfill([
+      { id: "c", created_ms: 300 },
+      { id: "a", created_ms: 100 },
+      { id: "b", created_ms: 200 },
+    ])
+    expect(r.get("a")).toBe(100)
+    expect(r.get("b")).toBe(200)
+    expect(r.get("c")).toBe(300)
+  })
+
+  it("breaks a created_at tie by id, deterministically", () => {
+    const r = computeSortIndexBackfill([
+      { id: "z", created_ms: 500 },
+      { id: "y", created_ms: 500 },
+    ])
+    expect(r.get("y")).toBe(100)
+    expect(r.get("z")).toBe(200)
+  })
+
+  it("indexes each bucket independently — unique within a bucket", () => {
+    const r = computeSortIndexBackfill([
+      { id: "p1", group_id: "g1", created_ms: 10 },
+      { id: "p2", group_id: "g1", created_ms: 20 },
+      { id: "p3", group_id: "g2", created_ms: 5 },
+      { id: "p4", created_ms: 1 },
+    ])
+    // per-bucket values, each starting at the step
+    expect([r.get("p1"), r.get("p2")]).toEqual([100, 200])
+    expect(r.get("p3")).toBe(100)
+    expect(r.get("p4")).toBe(100)
+
+    // the explicit task check: sort_index is unique inside every bucket
+    for (const bucket of [
+      ["p1", "p2"],
+      ["p3"],
+      ["p4"],
+    ]) {
+      const values = bucket.map((id) => r.get(id))
+      expect(new Set(values).size).toBe(values.length)
+    }
+  })
+
+  it("appends un-indexed projects after the bucket's current max (idempotent)", () => {
+    const r = computeSortIndexBackfill([
+      { id: "old1", created_ms: 1, sort_index: 100 },
+      { id: "old2", created_ms: 2, sort_index: 250 },
+      { id: "new1", created_ms: 3 },
+      { id: "new2", created_ms: 4 },
+    ])
+    expect(r.has("old1")).toBe(false)
+    expect(r.has("old2")).toBe(false)
+    expect(r.get("new1")).toBe(250 + SORT_INDEX_STEP)
+    expect(r.get("new2")).toBe(250 + 2 * SORT_INDEX_STEP)
+  })
+
+  it("does nothing when every project already has a sort_index", () => {
+    const r = computeSortIndexBackfill([
+      { id: "a", created_ms: 1, sort_index: 100 },
+      { id: "b", created_ms: 2, sort_index: 200 },
+    ])
+    expect(r.size).toBe(0)
   })
 })

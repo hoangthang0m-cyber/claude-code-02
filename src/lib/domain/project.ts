@@ -29,6 +29,10 @@ export interface Project {
   // absent/null for "Chưa phân nhóm". Not a form field: it is set only via the
   // assign-to-group path (task 3.1). Deleting a group clears it (task 2.4).
   group_id?: string | null
+  // project-grouping change task 1.3 — manual order within its bucket (one
+  // group_id value, or the group_id-less bucket). Backfilled by created_at with
+  // a gap of SORT_INDEX_STEP; absent only until the backfill script runs.
+  sort_index?: number
 }
 
 // Create: name + objective required (SPEC §5.1 R1). lifecycle defaults to

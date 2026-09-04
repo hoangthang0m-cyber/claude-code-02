@@ -13,6 +13,7 @@
     "test": "vitest run",
     "users:list": "node scripts/list-users.mjs",
     "seed:manager": "node scripts/seed-manager.mjs",
+    "backfill:sort-index": "node scripts/backfill-project-sort-index.mjs",
     "rules:deploy": "npx --yes firebase-tools deploy --only firestore:rules --project hem-manager --non-interactive"
   },
   "dependencies": {

@@ -122,8 +122,12 @@ người dùng) — chỉ stat cards + báo cáo tuần/tháng + so sánh kỳ.
 - [x] 1.2 Cột `Project.group_id` nullable (FK → `ProjectGroup`, xoá nhóm ⇒ set
   null); verify dự án hiện có đều `group_id = NULL` — helper chung
   `projectGroupId(project)` quy chuẩn `undefined/null → null`
-- [ ] 1.3 Cột `Project.sort_index`, backfill theo `created_at` bước nhảy đều;
-  verify mọi dự án có `sort_index` duy nhất trong từng rổ `group_id`
+- [x] 1.3 Cột `Project.sort_index`, backfill theo `created_at` bước nhảy đều;
+  verify mọi dự án có `sort_index` duy nhất trong từng rổ `group_id`. Hàm thuần
+  `computeSortIndexBackfill` (bước 100, append sau max của rổ, idempotent) +
+  script `npm run backfill:sort-index -- --write` (chạy một lần trên prod, giống
+  `seed:manager` / `rules:deploy`). Task 4.1 vẫn tự fallback về `created_at` khi
+  thiếu `sort_index`.
 - [ ] 1.4 Refactor hàm tổng hợp `progress-analytics` nhận một TẬP `project_id`;
   verify test hồi quy: chỉ số cấp dự án không đổi
 
