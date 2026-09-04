@@ -38,3 +38,11 @@ export function deleteProjectGroup(groupId: string) {
     { method: "DELETE" }
   )
 }
+
+// Assign a project to a group, move it, or clear it (group_id: null).
+export function setProjectGroup(projectId: string, groupId: string | null) {
+  return authedJson<{ id: string; group_id: string | null }>(
+    `/api/projects/${projectId}/group`,
+    { method: "PATCH", body: JSON.stringify({ group_id: groupId }) }
+  )
+}

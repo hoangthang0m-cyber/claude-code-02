@@ -164,8 +164,14 @@ người dùng) — chỉ stat cards + báo cáo tuần/tháng + so sánh kỳ.
 
 ### 4.3 Gán dự án vào nhóm
 
-- [ ] 3.1 API gán / chuyển / gỡ nhóm cho một dự án; verify không set 2 nhóm,
-  chuyển A→B thì A không còn chứa dự án
+- [x] 3.1 API gán / chuyển / gỡ nhóm cho một dự án; verify không set 2 nhóm,
+  chuyển A→B thì A không còn chứa dự án. `PATCH /api/projects/[projectId]/group`
+  → `setProjectGroup` (manager-only, body `{ group_id: string | null }`; project
+  không tồn tại → 404, nhóm đích không tồn tại → 404, nhóm đích archived → 409).
+  `group_id` là scalar nên "không 2 nhóm" và "A→B ⇒ A mất" là bất biến cấu trúc.
+  **Quyết định:** cho gán nhóm **bất kể lifecycle dự án** (dự án `done`/`archived`
+  vẫn xếp vào nhóm được để roll-up lịch sử) — khác quy tắc "form archived = chỉ
+  đọc" vì đây là thao tác tổ chức, không phải sửa form.
 - [ ] 3.2 Gán/chuyển vào rổ mới ⇒ `sort_index = max rổ + bước nhảy`; verify dự
   án mới nằm cuối rổ
 - [ ] 3.3 Trường chọn nhóm (tuỳ chọn) trong form "Tạo dự án mới"; verify không

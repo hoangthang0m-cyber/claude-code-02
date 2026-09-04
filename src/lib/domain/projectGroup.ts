@@ -55,6 +55,13 @@ export const projectGroupLifecycleSchema = z.object({
   lifecycle: z.enum(PROJECT_GROUP_LIFECYCLES),
 })
 
+// task 3.1 — set a project's group, or clear it (`null` → "Chưa phân nhóm").
+// A single scalar field, so a project can never be in two groups; moving A→B
+// just overwrites, and A's membership (a `where group_id == A` query) drops it.
+export const projectGroupAssignmentSchema = z.object({
+  group_id: z.string().trim().min(1).nullable(),
+})
+
 // task 1.2 — the bucket a project belongs to. A project doc written before this
 // change has no `group_id`, so it reads back as `null` ("Chưa phân nhóm"). One
 // shared normalizer, reused by list-grouping (task 4.1) and sort ordering

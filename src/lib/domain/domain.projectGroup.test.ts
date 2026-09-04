@@ -8,6 +8,7 @@ import {
   computeSortIndexBackfill,
   isProjectGroupWritable,
   projectCreateSchema,
+  projectGroupAssignmentSchema,
   projectGroupCreateSchema,
   projectGroupId,
   projectGroupLifecycleSchema,
@@ -121,6 +122,27 @@ describe("projectGroupLifecycleSchema (task 2.3)", () => {
   it("rejects any other value (no 'done' like Project)", () => {
     expect(projectGroupLifecycleSchema.safeParse({ lifecycle: "done" }).success).toBe(false)
     expect(projectGroupLifecycleSchema.safeParse({}).success).toBe(false)
+  })
+})
+
+describe("projectGroupAssignmentSchema (task 3.1)", () => {
+  it("accepts a group id and accepts null (clear)", () => {
+    expect(
+      projectGroupAssignmentSchema.safeParse({ group_id: "grp_ugc" }).success
+    ).toBe(true)
+    expect(
+      projectGroupAssignmentSchema.safeParse({ group_id: null }).success
+    ).toBe(true)
+  })
+
+  it("rejects a missing field, a blank string, or a non-string", () => {
+    expect(projectGroupAssignmentSchema.safeParse({}).success).toBe(false)
+    expect(
+      projectGroupAssignmentSchema.safeParse({ group_id: "  " }).success
+    ).toBe(false)
+    expect(
+      projectGroupAssignmentSchema.safeParse({ group_id: 7 }).success
+    ).toBe(false)
   })
 })
 
