@@ -2,6 +2,7 @@ import type { Timestamp } from "firebase/firestore"
 import { z } from "zod"
 
 import { type ProjectGroupLifecycle } from "@/lib/domain/enums"
+import type { Project } from "@/lib/domain/project"
 
 // project-grouping change (design.md Decision 1):
 //   ProjectGroup (id, name, description nullable,
@@ -36,3 +37,13 @@ export type ProjectGroupCreate = z.infer<typeof projectGroupCreateSchema>
 export const projectGroupUpdateSchema = projectGroupCreateSchema.partial()
 
 export type ProjectGroupUpdate = z.infer<typeof projectGroupUpdateSchema>
+
+// task 1.2 — the bucket a project belongs to. A project doc written before this
+// change has no `group_id`, so it reads back as `null` ("Chưa phân nhóm"). One
+// shared normalizer, reused by list-grouping (task 4.1) and sort ordering
+// (task 3.2) so "ungrouped" is decided in exactly one place.
+export function projectGroupId(
+  project: Pick<Project, "group_id">
+): string | null {
+  return project.group_id ?? null
+}

@@ -119,8 +119,9 @@ người dùng) — chỉ stat cards + báo cáo tuần/tháng + so sánh kỳ.
 - [x] 1.1 Bảng `ProjectGroup` (id, name, description nullable, lifecycle
   active|archived, created_by, created_at); verify schema nhận body hợp lệ / từ
   chối enum sai + thiếu name, rollback sạch
-- [ ] 1.2 Cột `Project.group_id` nullable (FK → `ProjectGroup`, xoá nhóm ⇒ set
-  null); verify dự án hiện có đều `group_id = NULL`
+- [x] 1.2 Cột `Project.group_id` nullable (FK → `ProjectGroup`, xoá nhóm ⇒ set
+  null); verify dự án hiện có đều `group_id = NULL` — helper chung
+  `projectGroupId(project)` quy chuẩn `undefined/null → null`
 - [ ] 1.3 Cột `Project.sort_index`, backfill theo `created_at` bước nhảy đều;
   verify mọi dự án có `sort_index` duy nhất trong từng rổ `group_id`
 - [ ] 1.4 Refactor hàm tổng hợp `progress-analytics` nhận một TẬP `project_id`;

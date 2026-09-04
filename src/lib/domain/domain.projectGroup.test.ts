@@ -4,7 +4,9 @@ import {
   COLLECTIONS,
   PROJECT_GROUP_LIFECYCLES,
   PROJECT_GROUP_LIFECYCLE_LABELS,
+  projectCreateSchema,
   projectGroupCreateSchema,
+  projectGroupId,
   projectGroupUpdateSchema,
 } from "@/lib/domain"
 
@@ -97,5 +99,32 @@ describe("projectGroupUpdateSchema", () => {
     })
     expect(r.success).toBe(true)
     if (r.success) expect("lifecycle" in r.data).toBe(false)
+  })
+})
+
+// task 1.2 — Project.group_id: the "column" is a nullable link, no backfill.
+describe("Project.group_id (task 1.2)", () => {
+  it("a project doc written before this change reads back as ungrouped", () => {
+    // legacy doc: the field simply isn't there
+    expect(projectGroupId({})).toBeNull()
+    expect(projectGroupId({ group_id: undefined })).toBeNull()
+  })
+
+  it("an explicit null is also ungrouped", () => {
+    expect(projectGroupId({ group_id: null })).toBeNull()
+  })
+
+  it("returns the group id when set", () => {
+    expect(projectGroupId({ group_id: "grp_ugc" })).toBe("grp_ugc")
+  })
+
+  it("is not a create-form field — projectCreateSchema strips group_id", () => {
+    const r = projectCreateSchema.safeParse({
+      name: "P",
+      objective: "o",
+      group_id: "grp_ugc",
+    })
+    expect(r.success).toBe(true)
+    if (r.success) expect("group_id" in r.data).toBe(false)
   })
 })

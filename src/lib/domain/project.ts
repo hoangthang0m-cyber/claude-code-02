@@ -25,6 +25,10 @@ export interface Project {
   created_at: Timestamp
   updated_at: Timestamp
   updated_by?: string
+  // project-grouping change task 1.2 — the folder this project sits in, or
+  // absent/null for "Chưa phân nhóm". Not a form field: it is set only via the
+  // assign-to-group path (task 3.1). Deleting a group clears it (task 2.4).
+  group_id?: string | null
 }
 
 // Create: name + objective required (SPEC §5.1 R1). lifecycle defaults to
