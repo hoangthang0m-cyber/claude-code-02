@@ -22,6 +22,8 @@ export const COLLECTIONS = {
   googleConnections: "googleConnections",
   notifications: "notifications",
   notificationPreferences: "notificationPreferences",
+  // project-grouping change task 1.1 — folder-style grouping over Project
+  projectGroups: "projectGroups",
 } as const
 
 export type CollectionId = (typeof COLLECTIONS)[keyof typeof COLLECTIONS]

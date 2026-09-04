@@ -22,6 +22,19 @@ export const PROJECT_LIFECYCLE_LABELS: Record<ProjectLifecycle, string> = {
   archived: "Lưu trữ",
 }
 
+// project-grouping change task 1.1 — a ProjectGroup is a plain folder; its only
+// lifecycle is active vs archived (design.md Decision 1). No "done" state.
+export const PROJECT_GROUP_LIFECYCLES = ["active", "archived"] as const
+export type ProjectGroupLifecycle = (typeof PROJECT_GROUP_LIFECYCLES)[number]
+
+export const PROJECT_GROUP_LIFECYCLE_LABELS: Record<
+  ProjectGroupLifecycle,
+  string
+> = {
+  active: "Hoạt động",
+  archived: "Lưu trữ",
+}
+
 export const SKILL_TAG_LABELS: Record<SkillTag, string> = {
   content: "Content",
   ads: "Ads",
