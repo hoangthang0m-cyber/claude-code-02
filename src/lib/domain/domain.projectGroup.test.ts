@@ -6,6 +6,7 @@ import {
   PROJECT_GROUP_LIFECYCLE_LABELS,
   SORT_INDEX_STEP,
   computeSortIndexBackfill,
+  groupProjectsForList,
   isProjectGroupWritable,
   nextSortIndex,
   projectCreateSchema,
@@ -253,5 +254,69 @@ describe("nextSortIndex (task 3.2)", () => {
   it("otherwise → one step past the bucket's max, order-independent", () => {
     expect(nextSortIndex([100, 300, 200])).toBe(400)
     expect(nextSortIndex([250])).toBe(350)
+  })
+})
+
+describe("groupProjectsForList (task 4.1)", () => {
+  const g = (id: string, name: string, lifecycle = "active") =>
+    ({ id, name, lifecycle, created_by: "u", created_at: {} }) as never
+  const p = (id: string, name: string, group_id: string | null, sort_index?: number) => ({
+    id,
+    name,
+    group_id,
+    sort_index,
+  })
+
+  const groups = [g("gB", "Beta"), g("gA", "Alpha"), g("gEmpty", "Zeta"), g("gArch", "Cũ", "archived")]
+
+  it("groups by name, projects by sort_index; keeps empty groups; ungrouped bucket", () => {
+    const r = groupProjectsForList(
+      [
+        p("p3", "P3", "gA", 300),
+        p("p1", "P1", "gA", 100),
+        p("p2", "P2", "gB", 100),
+        p("u1", "U1", null, 200),
+        p("u2", "U2", null, 100),
+      ],
+      groups
+    )
+
+    expect(r.groups.map((b) => b.group.name)).toEqual(["Alpha", "Beta", "Zeta"])
+    expect(r.groups[0].projects.map((x) => x.id)).toEqual(["p1", "p3"]) // sort_index
+    expect(r.groups[0].count).toBe(2)
+    expect(r.groups[2]).toMatchObject({ count: 0, projects: [] }) // empty kept
+    expect(r.ungrouped.projects.map((x) => x.id)).toEqual(["u2", "u1"])
+    expect(r.ungrouped.count).toBe(2)
+  })
+
+  it("a project pointing at an unknown group falls into ungrouped", () => {
+    const r = groupProjectsForList([p("x", "X", "ghost", 100)], groups)
+    expect(r.ungrouped.projects.map((x) => x.id)).toEqual(["x"])
+  })
+
+  it("by default an archived group's block and its projects are hidden", () => {
+    const r = groupProjectsForList(
+      [p("a", "A", "gArch", 100), p("b", "B", null, 100)],
+      groups
+    )
+    expect(r.groups.some((b) => b.group.id === "gArch")).toBe(false)
+    expect(r.archived).toEqual([])
+    expect(r.ungrouped.projects.map((x) => x.id)).toEqual(["b"]) // 'a' is hidden, not moved here
+  })
+
+  it("includeArchived surfaces the archived block with its projects", () => {
+    const r = groupProjectsForList([p("a", "A", "gArch", 100)], groups, {
+      includeArchived: true,
+    })
+    expect(r.archived.map((b) => b.group.name)).toEqual(["Cũ"])
+    expect(r.archived[0].projects.map((x) => x.id)).toEqual(["a"])
+  })
+
+  it("a project with no sort_index sorts last", () => {
+    const r = groupProjectsForList(
+      [p("x", "X", "gA"), p("y", "Y", "gA", 100)],
+      groups
+    )
+    expect(r.groups[0].projects.map((x) => x.id)).toEqual(["y", "x"])
   })
 })

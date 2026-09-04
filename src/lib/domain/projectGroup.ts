@@ -62,6 +62,87 @@ export const projectGroupAssignmentSchema = z.object({
   group_id: z.string().trim().min(1).nullable(),
 })
 
+// ── task 4.1: the grouped project list ──────────────────────────────────────
+
+// A project sorts within its bucket by `sort_index` ascending; a project with
+// no index yet (pre-backfill) goes last, then ties break by name.
+function byBucketOrder<T extends { sort_index?: number; name: string }>(
+  a: T,
+  b: T
+): number {
+  const ai = a.sort_index ?? Number.MAX_SAFE_INTEGER
+  const bi = b.sort_index ?? Number.MAX_SAFE_INTEGER
+  return ai - bi || a.name.localeCompare(b.name, "vi")
+}
+
+export interface ProjectListGroup<T> {
+  group: ProjectGroup
+  projects: T[]
+  count: number
+}
+
+export interface GroupedProjectList<T> {
+  /** active groups (name order), each with its projects in sort_index order */
+  groups: ProjectListGroup<T>[]
+  /** projects with no group, in sort_index order */
+  ungrouped: { projects: T[]; count: number }
+  /** archived groups (only populated when includeArchived) */
+  archived: ProjectListGroup<T>[]
+}
+
+// task 4.1 — assemble the list screen's shape from the caller's visible projects
+// and the groups they can see. Deterministic: groups by name, projects by
+// `sort_index`. Empty groups are kept (task 4.4). A project pointing at an
+// archived or unknown group is only shown when `includeArchived` (task 2.3:
+// archived groups are hidden from the default list, reachable via the filter).
+export function groupProjectsForList<
+  T extends { id: string; name: string; group_id?: string | null; sort_index?: number },
+>(
+  projects: readonly T[],
+  groups: readonly ProjectGroup[],
+  opts: { includeArchived?: boolean } = {}
+): GroupedProjectList<T> {
+  const includeArchived = opts.includeArchived ?? false
+
+  const active = [...groups]
+    .filter((g) => g.lifecycle !== "archived")
+    .sort((a, b) => a.name.localeCompare(b.name, "vi"))
+  const archivedGroups = [...groups]
+    .filter((g) => g.lifecycle === "archived")
+    .sort((a, b) => a.name.localeCompare(b.name, "vi"))
+
+  const activeIds = new Set(active.map((g) => g.id))
+  const archivedIds = new Set(archivedGroups.map((g) => g.id))
+
+  const buckets = new Map<string, T[]>()
+  const ungrouped: T[] = []
+  for (const p of projects) {
+    const gid = p.group_id ?? null
+    if (gid !== null && (activeIds.has(gid) || archivedIds.has(gid))) {
+      const list = buckets.get(gid) ?? []
+      list.push(p)
+      buckets.set(gid, list)
+    } else {
+      // no group, or a group the caller can't see / that no longer exists
+      ungrouped.push(p)
+    }
+  }
+
+  const block = (g: ProjectGroup): ProjectListGroup<T> => {
+    const projects = (buckets.get(g.id) ?? []).sort(byBucketOrder)
+    return { group: g, projects, count: projects.length }
+  }
+
+  return {
+    groups: active.map(block),
+    ungrouped: {
+      projects: ungrouped.sort(byBucketOrder),
+      count: ungrouped.length,
+    },
+    archived: includeArchived ? archivedGroups.map(block) : [],
+  }
+}
+
 // task 1.2 — the bucket a project belongs to. A project doc written before this
 // change has no `group_id`, so it reads back as `null` ("Chưa phân nhóm"). One
 // shared normalizer, reused by list-grouping (task 4.1) and sort ordering
