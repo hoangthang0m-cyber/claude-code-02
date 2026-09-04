@@ -29,6 +29,9 @@ export interface ContentItem {
   customer_research_url?: string
   status: ContentStatus
   evaluation?: string
+  // sheets-sync-fixed-schema §2.4 — free-text "Báo cáo hiệu quả ads" note read
+  // from the sheet; shown separately from the Meta AdsMetric numbers.
+  ads_report_note?: string | null
   sheet_row_ref?: string | null
   // Set when the item's row was deleted from the sheet (SPEC §6.3, task 6.7):
   // the item is kept, `sheet_row_ref` is nulled, this stamps when. Cleared if

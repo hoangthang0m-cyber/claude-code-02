@@ -70,6 +70,9 @@ export const SHEET_INBOUND_FIELDS = [
   "customer_research_url",
   "status",
   "evaluation",
+  // sheets-sync-fixed-schema §2.4 — free-text "Báo cáo hiệu quả ads" note,
+  // separate from the Meta AdsMetric numbers.
+  "ads_report_note",
 ] as const
 export type SheetInboundField = (typeof SHEET_INBOUND_FIELDS)[number]
 
@@ -84,6 +87,7 @@ export const SHEET_INBOUND_FIELD_LABELS: Record<SheetInboundField, string> = {
   customer_research_url: "Link research KH",
   status: "Trạng thái sản xuất",
   evaluation: "Đánh giá / đề xuất",
+  ads_report_note: "Báo cáo hiệu quả ads (ghi chú)",
 }
 
 // Ads-metric columns are PUSH-ONLY (SPEC §6.2): the sync writes them down to the

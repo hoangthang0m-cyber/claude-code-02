@@ -6,28 +6,45 @@ import {
   SHEET_INBOUND_FIELDS,
 } from "@/lib/domain"
 import { readSheetValues } from "@/lib/server/google/sheets"
+import {
+  recognizeColumns,
+  type SheetColumnField,
+} from "@/modules/sheets-sync/services/sheetSchema"
 
-// Shared sheet-row plumbing for the sheet → system directions (first pull, task
-// 6.2; delta pull, task 6.4). One place decides how a sheet cell maps to a
-// ContentItem field and which values are rejected (SPEC §5.5 R1).
+// Shared sheet-row plumbing for the sheet → system direction. Columns are
+// recognised by the fixed-schema alias dictionary (sheets-sync-fixed-schema §2),
+// NOT a manual column map; `column_map` is kept on the config only until the
+// migration drops it.
 
 export interface MappedSheetConfig {
   spreadsheet_id: string
   sheet_tab: string
   header_row: number
-  column_map: Record<string, string>
+  /** deprecated — ignored on read; kept until the migration removes it */
+  column_map?: Record<string, string>
   /** SPEC §5.5 R3 — who wins when the same field changed on both sides. */
   conflict_rule?: "system_wins" | "sheet_wins"
 }
 
 export interface SheetRowContext {
   headers: string[]
-  /** 0-based index of the column mapped to `code`; -1 if not present */
+  /** field → 0-based column index, from the fixed-schema recogniser */
+  columns: Partial<Record<SheetColumnField, number>>
+  /** standard fields whose column was found */
+  recognized: SheetColumnField[]
+  /** standard fields whose column was NOT found */
+  missing: SheetColumnField[]
+  /** recogniser warnings (e.g. two columns matched one field) */
+  warnings: string[]
+  /** 0-based index of the `code` column; -1 if not present */
   codeCol: number
-  /** data rows (header excluded) */
+  /** data rows: after the header, fully-empty rows dropped */
   dataRows: string[][]
 }
 
+// task 3.1 / 3.2 — read the WHOLE tab, take the header at `values[header_row-1]`,
+// data at `values[header_row..]`, and drop rows that are entirely empty (blank
+// rows and a merged page-title row above the header are ignored).
 export async function readMappedSheet(
   accessToken: string,
   cfg: MappedSheetConfig
@@ -35,27 +52,35 @@ export async function readMappedSheet(
   const rows = await readSheetValues(
     accessToken,
     cfg.spreadsheet_id,
-    `'${cfg.sheet_tab}'!A${cfg.header_row}:ZZ`
+    `'${cfg.sheet_tab}'`
   )
-  const headers = (rows[0] ?? []).map((c) => c.trim())
-  const codeHeader = cfg.column_map.code
+  const headerIdx = Math.max(0, (cfg.header_row || 1) - 1)
+  const headers = (rows[headerIdx] ?? []).map((c) => c.trim())
+  const rec = recognizeColumns(headers)
+
+  const dataRows = rows
+    .slice(headerIdx + 1)
+    .filter((r) => r.some((c) => (c ?? "").trim() !== ""))
+
   return {
     headers,
-    codeCol: codeHeader ? headers.indexOf(codeHeader) : -1,
-    dataRows: rows.slice(1),
+    columns: rec.columns,
+    recognized: rec.recognized,
+    missing: rec.missing,
+    warnings: rec.warnings,
+    codeCol: rec.columns.code ?? -1,
+    dataRows,
   }
 }
 
 export function cellOf(
   ctx: SheetRowContext,
-  cfg: MappedSheetConfig,
+  _cfg: MappedSheetConfig,
   row: string[],
   field: string
 ): string {
-  const header = cfg.column_map[field]
-  if (!header) return ""
-  const i = ctx.headers.indexOf(header)
-  return i >= 0 ? (row[i] ?? "").trim() : ""
+  const i = ctx.columns[field as SheetColumnField]
+  return i != null ? (row[i] ?? "").trim() : ""
 }
 
 // Snapshot = the mapped cell values keyed by code, for delta detection
@@ -71,7 +96,7 @@ export function snapshotOf(
     const code = ctx.codeCol >= 0 ? (row[ctx.codeCol] ?? "").trim() : ""
     if (!code) continue
     const fields: Record<string, string> = {}
-    for (const field of Object.keys(cfg.column_map)) {
+    for (const field of ctx.recognized) {
       // only inbound fields — ads columns are push-only, never read back
       if (field === "code" || !isMappableField(field)) continue
       fields[field] = cellOf(ctx, cfg, row, field)

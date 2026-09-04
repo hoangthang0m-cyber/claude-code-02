@@ -24,7 +24,11 @@ import {
 import { HttpError } from "@/lib/server/http"
 import { parseOrThrow } from "@/lib/server/validate"
 import { getGoogleAccessToken } from "@/modules/sheets-sync/services/googleConnection.server"
-import { snapshotOf } from "@/modules/sheets-sync/services/sheetRows"
+import {
+  cellOf,
+  readMappedSheet,
+  snapshotOf,
+} from "@/modules/sheets-sync/services/sheetRows"
 
 // SPEC §5.5 R1, task 6.2: the SheetSyncMapping config — one per project, with
 // the header row, the column→field map and the conflict rule — plus the first
@@ -237,23 +241,18 @@ export async function runFirstSheetSync(
     messages: [],
   }
 
-  const rows = await readSheetValues(
-    accessToken,
-    cfg.spreadsheet_id,
-    `'${cfg.sheet_tab}'!A${cfg.header_row}:ZZ`
-  )
-  const headers = (rows[0] ?? []).map((c) => c.trim())
-  const dataRows = rows.slice(1)
+  // Columns are recognised by the fixed schema, the header row is taken at
+  // `header_row - 1`, blank rows are dropped (sheets-sync-fixed-schema §2/§3).
+  const ctx = await readMappedSheet(accessToken, cfg)
+  const dataRows = ctx.dataRows
   result.rows_read = dataRows.length
 
-  const colIndex = (field: string): number => {
-    const header = cfg.column_map[field]
-    return header ? headers.indexOf(header) : -1
+  if (ctx.codeCol < 0) {
+    result.messages.push("Không tìm thấy cột Mã bắt buộc — không tạo hạng mục nào")
+    return result
   }
-  const cell = (row: string[], field: string): string => {
-    const i = colIndex(field)
-    return i >= 0 ? (row[i] ?? "").trim() : ""
-  }
+
+  const cell = (row: string[], field: string): string => cellOf(ctx, cfg, row, field)
 
   // existing items for this project, by code
   const existingSnap = await db
@@ -281,8 +280,7 @@ export async function runFirstSheetSync(
       sheet_row_ref: code,
     }
 
-    for (const field of Object.keys(cfg.column_map)) {
-      // ads columns are push-only (SPEC §6.2) — never read from the sheet
+    for (const field of ctx.recognized) {
       if (field === "code" || isAdsSheetField(field)) continue
       const value = cell(row, field)
       if (!value) continue
@@ -352,11 +350,10 @@ export async function runFirstSheetSync(
         : "Đồng bộ lần đầu xong",
   })
 
-  // baseline snapshot so the delta sync (task 6.4) has something to diff against
-  const codeCol = headers.indexOf(cfg.column_map.code ?? "")
+  // baseline snapshot so the delta sync has something to diff against
   batch.set(
     db.collection(COLLECTIONS.sheetSyncMappings).doc(projectId),
-    { snapshot: snapshotOf({ headers, codeCol, dataRows }, cfg) },
+    { snapshot: snapshotOf(ctx, cfg) },
     { merge: true }
   )
 

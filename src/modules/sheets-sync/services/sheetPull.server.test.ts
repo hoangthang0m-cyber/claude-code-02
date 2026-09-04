@@ -70,7 +70,7 @@ const cfg = {
   spreadsheet_id: "1abc",
   sheet_tab: "T",
   header_row: 1,
-  column_map: { code: "Mã", status: "TT", topic: "CĐ" },
+  column_map: {},
 }
 
 beforeEach(() => {
@@ -85,7 +85,7 @@ beforeEach(() => {
 describe("runDeltaSheetSync (SPEC §5.5 R2 / §6.3, task 6.4)", () => {
   it("creates a ContentItem for a brand-new sheet row", async () => {
     fx.rows = [
-      ["Mã", "TT", "CĐ"],
+      ["Mã", "Trạng thái", "Chủ đề"],
       ["V001", "quay_dung", "NYC"],
     ]
     const { result, snapshot } = await runDeltaSheetSync("p1", cfg, "tok", {})
@@ -104,7 +104,7 @@ describe("runDeltaSheetSync (SPEC §5.5 R2 / §6.3, task 6.4)", () => {
 
   it("new row with an invalid status → still created, status falls back, error counted", async () => {
     fx.rows = [
-      ["Mã", "TT", "CĐ"],
+      ["Mã", "Trạng thái", "Chủ đề"],
       ["V004", "đang làm dở", "Photo"],
     ]
     const { result } = await runDeltaSheetSync("p1", cfg, "tok", {})
@@ -120,7 +120,7 @@ describe("runDeltaSheetSync (SPEC §5.5 R2 / §6.3, task 6.4)", () => {
       { id: "c1", code: "V001", data: { status: "quay_dung", topic: "NYC" } },
     ]
     fx.rows = [
-      ["Mã", "TT", "CĐ"],
+      ["Mã", "Trạng thái", "Chủ đề"],
       ["V001", "quay_dung", "NYC 2"], // topic changed, status same
     ]
     const prev = { V001: { status: "quay_dung", topic: "NYC" } }
@@ -135,7 +135,7 @@ describe("runDeltaSheetSync (SPEC §5.5 R2 / §6.3, task 6.4)", () => {
   it("does nothing for an unchanged row", async () => {
     fx.existingItems = [{ id: "c1", code: "V001" }]
     fx.rows = [
-      ["Mã", "TT", "CĐ"],
+      ["Mã", "Trạng thái", "Chủ đề"],
       ["V001", "quay_dung", "NYC"],
     ]
     const prev = { V001: { status: "quay_dung", topic: "NYC" } }
@@ -149,7 +149,7 @@ describe("runDeltaSheetSync (SPEC §5.5 R2 / §6.3, task 6.4)", () => {
       { id: "c1", code: "V001", data: { status: "quay_dung", topic: "NYC" } },
     ]
     fx.rows = [
-      ["Mã", "TT", "CĐ"],
+      ["Mã", "Trạng thái", "Chủ đề"],
       ["V001", "bậy bạ", "NYC"],
     ]
     const prev = { V001: { status: "quay_dung", topic: "NYC" } }
@@ -164,7 +164,7 @@ describe("runDeltaSheetSync (SPEC §5.5 R2 / §6.3, task 6.4)", () => {
       { id: "c1", code: "V001", data: { topic: "Hệ thống sửa" } },
     ]
     fx.rows = [
-      ["Mã", "TT", "CĐ"],
+      ["Mã", "Trạng thái", "Chủ đề"],
       ["V001", "quay_dung", "Sheet sửa"],
     ]
     const prev = { V001: { status: "quay_dung", topic: "Gốc" } }
@@ -188,7 +188,7 @@ describe("runDeltaSheetSync (SPEC §5.5 R2 / §6.3, task 6.4)", () => {
       { id: "c1", code: "V001", data: { topic: "Hệ thống sửa" } },
     ]
     fx.rows = [
-      ["Mã", "TT", "CĐ"],
+      ["Mã", "Trạng thái", "Chủ đề"],
       ["V001", "quay_dung", "Sheet sửa"],
     ]
     const prev = { V001: { status: "quay_dung", topic: "Gốc" } }
@@ -212,7 +212,7 @@ describe("runDeltaSheetSync (SPEC §5.5 R2 / §6.3, task 6.4)", () => {
   it("no conflict when only the sheet changed (system still at the snapshot value)", async () => {
     fx.existingItems = [{ id: "c1", code: "V001", data: { topic: "Gốc" } }]
     fx.rows = [
-      ["Mã", "TT", "CĐ"],
+      ["Mã", "Trạng thái", "Chủ đề"],
       ["V001", "quay_dung", "Sheet sửa"],
     ]
     const prev = { V001: { status: "quay_dung", topic: "Gốc" } }
@@ -224,7 +224,7 @@ describe("runDeltaSheetSync (SPEC §5.5 R2 / §6.3, task 6.4)", () => {
   it("a previously-synced row now gone from the sheet → unlink, keep the item, notify managers (task 6.7)", async () => {
     fx.existingItems = [{ id: "c1", code: "V001" }]
     fx.managers = ["u-mgr", "u-mgr2"]
-    fx.rows = [["Mã", "TT", "CĐ"]] // header only — the data row was deleted
+    fx.rows = [["Mã", "Trạng thái", "Chủ đề"]] // header only — the data row was deleted
     const prev = { V001: { status: "quay_dung", topic: "NYC" } }
     const { result } = await runDeltaSheetSync("p1", cfg, "tok", prev)
 
@@ -247,7 +247,7 @@ describe("runDeltaSheetSync (SPEC §5.5 R2 / §6.3, task 6.4)", () => {
     fx.existingItems = [
       { id: "c1", code: "V001", data: { sheet_row_ref: null } },
     ]
-    fx.rows = [["Mã", "TT", "CĐ"]]
+    fx.rows = [["Mã", "Trạng thái", "Chủ đề"]]
     const prev = { V001: { status: "quay_dung", topic: "NYC" } }
     const { result } = await runDeltaSheetSync("p1", cfg, "tok", prev)
 
@@ -265,7 +265,7 @@ describe("runDeltaSheetSync (SPEC §5.5 R2 / §6.3, task 6.4)", () => {
       },
     ]
     fx.rows = [
-      ["Mã", "TT", "CĐ"],
+      ["Mã", "Trạng thái", "Chủ đề"],
       ["V001", "quay_dung", "NYC"],
     ]
     // the row was absent last sync, so it is not in the snapshot
@@ -278,7 +278,7 @@ describe("runDeltaSheetSync (SPEC §5.5 R2 / §6.3, task 6.4)", () => {
   })
 
   it("bails out cleanly when the code column is missing", async () => {
-    fx.rows = [["TT", "CĐ"]]
+    fx.rows = [["Trạng thái", "Chủ đề"]]
     const { result, snapshot } = await runDeltaSheetSync("p1", cfg, "tok", {})
     expect(result.rows_read).toBe(0)
     expect(snapshot).toEqual({})
