@@ -24,6 +24,18 @@ export function updateProject(projectId: string, body: ProjectFormUpdate) {
   )
 }
 
+// Hard delete — irreversible. `confirmName` must equal the project's exact name.
+export function deleteProject(projectId: string, confirmName: string) {
+  return authedJson<{
+    id: string
+    docs_deleted: number
+    content_items_deleted: number
+  }>(`/api/projects/${projectId}`, {
+    method: "DELETE",
+    body: JSON.stringify({ confirm_name: confirmName }),
+  })
+}
+
 export function changeLifecycle(projectId: string, lifecycle: ProjectLifecycle) {
   return authedJson<{
     id: string

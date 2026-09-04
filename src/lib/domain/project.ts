@@ -69,6 +69,13 @@ export const projectLifecycleSchema = z.object({
   lifecycle: z.enum(PROJECT_LIFECYCLES),
 })
 
+// Hard delete (user-approved 2026-09-04; NOT in SPEC.md — §5.1 R3 stops at
+// "archived"). The caller must echo the project's exact name so a click can't
+// nuke a project with all its content, history, comments and ads data.
+export const projectDeleteSchema = z.object({
+  confirm_name: z.string().trim().min(1),
+})
+
 // running → done → archived is the forward path; done can reopen to running, and
 // an archived project can be restored to running.
 export const PROJECT_LIFECYCLE_TRANSITIONS: Record<
