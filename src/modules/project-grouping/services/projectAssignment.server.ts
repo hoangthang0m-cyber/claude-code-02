@@ -46,6 +46,22 @@ export async function endOfBucketSortIndex(
   return nextSortIndex(indices)
 }
 
+// task 3.1 / 3.3 — a group you may assign a project into must exist and not be
+// archived. Shared by setProjectGroup and createProject (the create form's
+// optional group picker).
+export async function assertAssignableGroup(
+  db: Db,
+  groupId: string
+): Promise<void> {
+  const snap = await db.collection(COLLECTIONS.projectGroups).doc(groupId).get()
+  if (!snap.exists) {
+    throw new HttpError(404, "Không tìm thấy nhóm")
+  }
+  if (!isProjectGroupWritable(snap.data()?.lifecycle as string | undefined)) {
+    throw new HttpError(409, "Nhóm đã lưu trữ — không thể gán dự án vào")
+  }
+}
+
 // task 3.1 — assign a project to a group, move it, or clear it. Manager-only
 // (design Decision 3). `group_id` is a scalar, so "no two groups" and
 // "A no longer contains it after A→B" hold structurally. Group assignment is an
@@ -69,16 +85,7 @@ export async function setProjectGroup(
   }
 
   if (group_id !== null) {
-    const groupSnap = await db
-      .collection(COLLECTIONS.projectGroups)
-      .doc(group_id)
-      .get()
-    if (!groupSnap.exists) {
-      throw new HttpError(404, "Không tìm thấy nhóm")
-    }
-    if (!isProjectGroupWritable(groupSnap.data()?.lifecycle as string | undefined)) {
-      throw new HttpError(409, "Nhóm đã lưu trữ — không thể gán dự án vào")
-    }
+    await assertAssignableGroup(db, group_id)
   }
 
   const currentBucket = (projectSnap.data()?.group_id ?? null) as string | null

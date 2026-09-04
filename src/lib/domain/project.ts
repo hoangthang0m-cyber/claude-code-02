@@ -45,13 +45,21 @@ export const projectCreateSchema = z.object({
   // Stored even if not a usable Sheets URL (SPEC §5.1 R1) — validated downstream.
   progress_sheet_url: looseLinkString.optional(),
   retrospective: z.string().trim().optional(),
+  // project-grouping change task 3.3 — optional group picker on the create form.
+  // Omitted → "Chưa phân nhóm". The edit form (projectFormUpdateSchema) does NOT
+  // carry it: moving a project between groups has its own path (task 3.1).
+  group_id: z.string().trim().min(1).optional(),
 })
 
 export type ProjectCreate = z.infer<typeof projectCreateSchema>
 
 // Edit the standard form (SPEC §5.1 R2): every field optional. Does NOT include
-// `lifecycle` — lifecycle transitions have their own validated path (§5.1 R3).
-export const projectFormUpdateSchema = projectCreateSchema.partial()
+// `lifecycle` — lifecycle transitions have their own validated path (§5.1 R3) —
+// nor `group_id` — moving a project between groups is PATCH .../group
+// (project-grouping task 3.1).
+export const projectFormUpdateSchema = projectCreateSchema
+  .omit({ group_id: true })
+  .partial()
 
 export type ProjectFormUpdate = z.infer<typeof projectFormUpdateSchema>
 

@@ -20,6 +20,10 @@ import type { AuthedUser } from "@/lib/server/auth"
 import { getAdminDb } from "@/lib/server/firebaseAdmin"
 import { HttpError } from "@/lib/server/http"
 import { parseOrThrow } from "@/lib/server/validate"
+import {
+  assertAssignableGroup,
+  endOfBucketSortIndex,
+} from "@/modules/project-grouping/services/projectAssignment.server"
 
 // Server-side project operations (SPEC §5.1). Route handlers under
 // src/app/api/projects/ wrap these with getAuthedUser + errorResponse.
@@ -30,6 +34,9 @@ export interface CreateProjectResult {
 
 // SPEC §5.1 R1: create a project from the standard form. name + objective are
 // required; the creator becomes a project manager; lifecycle starts "running".
+// project-grouping task 3.3: an optional `group_id` files the project into a
+// group (must exist + not be archived); it lands at the end of that bucket, or
+// the end of the ungrouped bucket when omitted.
 export async function createProject(
   actor: AuthedUser,
   body: unknown
@@ -38,6 +45,12 @@ export async function createProject(
 
   const input = parseOrThrow(projectCreateSchema, body)
   const db = getAdminDb()
+
+  const bucket = input.group_id ?? null
+  if (bucket !== null) {
+    await assertAssignableGroup(db, bucket)
+  }
+  const sort_index = await endOfBucketSortIndex(db, bucket)
 
   const projectRef = db.collection(COLLECTIONS.projects).doc()
   const memberRef = db
@@ -48,6 +61,7 @@ export async function createProject(
   batch.set(projectRef, {
     ...input,
     lifecycle: "running",
+    sort_index,
     created_by: actor.uid,
     created_at: FieldValue.serverTimestamp(),
     updated_at: FieldValue.serverTimestamp(),

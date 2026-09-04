@@ -163,14 +163,18 @@ describe("Project.group_id (task 1.2)", () => {
     expect(projectGroupId({ group_id: "grp_ugc" })).toBe("grp_ugc")
   })
 
-  it("is not a create-form field — projectCreateSchema strips group_id", () => {
-    const r = projectCreateSchema.safeParse({
+  it("is an OPTIONAL create-form field (task 3.3) — kept when given, absent otherwise", () => {
+    const withGroup = projectCreateSchema.safeParse({
       name: "P",
       objective: "o",
       group_id: "grp_ugc",
     })
-    expect(r.success).toBe(true)
-    if (r.success) expect("group_id" in r.data).toBe(false)
+    expect(withGroup.success).toBe(true)
+    if (withGroup.success) expect(withGroup.data.group_id).toBe("grp_ugc")
+
+    const without = projectCreateSchema.safeParse({ name: "P", objective: "o" })
+    expect(without.success).toBe(true)
+    if (without.success) expect("group_id" in without.data).toBe(false)
   })
 })
 
