@@ -172,11 +172,17 @@ người dùng) — chỉ stat cards + báo cáo tuần/tháng + so sánh kỳ.
   **Quyết định:** cho gán nhóm **bất kể lifecycle dự án** (dự án `done`/`archived`
   vẫn xếp vào nhóm được để roll-up lịch sử) — khác quy tắc "form archived = chỉ
   đọc" vì đây là thao tác tổ chức, không phải sửa form.
-- [ ] 3.2 Gán/chuyển vào rổ mới ⇒ `sort_index = max rổ + bước nhảy`; verify dự
-  án mới nằm cuối rổ
-- [ ] 3.3 Trường chọn nhóm (tuỳ chọn) trong form "Tạo dự án mới"; verify không
-  chọn ⇒ "Chưa phân nhóm"
-- [ ] 3.4 Giới hạn gán nhóm cho `system_role = manager`; verify test phân quyền
+- [x] 3.2 Gán/chuyển vào rổ mới ⇒ `sort_index = max rổ + bước nhảy`; verify dự
+  án mới nằm cuối rổ. `setProjectGroup` ghi thêm `sort_index` khi rổ đổi;
+  `nextSortIndex` / `endOfBucketSortIndex`. Re-gán cùng nhóm → không reposition.
+- [x] 3.3 Trường chọn nhóm (tuỳ chọn) trong form "Tạo dự án mới"; verify không
+  chọn ⇒ "Chưa phân nhóm". `projectCreateSchema` thêm `group_id?`
+  (`projectFormUpdateSchema` `.omit`); `createProject` gọi `assertAssignableGroup`
+  + luôn set `sort_index`. Hook `useProjectGroups`, Select trong ProjectFormSheet
+  (chỉ tạo mới). UI chưa test trên trình duyệt.
+- [x] 3.4 Giới hạn gán nhóm cho `system_role = manager`; verify test phân quyền.
+  `setProjectGroup` + `createProject` đã guard; test tổng hợp
+  `projectAssignment.permissions.test.ts`.
 
 ### 4.4 Danh sách dự án theo nhóm
 
