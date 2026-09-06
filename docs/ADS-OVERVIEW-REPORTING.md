@@ -112,13 +112,13 @@ the account is dropped from the total ("đang gộp N/M tài khoản").
 - [x] 3.6 Backfill 90 ngày khi chưa có `latest_synced_date`; re-sync rộng 28 ngày nếu `last_full_sync_at` > 7 ngày; `monthChunks` chia request theo tháng
 - [x] 3.7 `until = hôm qua` (không bao giờ hôm nay); `withMetaRetry` lùi dần 3 lần; auth error → `AdAccountConnection.state = needs_reconnect` + `last_result: error`; rate-limit/transient → giữ snapshot cũ + `last_result: warning`. Lịch chạy trong `.github/workflows/scheduled-jobs.yml` (mỗi 2h).
 
-### 4. API báo cáo sản phẩm
-- [ ] 4.1 API báo cáo theo sản phẩm cho một kỳ + khối tổng + quy đổi tiền tệ
-- [ ] 4.2 Dòng "Chưa phân loại" riêng, không gộp vào tổng
-- [ ] 4.3 API dữ liệu biểu đồ ngày/tuần/tháng (định nghĩa `progress-analytics`)
-- [ ] 4.4 API so sánh kỳ (Δ tuyệt đối + %); kỳ trước rỗng → % "—"
-- [ ] 4.5 "Số liệu tính đến" + tài khoản trễ/lỗi + "đang gộp N/M tài khoản"
-- [ ] 4.6 API xuất CSV/Excel (báo cáo + dữ liệu biểu đồ)
+### 4. API báo cáo sản phẩm — `productReport.ts` (thuần) + `.server.ts` + `/api/ads-reporting/*`
+- [x] 4.1 `GET /report` — `buildProductReport`: mỗi sản phẩm + khối tổng (chi phí/doanh thu/ROAS), classify + quy đổi tiền tệ theo ngày. ROAS = 0 (không để trống) khi có chi phí, doanh thu 0.
+- [x] 4.2 `report.unclassified` là dòng riêng, `report.total` chỉ gồm 3 sản phẩm.
+- [x] 4.3 `GET /timeseries?bucket=day|week|month&product_id=?` — `buildTimeseries` + `bucketOf` (tuần = thứ Hai ISO, tháng = mùng 1, dùng `resolveReportPeriod`); chuỗi 0-fill; chuỗi "Chưa phân loại" khi có.
+- [x] 4.4 `GET /report/comparison?period=week|month&date=` — Δ tuyệt đối + % (`computeMetricDelta`) cho từng sản phẩm + tổng vs kỳ liền trước; kỳ trước rỗng → `pct: null` ("—"). Từ chối `from`/`to`.
+- [x] 4.5 `report.freshness` — `data_through` (max `latest_synced_date`), `accounts_total` (M), `accounts_merged` (M − thiếu tỷ giá − lỗi), `accounts_delayed` (last_result ≠ ok), `accounts_missing_rate`.
+- [x] 4.6 `GET /export?format=report|timeseries` — CSV (BOM UTF-8 cho Excel), `Content-Disposition: attachment`.
 
 ### 5. Giao diện trang Báo cáo
 - [ ] 5.1 Mục "Báo cáo" ở menu; bộ chọn kỳ + toggle so sánh; trạng thái rỗng

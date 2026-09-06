@@ -83,3 +83,87 @@ export async function loadReportingCurrency(db: Db): Promise<string> {
   const cur = snap.data()?.reporting_currency
   return typeof cur === "string" && cur ? cur : DEFAULT_REPORTING_CURRENCY
 }
+
+export interface ProductRow {
+  id: string
+  code: string
+  name: string
+}
+
+export async function loadProducts(db: Db): Promise<ProductRow[]> {
+  const snap = await db.collection(COLLECTIONS.products).get()
+  return snap.docs
+    .map((d) => ({
+      id: d.id,
+      code: String(d.data().code ?? d.id),
+      name: String(d.data().name ?? d.id),
+    }))
+    .sort((a, b) => a.code.localeCompare(b.code))
+}
+
+// task 4.5: "số liệu tính đến" + which accounts are stale / errored + how many
+// of M accounts are actually in the merged total.
+export interface ReportFreshness {
+  data_through: string | null
+  accounts_total: number
+  accounts_merged: number
+  accounts_delayed: Array<{
+    ad_account_id: string
+    name: string
+    last_result: string
+    message: string | null
+  }>
+  accounts_missing_rate: string[]
+}
+
+export async function loadFreshness(
+  db: Db,
+  accountsMissingRate: readonly string[]
+): Promise<Omit<ReportFreshness, "accounts_missing_rate">> {
+  const [conns, states] = await Promise.all([
+    db.collection(COLLECTIONS.adAccountConnections).get(),
+    db
+      .collection(COLLECTIONS.adAccountReportSyncStates)
+      .where("scope", "==", "campaign")
+      .get(),
+  ])
+
+  const nameById = new Map<string, string>()
+  for (const d of conns.docs) {
+    nameById.set(
+      String(d.data().ad_account_id ?? ""),
+      String(d.data().name ?? "")
+    )
+  }
+
+  let dataThrough: string | null = null
+  const delayed: ReportFreshness["accounts_delayed"] = []
+  for (const d of states.docs) {
+    const x = d.data()
+    const acct = String(x.ad_account_id ?? "")
+    const latest = typeof x.latest_synced_date === "string" ? x.latest_synced_date : null
+    if (latest && (dataThrough === null || latest > dataThrough)) {
+      dataThrough = latest
+    }
+    if (x.last_result && x.last_result !== "ok") {
+      delayed.push({
+        ad_account_id: acct,
+        name: nameById.get(acct) ?? acct,
+        last_result: String(x.last_result),
+        message: typeof x.message === "string" ? x.message : null,
+      })
+    }
+  }
+
+  const total = conns.size
+  const dropped = new Set<string>([
+    ...accountsMissingRate,
+    ...delayed.map((d) => d.ad_account_id),
+  ])
+  return {
+    data_through: dataThrough,
+    accounts_total: total,
+    accounts_merged: Math.max(0, total - dropped.size),
+    accounts_delayed: delayed,
+  }
+}
