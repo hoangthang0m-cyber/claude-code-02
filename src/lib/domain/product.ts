@@ -38,6 +38,16 @@ export const productWriteSchema = z.object({
 
 export type ProductWrite = z.infer<typeof productWriteSchema>
 
+// Edit an existing product — `code` is the doc id, so only name / keywords
+// move. No defaults here: an empty body must stay empty so the handler can
+// reject "nothing to update".
+export const productUpdateSchema = z.object({
+  name: z.string().trim().min(1).optional(),
+  keywords: z.array(z.string().trim().min(1)).optional(),
+})
+
+export type ProductUpdate = z.infer<typeof productUpdateSchema>
+
 export interface ProductView {
   id: string
   code: string
@@ -84,6 +94,17 @@ export function productAccountRuleId(
   return `${adAccountId}__${productId}`
 }
 
+// The config screen sets an account's whole product set at once (task 2.5):
+// which products it runs, and which one a code-less campaign name defaults to.
+// `default_product_id` null → the first of `product_ids`.
+export const accountRulesSetSchema = z.object({
+  ad_account_id: idString,
+  product_ids: z.array(idString).min(1),
+  default_product_id: idString.nullable().default(null),
+})
+
+export type AccountRulesSet = z.infer<typeof accountRulesSetSchema>
+
 // ── CampaignProductOverride ────────────────────────────────────────────────
 
 // A manual pin for one campaign, winning over every automatic rule
@@ -105,6 +126,18 @@ export const campaignProductOverrideWriteSchema = z.object({
 
 export type CampaignProductOverrideWrite = z.infer<
   typeof campaignProductOverrideWriteSchema
+>
+
+// The config screen upserts or clears one manual pin (task 2.5). A null
+// `product_id` removes the override.
+export const campaignProductOverrideSetSchema = z.object({
+  ad_account_id: idString,
+  campaign_id: idString,
+  product_id: idString.nullable(),
+})
+
+export type CampaignProductOverrideSet = z.infer<
+  typeof campaignProductOverrideSetSchema
 >
 
 export interface CampaignProductOverrideView {

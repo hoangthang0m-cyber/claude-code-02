@@ -100,8 +100,8 @@ the account is dropped from the total ("đang gộp N/M tài khoản").
 - [x] 2.2 `productCodeInName` — regex token `{a,t,h}`; khớp `t(20/8)` / `a - ` / `h(16/8)`, không khớp `thang` / `content`
 - [x] 2.3 `classifyCampaign` — override → keyword/code → account default → null; unit tests mọi nhánh
 - [x] 2.4 Seed `Product` + `ProductAccountRule` cho tài khoản **đã kết nối** (name-match `amhd` / `tbdm` / `ha phuong`), `npm run seed:ads-reporting`. 4 tài khoản cụ thể chỉ gắn được sau khi kết nối (chưa biết Ad Account ID) — design.md Migration Plan bước 5 giao việc gắn cho Trưởng phòng qua UI (2.5 / 5.6). Nhánh classify đã được test đầy đủ với config hình-seed.
-- [ ] 2.5 API cấu hình: CRUD sản phẩm, gắn tài khoản → sản phẩm, đặt mặc định, bảng gán tay campaign
-- [ ] 2.6 API nhóm "Chưa phân loại" — số campaign + chi phí + doanh thu trong kỳ
+- [x] 2.5 API cấu hình dưới `/api/ads-reporting/*`: `GET config`, `POST/PATCH/DELETE products`, `PUT account-rules` (đặt cả bộ + mặc định), `POST campaign-overrides` (gán tay / xoá). Manager-only, có test service.
+- [x] 2.6 `GET /api/ads-reporting/unclassified?period=|date=` (hoặc `from`/`to`) — `summarizeUnclassified` thuần (đếm campaign ở tài khoản chưa có rule, Σ chi phí/doanh thu quy đổi tiền tệ, liệt kê tài khoản thiếu tỷ giá). Có unit test + test wrapper.
 
 ### 3. Đồng bộ Meta Ads API
 - [ ] 3.1 Client insights `level=campaign` `time_increment=1`; bóc `omni_purchase`
