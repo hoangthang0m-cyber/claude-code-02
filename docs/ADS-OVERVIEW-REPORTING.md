@@ -86,20 +86,20 @@ the account is dropped from the total ("đang gộp N/M tài khoản").
 ## Checklist
 
 ### 1. Data model & nền tảng
-- [x] 1.1 `Product` + seed 3 sản phẩm — `products` collection, `productWriteSchema`, `PRODUCT_SEED`, seed script
-- [x] 1.2 `ProductAccountRule`, `CampaignProductOverride` — domain types + schemas + deterministic ids
-- [x] 1.3 `AdsInsightSnapshot` + UNIQUE (doc id `${acc}__${camp}__${date}`)
-- [x] 1.4 `AdCreativeInsightSnapshot` + UNIQUE (doc id `${acc}__${ad}__${date}`), video_* fields
-- [x] 1.5 `AdAccountReportSyncState`, `ReportingSettings`, `CurrencyRate`; seed `reporting_currency = VND`
+- [x] 1.1 `Product` + seed 3 sản phẩm — `products` collection, `productWriteSchema` (+ parse tests), seed script
+- [x] 1.2 `ProductAccountRule`, `CampaignProductOverride` — domain types + schemas (+ parse tests) + deterministic ids. (Firestore: không có "migration lên/xuống" — schema parse tests là kiểm chứng tương đương.)
+- [x] 1.3 `AdsInsightSnapshot` + UNIQUE (doc id `${acc}__${camp}__${date}`) + id test
+- [x] 1.4 `AdCreativeInsightSnapshot` + UNIQUE (doc id `${acc}__${ad}__${date}`), video_* fields + id test
+- [x] 1.5 `AdAccountReportSyncState`, `ReportingSettings`, `CurrencyRate` (+ parse tests); seed `reporting_currency = VND`
 - [x] 1.6 `aggregateSnapshots` — Σ + ROAS / cost-per-purchase / hook / retention / CTR, ÷0 → null; unit tests
 - [x] 1.7 `convertCurrency` — same-currency / dated rate / current fallback / missing pair; unit tests
-- [x] 1.8 `requireReportingManager` — one shared gate, `system_role = manager`, server-enforced
+- [x] 1.8 `requireReportingManager` — one shared gate, `system_role = manager`, server-enforced (+ 403 test). Chưa có điểm gọi (page/API tới ở nhóm 2.5 / 5).
 
 ### 2. Phân loại campaign → sản phẩm
 - [x] 2.1 `normalizeCampaignName` — lowercase, bỏ dấu, đ→d, gộp khoảng trắng; unit tests
 - [x] 2.2 `productCodeInName` — regex token `{a,t,h}`; khớp `t(20/8)` / `a - ` / `h(16/8)`, không khớp `thang` / `content`
 - [x] 2.3 `classifyCampaign` — override → keyword/code → account default → null; unit tests mọi nhánh
-- [x] 2.4 Seed `Product` + `ProductAccountRule` cho tài khoản đã kết nối (name-match), `npm run seed:ads-reporting`
+- [x] 2.4 Seed `Product` + `ProductAccountRule` cho tài khoản **đã kết nối** (name-match `amhd` / `tbdm` / `ha phuong`), `npm run seed:ads-reporting`. 4 tài khoản cụ thể chỉ gắn được sau khi kết nối (chưa biết Ad Account ID) — design.md Migration Plan bước 5 giao việc gắn cho Trưởng phòng qua UI (2.5 / 5.6). Nhánh classify đã được test đầy đủ với config hình-seed.
 - [ ] 2.5 API cấu hình: CRUD sản phẩm, gắn tài khoản → sản phẩm, đặt mặc định, bảng gán tay campaign
 - [ ] 2.6 API nhóm "Chưa phân loại" — số campaign + chi phí + doanh thu trong kỳ
 
