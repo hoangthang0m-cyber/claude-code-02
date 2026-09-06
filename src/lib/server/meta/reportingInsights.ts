@@ -77,6 +77,42 @@ async function getAllPages(
   return out
 }
 
+// ── account + campaign metadata (currency, campaign status) ───────────────
+
+// `account_currency` is stamped onto every snapshot (design.md Decision 1); the
+// reused AdAccountConnection model does not carry it, so read it from Meta.
+export async function fetchAdAccountCurrency(
+  adAccountId: string,
+  token: string,
+  fetchImpl: Fetch = fetch
+): Promise<string> {
+  const url = new URL(`${GRAPH}/act_${adAccountId}`)
+  url.searchParams.set("fields", "currency")
+  url.searchParams.set("access_token", token)
+  const json = await graphGet(fetchImpl, url.toString(), "tiền tệ tài khoản")
+  return String(json.currency ?? "")
+}
+
+// campaign_id → effective_status, for stamping campaign_status on snapshots
+// (insights rows do not carry it).
+export async function fetchCampaignStatuses(
+  adAccountId: string,
+  token: string,
+  fetchImpl: Fetch = fetch
+): Promise<Map<string, string>> {
+  const url = new URL(`${GRAPH}/act_${adAccountId}/campaigns`)
+  url.searchParams.set("fields", "id,effective_status")
+  url.searchParams.set("limit", "500")
+  url.searchParams.set("access_token", token)
+  const rows = await getAllPages(fetchImpl, url.toString(), "danh sách campaign")
+  const map = new Map<string, string>()
+  for (const r of rows) {
+    const id = String(r.id ?? "")
+    if (id) map.set(id, String(r.effective_status ?? "UNKNOWN"))
+  }
+  return map
+}
+
 // ── 3.1 campaign × day ────────────────────────────────────────────────────
 
 export interface CampaignDayInsight {

@@ -103,14 +103,14 @@ the account is dropped from the total ("đang gộp N/M tài khoản").
 - [x] 2.5 API cấu hình dưới `/api/ads-reporting/*`: `GET config`, `POST/PATCH/DELETE products`, `PUT account-rules` (đặt cả bộ + mặc định), `POST campaign-overrides` (gán tay / xoá). Manager-only, có test service.
 - [x] 2.6 `GET /api/ads-reporting/unclassified?period=|date=` (hoặc `from`/`to`) — `summarizeUnclassified` thuần (đếm campaign ở tài khoản chưa có rule, Σ chi phí/doanh thu quy đổi tiền tệ, liệt kê tài khoản thiếu tỷ giá). Có unit test + test wrapper.
 
-### 3. Đồng bộ Meta Ads API
-- [ ] 3.1 Client insights `level=campaign` `time_increment=1`; bóc `omni_purchase`
-- [ ] 3.2 Client insights `level=ad` `time_increment=1` + video_* actions
-- [ ] 3.3 Client `reach` cấp kỳ (không cộng dồn ngày), cache theo (ad, kỳ)
-- [ ] 3.4 Job đồng bộ campaign — upsert `[latest - 7d, hôm qua]`
-- [ ] 3.5 Job đồng bộ ad — chỉ `ad_id` có `AdsBinding`; backfill 90 ngày khi mới gắn
-- [ ] 3.6 Backfill 90 ngày cấp campaign khi mới kết nối; re-sync rộng 28 ngày/tuần
-- [ ] 3.7 Không chốt snapshot hôm nay; retry lùi dần; token hỏng → `needs_reconnect`
+### 3. Đồng bộ Meta Ads API — `src/lib/server/meta/reportingInsights.ts` + `src/modules/ads-overview/services/reportSync.server.ts`
+- [x] 3.1 `fetchCampaignInsights` — `level=campaign` `time_increment=1` `time_range`; revenue/purchases từ `omni_purchase`; theo `paging.next`
+- [x] 3.2 `fetchAdInsights` — `level=ad`, lọc theo `ad.id IN [...]` (rỗng → không gọi), thêm `video_plays/video_3s_plays/video_p100_plays`
+- [x] 3.3 `fetchAdReach` + `ReachCache` — 1 truy vấn cả kỳ, không `time_increment`, cache theo (ad, kỳ chính xác)
+- [x] 3.4 `syncCampaignSnapshots` — cửa sổ `[latest_synced_date - 7d, hôm qua]`, upsert theo doc id tất định (chạy 2 lần không trùng), job `/api/jobs/reporting-campaign-sync`
+- [x] 3.5 `syncAdSnapshots` — chỉ `ad_id` trong `AdsBinding` `object_level=ad` `active`; backfill 90 ngày khi binding mới hơn `last_full_sync_at`; job `/api/jobs/reporting-ad-sync`
+- [x] 3.6 Backfill 90 ngày khi chưa có `latest_synced_date`; re-sync rộng 28 ngày nếu `last_full_sync_at` > 7 ngày; `monthChunks` chia request theo tháng
+- [x] 3.7 `until = hôm qua` (không bao giờ hôm nay); `withMetaRetry` lùi dần 3 lần; auth error → `AdAccountConnection.state = needs_reconnect` + `last_result: error`; rate-limit/transient → giữ snapshot cũ + `last_result: warning`. Lịch chạy trong `.github/workflows/scheduled-jobs.yml` (mỗi 2h).
 
 ### 4. API báo cáo sản phẩm
 - [ ] 4.1 API báo cáo theo sản phẩm cho một kỳ + khối tổng + quy đổi tiền tệ
