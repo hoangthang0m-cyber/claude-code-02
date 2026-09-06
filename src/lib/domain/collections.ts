@@ -22,6 +22,16 @@ export const COLLECTIONS = {
   googleConnections: "googleConnections",
   notifications: "notifications",
   notificationPreferences: "notificationPreferences",
+  // ads-overview-reporting change — product-organised Meta Ads reporting.
+  // group 1 tasks 1.1–1.5. All server-written; client read-only.
+  products: "products",
+  productAccountRules: "productAccountRules",
+  campaignProductOverrides: "campaignProductOverrides",
+  adsInsightSnapshots: "adsInsightSnapshots",
+  adCreativeInsightSnapshots: "adCreativeInsightSnapshots",
+  adAccountReportSyncStates: "adAccountReportSyncStates",
+  reportingSettings: "reportingSettings",
+  currencyRates: "currencyRates",
 } as const
 
 export type CollectionId = (typeof COLLECTIONS)[keyof typeof COLLECTIONS]

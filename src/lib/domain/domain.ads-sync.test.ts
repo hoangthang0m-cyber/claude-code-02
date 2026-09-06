@@ -38,6 +38,15 @@ describe("collection registry", () => {
       "googleConnections",
       "notifications",
       "notificationPreferences",
+      // ads-overview-reporting change (group 1)
+      "products",
+      "productAccountRules",
+      "campaignProductOverrides",
+      "adsInsightSnapshots",
+      "adCreativeInsightSnapshots",
+      "adAccountReportSyncStates",
+      "reportingSettings",
+      "currencyRates",
     ])
   })
 })

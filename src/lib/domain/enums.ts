@@ -85,6 +85,12 @@ export const ADS_DELIVERY_STATUSES = [
 ] as const
 export type AdsDeliveryStatus = (typeof ADS_DELIVERY_STATUSES)[number]
 
+// ── Ads-overview reporting (ads-overview-reporting change, group 1) ──────────
+
+// A campaign-day / ad-day snapshot is synced for one of two scopes.
+export const AD_REPORT_SYNC_SCOPES = ["campaign", "ad"] as const
+export type AdReportSyncScope = (typeof AD_REPORT_SYNC_SCOPES)[number]
+
 // ── Sheets sync (SPEC §6.1, group 7.1 task 1.3) ──────────────────────────────
 
 export const SYNC_KINDS = ["sheets", "ads"] as const
