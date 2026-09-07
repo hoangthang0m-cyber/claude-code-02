@@ -39,7 +39,7 @@ type Values = {
   objective: string
   description: string
   scale: string
-  progress_sheet_url: string
+  progress_link_url: string
   retrospective: string
 }
 
@@ -49,7 +49,8 @@ function toValues(project?: Project): Values {
     objective: project?.objective ?? "",
     description: project?.description ?? "",
     scale: project?.scale ?? "",
-    progress_sheet_url: project?.progress_sheet_url ?? "",
+    // create-only: turned into a ReferenceLink server-side
+    progress_link_url: "",
     retrospective: project?.retrospective ?? "",
   }
 }
@@ -185,18 +186,24 @@ export function ProjectFormSheet({
                 </Select>
               </Field>
             )}
-            <Field>
-              <FieldLabel htmlFor="p-sheet">
-                Tiến độ dự án (link Google Sheets)
-              </FieldLabel>
-              <Input
-                id="p-sheet"
-                type="url"
-                placeholder="https://docs.google.com/spreadsheets/d/..."
-                value={values.progress_sheet_url}
-                onChange={set("progress_sheet_url")}
-              />
-            </Field>
+            {mode === "create" && (
+              <Field>
+                <FieldLabel htmlFor="p-progress">
+                  Link tiến độ dự án (Sheets / Docs / URL bất kỳ)
+                </FieldLabel>
+                <Input
+                  id="p-progress"
+                  type="url"
+                  placeholder="https://…"
+                  value={values.progress_link_url}
+                  onChange={set("progress_link_url")}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Lưu thành một tài liệu tham khảo của dự án — hệ thống không đồng
+                  bộ nội dung.
+                </p>
+              </Field>
+            )}
             <Field>
               <FieldLabel htmlFor="p-retro">Đúc kết sau dự án</FieldLabel>
               <Textarea

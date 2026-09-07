@@ -5,10 +5,7 @@ const { fx } = vi.hoisted(() => ({
     memberDocs: [] as Array<Record<string, unknown>>,
     projectExists: true,
     projectData: {} as Record<string, unknown>,
-    mappingRefs: [] as Array<{ id: string }>,
-    batchUpdate: vi.fn(),
-    batchDelete: vi.fn(),
-    batchCommit: vi.fn(),
+    docUpdate: vi.fn(),
   },
 }))
 
@@ -21,6 +18,7 @@ vi.mock("@/lib/server/firebaseAdmin", () => {
           exists: fx.projectExists,
           data: () => fx.projectData,
         }),
+        update: fx.docUpdate,
       }),
       where: () => ref,
       limit: () => ref,
@@ -29,8 +27,7 @@ vi.mock("@/lib/server/firebaseAdmin", () => {
           const docs = fx.memberDocs.map((d) => ({ data: () => d }))
           return { empty: docs.length === 0, docs }
         }
-        const docs = fx.mappingRefs.map((r) => ({ ref: r }))
-        return { empty: docs.length === 0, docs, forEach: (f: (d: unknown) => void) => docs.forEach(f) }
+        return { empty: true, docs: [] }
       },
     }
     return ref
@@ -39,11 +36,6 @@ vi.mock("@/lib/server/firebaseAdmin", () => {
     getAdminAuth: () => ({}),
     getAdminDb: () => ({
       collection: (name: string) => makeCollection(name),
-      batch: () => ({
-        update: fx.batchUpdate,
-        delete: fx.batchDelete,
-        commit: fx.batchCommit,
-      }),
     }),
   }
 })
@@ -57,14 +49,8 @@ const manager: AuthedUser = { uid: "u-mgr", email: null, system_role: "staff" }
 beforeEach(() => {
   fx.memberDocs = [{ project_role: "manager", skill_tag: null }]
   fx.projectExists = true
-  fx.projectData = {
-    lifecycle: "running",
-    progress_sheet_url: "https://old.example/sheet",
-  }
-  fx.mappingRefs = []
-  fx.batchUpdate.mockReset()
-  fx.batchDelete.mockReset()
-  fx.batchCommit.mockReset().mockResolvedValue(undefined)
+  fx.projectData = { lifecycle: "running" }
+  fx.docUpdate.mockReset().mockResolvedValue(undefined)
 })
 
 describe("updateProject (SPEC §5.1 R2)", () => {
@@ -106,31 +92,12 @@ describe("updateProject (SPEC §5.1 R2)", () => {
     const result = await updateProject(manager, "p1", {
       retrospective: "Chốt: giữ 2 concept, dừng concept C",
     })
-    expect(result).toEqual({ id: "p1", sheet_mapping_reset: false })
-    expect(fx.batchCommit).toHaveBeenCalledTimes(1)
+    expect(result).toEqual({ id: "p1" })
+    expect(fx.docUpdate).toHaveBeenCalledTimes(1)
 
-    const [, patch] = fx.batchUpdate.mock.calls[0]
+    const [patch] = fx.docUpdate.mock.calls[0]
     expect(patch.retrospective).toBe("Chốt: giữ 2 concept, dừng concept C")
     expect(patch.updated_by).toBe("u-mgr")
     expect(patch.updated_at).toBeDefined()
-  })
-
-  it("detaches the old sheet mapping when progress_sheet_url changes", async () => {
-    fx.mappingRefs = [{ id: "m1" }, { id: "m2" }]
-    const result = await updateProject(manager, "p1", {
-      progress_sheet_url: "https://new.example/sheet",
-    })
-    expect(result.sheet_mapping_reset).toBe(true)
-    expect(fx.batchDelete).toHaveBeenCalledTimes(2)
-  })
-
-  it("does not touch the mapping when progress_sheet_url is unchanged", async () => {
-    fx.mappingRefs = [{ id: "m1" }]
-    const result = await updateProject(manager, "p1", {
-      progress_sheet_url: "https://old.example/sheet",
-      name: "Đổi tên thôi",
-    })
-    expect(result.sheet_mapping_reset).toBe(false)
-    expect(fx.batchDelete).not.toHaveBeenCalled()
   })
 })

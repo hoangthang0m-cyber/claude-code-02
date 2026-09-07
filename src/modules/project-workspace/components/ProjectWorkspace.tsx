@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { ArrowLeftIcon, ExternalLinkIcon, PencilIcon } from "lucide-react"
+import { ArrowLeftIcon, PencilIcon } from "lucide-react"
 
 import {
   PROJECT_LIFECYCLE_LABELS,
@@ -14,7 +14,7 @@ import { DeleteProjectControl } from "@/modules/project-workspace/components/Del
 import { LifecycleControl } from "@/modules/project-workspace/components/LifecycleControl"
 import { ProjectFormSheet } from "@/modules/project-workspace/components/ProjectFormSheet"
 import { ProjectMembersPanel } from "@/modules/project-workspace/components/ProjectMembersPanel"
-import { SheetSyncPanel } from "@/modules/sheets-sync/components/SheetSyncPanel"
+import { ReferenceLinksPanel } from "@/modules/reference-links/components/ReferenceLinksPanel"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -79,24 +79,15 @@ export function ProjectWorkspace({ projectId }: { projectId: string }) {
         {project.retrospective && (
           <Info label="Đúc kết" value={project.retrospective} />
         )}
-        {project.progress_sheet_url && (
-          <div className="flex flex-col gap-0.5">
-            <dt className="text-xs text-muted-foreground">Tiến độ (Sheets)</dt>
-            <dd>
-              <a
-                href={project.progress_sheet_url}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-1 text-primary hover:underline"
-              >
-                Mở Google Sheet <ExternalLinkIcon className="size-3.5" />
-              </a>
-            </dd>
-          </div>
-        )}
       </dl>
 
       <LifecycleControl project={project} canManage={Boolean(isManager)} />
+
+      <ReferenceLinksPanel
+        ownerType="project"
+        ownerId={projectId}
+        title="Tài liệu tham khảo"
+      />
 
       <ContentTable
         projectId={projectId}
@@ -105,8 +96,6 @@ export function ProjectWorkspace({ projectId }: { projectId: string }) {
       />
 
       <ProjectMembersPanel projectId={projectId} canManage={canEdit} />
-
-      {canEdit && <SheetSyncPanel projectId={projectId} />}
 
       {isManager && (
         <DeleteProjectControl projectId={projectId} projectName={project.name} />

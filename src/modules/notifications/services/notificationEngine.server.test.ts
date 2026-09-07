@@ -127,16 +127,6 @@ describe("notificationRecipients — SPEC §5.7 R1 event → recipient table", (
     ).toEqual(["u2", "u3"])
   })
 
-  it("sync_issue → the project managers", async () => {
-    expect(
-      await recipients({
-        project_id: "p1",
-        type: "sync_issue",
-        actor_id: null,
-        message: "lỗi",
-      })
-    ).toEqual(["mgr-a", "mgr-b"])
-  })
 })
 
 describe("emitNotifications — never notify the person who caused it", () => {
@@ -260,16 +250,5 @@ describe("notificationMessage", () => {
     expect(
       notificationMessage({ ...base, type: "ads_stopped", actor_id: null, delivery_status: "completed" })
     ).toBe("Ads của hạng mục V001 đã hoàn tất")
-  })
-
-  it("passes a sync_issue message through unchanged", () => {
-    expect(
-      notificationMessage({
-        project_id: "p1",
-        type: "sync_issue",
-        actor_id: null,
-        message: "Mất quyền truy cập Google Sheet",
-      })
-    ).toBe("Mất quyền truy cập Google Sheet")
   })
 })

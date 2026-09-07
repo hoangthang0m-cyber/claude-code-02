@@ -18,7 +18,7 @@ import {
 import { AdsReportCell } from "@/modules/ads-performance/components/AdsReportCell"
 import { ContentStatusBadge } from "@/modules/content-pipeline/components/ContentStatusBadge"
 import { OverdueBadge } from "@/modules/content-pipeline/components/OverdueBadge"
-import { Badge } from "@/components/ui/badge"
+import { ReferenceLinksCell } from "@/modules/reference-links/components/ReferenceLinksCell"
 import { Input } from "@/components/ui/input"
 import {
   Select,
@@ -120,14 +120,6 @@ export function ContentRow({
         <div className="flex flex-wrap items-center gap-1.5">
           <span>{item.code}</span>
           <OverdueBadge overdue={item.is_overdue} />
-          {item.sheet_unlinked_at && (
-            <Badge
-              variant="outline"
-              className="shrink-0 text-[10px] text-muted-foreground"
-            >
-              Mất liên kết sheet
-            </Badge>
-          )}
         </div>
       </TableCell>
 
@@ -232,18 +224,26 @@ export function ContentRow({
         onSave={(v) => patch("customer_research_url", v)}
       />
 
-      {/* Ads report — current AdsMetric, read-only (SPEC §5.4 R3, task 5.10) */}
+      {/* Ads report — Meta figure (read-only) + hand-typed note beside it
+          (campaign-page-reference-links task 6.1 / 6.3) */}
       <TableCell className="min-w-44 align-top">
-        <AdsReportCell metric={item.ads_metric} />
-        {canEvaluate && item.has_ads_binding === true && (
-          <button
-            type="button"
-            onClick={openComparison}
-            className="mt-1 inline-block text-xs text-primary hover:underline"
-          >
-            Xem hiệu quả
-          </button>
-        )}
+        <div className="flex flex-col gap-1">
+          <AdsReportCell metric={item.ads_metric} />
+          {canEvaluate && item.has_ads_binding === true && (
+            <button
+              type="button"
+              onClick={openComparison}
+              className="inline-block self-start text-xs text-primary hover:underline"
+            >
+              Xem hiệu quả
+            </button>
+          )}
+          <AdsNoteEditor
+            value={item.ads_report_note as string | undefined}
+            editable={canEvaluate}
+            onSave={(v) => patch("ads_report_note", v)}
+          />
+        </div>
       </TableCell>
 
       {/* Evaluation — manager-only free-text note (SPEC §5.4 R5) */}
@@ -253,7 +253,49 @@ export function ContentRow({
         placeholder="Đánh giá / đề xuất"
         onSave={saveEvaluation}
       />
+
+      {/* Tài liệu — reference links (campaign-page-reference-links task 4.4) */}
+      <TableCell className="align-top">
+        <ReferenceLinksCell
+          contentItemId={item.id}
+          code={item.code}
+          count={
+            typeof item.reference_link_count === "number"
+              ? item.reference_link_count
+              : 0
+          }
+        />
+      </TableCell>
     </TableRow>
+  )
+}
+
+// campaign-page-reference-links task 6.3: a free-text ads note, hand-typed,
+// shown next to (never merged into) the Meta figure.
+function AdsNoteEditor({
+  value,
+  editable,
+  onSave,
+}: {
+  value?: string
+  editable: boolean
+  onSave: (v: string | null) => void
+}) {
+  const [v, setV] = React.useState(value ?? "")
+  if (!editable && !value) return null
+  return (
+    <textarea
+      className="min-h-8 w-full resize-y rounded border bg-transparent px-1.5 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-70"
+      disabled={!editable}
+      placeholder="Ghi chú ads (nhập tay)"
+      rows={2}
+      value={v}
+      onChange={(e) => setV(e.target.value)}
+      onBlur={() => {
+        const t = v.trim()
+        if (t !== (value ?? "")) onSave(t || null)
+      }}
+    />
   )
 }
 

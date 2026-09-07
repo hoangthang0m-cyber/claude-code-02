@@ -14,16 +14,12 @@ export const COLLECTIONS = {
   adAccountConnections: "adAccountConnections",
   adsBindings: "adsBindings",
   adsMetrics: "adsMetrics",
-  sheetSyncMappings: "sheetSyncMappings",
-  syncRuns: "syncRuns",
-  syncConflicts: "syncConflicts",
-  // group 7.6 task 6.1 — Google refresh token per manager (SPEC §6.3; not in
-  // the §6.1 sketch, which has no store for it)
-  googleConnections: "googleConnections",
   notifications: "notifications",
   notificationPreferences: "notificationPreferences",
   // project-grouping change task 1.1 — folder-style grouping over Project
   projectGroups: "projectGroups",
+  // campaign-page-reference-links — labelled links on a project / content item
+  referenceLinks: "referenceLinks",
   // ads-overview-reporting change — product-organised Meta Ads reporting.
   // group 1 tasks 1.1–1.5. All server-written; client read-only.
   products: "products",

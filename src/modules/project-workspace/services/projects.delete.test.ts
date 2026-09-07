@@ -82,9 +82,6 @@ beforeEach(() => {
     comments: [["cm1", {}]],
     adsBindings: [["ab1", {}]],
     adsMetrics: [["am1", {}], ["am2", {}]],
-    sheetSyncMappings: [["p1", {}]],
-    syncRuns: [["sr1", {}]],
-    syncConflicts: [["sc1", {}]],
     notifications: [["n1", {}]],
   }
   batchDelete.mockReset()
@@ -131,14 +128,13 @@ describe("deleteProject", () => {
     const paths = deletedPaths()
 
     // project doc + 2 items + 2 members + 3 history + 1 comment + 1 binding +
-    // 2 metrics + 1 mapping + 1 run + 1 conflict + 1 notification = 16
-    expect(r.docs_deleted).toBe(16)
+    // 2 metrics + 1 notification = 13
+    expect(r.docs_deleted).toBe(13)
     expect(paths).toContain("projects/p1")
     expect(paths).toContain("contentItems/c1")
     expect(paths).toContain("projectMembers/p1__u2")
     expect(paths).toContain("statusHistory/h2")
     expect(paths).toContain("adsMetrics/am1")
-    expect(paths).toContain("sheetSyncMappings/p1")
 
     // the project doc is deleted LAST (retryable on partial failure)
     expect(paths[paths.length - 1]).toBe("projects/p1")
