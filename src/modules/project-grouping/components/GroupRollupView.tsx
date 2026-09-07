@@ -5,9 +5,10 @@ import Link from "next/link"
 import { ArrowLeftIcon } from "lucide-react"
 import { toast } from "sonner"
 
-import { COMPARED_METRICS, COMPARED_METRIC_LABELS } from "@/lib/domain"
+import { COMPARED_METRICS, COMPARED_METRIC_LABELS, groupNeedsObjective } from "@/lib/domain"
 import { downloadCsv } from "@/modules/analytics/services/analytics.client"
 import type { ReportKind } from "@/modules/analytics/services/analytics.client"
+import { useProjectGroup } from "@/modules/project-grouping/hooks/useProjectGroup"
 import {
   getGroupComparison,
   getGroupDashboard,
@@ -53,6 +54,7 @@ const pct = (p: number | null) =>
 const ARROW = { up: "▲", down: "▼", flat: "–" } as const
 
 export function GroupRollupView({ groupId }: { groupId: string }) {
+  const { group } = useProjectGroup(groupId)
   const [dash, setDash] = React.useState<GroupDashboardResult | null>(null)
   const [error, setError] = React.useState<string | null>(null)
 
@@ -129,6 +131,12 @@ export function GroupRollupView({ groupId }: { groupId: string }) {
       </div>
 
       {error && <p className="text-sm text-destructive">{error}</p>}
+
+      {group && groupNeedsObjective(group) && (
+        <p className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-700 dark:text-amber-400">
+          Nhóm này chưa có mục tiêu — bấm “Sửa nhóm” ở danh sách dự án để bổ sung.
+        </p>
+      )}
 
       {/* stat cards (task 5.6) */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">

@@ -44,7 +44,8 @@ không** là Dự án: không link tiến độ đồng bộ, không đúc kết
 - [x] 2.2 `ProjectGroupFormSheet` — form tạo/sửa (Sheet) với tên, mục tiêu, mô
       tả chi tiết, quy mô thời gian (chữ), ngày kết thúc dự kiến, ngân sách +
       đơn vị. Thay `window.prompt` trong `GroupedProjectList` (tạo + "Sửa nhóm").
-- [ ] 2.3 Nhắc "bổ sung mục tiêu" trên trang tổng hợp cho nhóm cũ
+- [x] 2.3 `useProjectGroup(groupId)` hook + banner amber "chưa có mục tiêu" trên
+      `GroupRollupView` khi `groupNeedsObjective(group)`; không chặn gì.
 
 ### 3. Trang tổng hợp Nhóm
 - [ ] 3.1 Khối "Thông tin nhóm" ở đầu trang
