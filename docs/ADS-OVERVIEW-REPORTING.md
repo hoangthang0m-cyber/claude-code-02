@@ -138,5 +138,11 @@ the account is dropped from the total ("đang gộp N/M tài khoản").
 - [x] 6.7 Binding có nhưng chưa có snapshot → `status: "pending"` → hiển thị "đang lấy số liệu…".
 - [x] 6.8 `?format=csv` trên cùng route → CSV (BOM UTF-8), mỗi video một dòng, các chỉ số đang hiển thị.
 
-### 7. Kiểm thử & xác minh tích hợp
-- [ ] 7.1–7.7 (phân loại, cộng dồn, cửa sổ quy đổi, đa tiền tệ, bảng so sánh, phân quyền, E2E thủ công)
+### 7. Kiểm thử & xác minh tích hợp — `adsOverview.integration.test.ts`
+- [x] 7.1 Phân loại qua cả 4 tài khoản seed (mã / keyword `hmdc` / mặc định tài khoản / gán tay / tài khoản chưa cấu hình → "Chưa phân loại"); đổi cấu hình (gán tay campaign) → phân loại lại ngay ở lần đọc kế tiếp.
+- [x] 7.2 `report.total` = Σ `report.products` = chỉ campaign đã phân loại; "Chưa phân loại" tách riêng, khớp `getUnclassifiedGroup`.
+- [x] 7.3 Cửa sổ quy đổi: `syncCampaignSnapshots` chạy lại, Meta sửa số liệu 1 ngày quá khứ trong `[latest−7d, hôm qua]` → snapshot upsert → `getProductReport` phản ánh giá trị mới.
+- [x] 7.4 Đa tiền tệ: tài khoản USD có tỷ giá → quy đổi; tài khoản EUR không tỷ giá → loại khỏi tổng + `accounts_missing_rate` + `freshness.accounts_merged` = 3/4.
+- [x] 7.5 So sánh video: 1 hạng mục gắn 2 ad → cộng trước rồi tính hook 60% / retention 25% / ROAS / CPP; chặn video thứ 7 (400); chỉ trả cột chỉ số phụ được yêu cầu.
+- [x] 7.6 Phân quyền: staff bị 403 ở `getProductReport` / `getProductConfig` / `getVideoComparison`.
+- [ ] 7.7 E2E thủ công — checklist ở `docs/E2E-ADS-OVERVIEW-REPORTING.md` (cần 4 tài khoản Meta thật + phiên Trưởng phòng; chưa chạy).
