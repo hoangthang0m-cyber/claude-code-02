@@ -223,6 +223,16 @@ describe("contentFieldUpdateSchema (SPEC §5.2 R1)", () => {
     ).toBe(true)
   })
 
+  it("accepts a free-text ads_report_note, including clearing it to null", () => {
+    expect(
+      contentFieldUpdateSchema.safeParse({ ads_report_note: "ROAS tốt, giữ ngân sách" })
+        .success
+    ).toBe(true)
+    expect(
+      contentFieldUpdateSchema.safeParse({ ads_report_note: null }).success
+    ).toBe(true)
+  })
+
   it("rejects a content_format outside the enum", () => {
     expect(
       contentFieldUpdateSchema.safeParse({ content_format: "tiktok" }).success
