@@ -41,7 +41,9 @@ không** là Dự án: không link tiến độ đồng bộ, không đúc kết
 ### 2. Form và API Nhóm
 - [x] 2.1 API tạo/sửa nhận thêm các trường (spread qua schema đã parse);
       manager-only sẵn có; server test cho update path + cặp ngân sách.
-- [ ] 2.2 `ProjectGroupFormSheet` — form tạo/sửa với các trường mới
+- [x] 2.2 `ProjectGroupFormSheet` — form tạo/sửa (Sheet) với tên, mục tiêu, mô
+      tả chi tiết, quy mô thời gian (chữ), ngày kết thúc dự kiến, ngân sách +
+      đơn vị. Thay `window.prompt` trong `GroupedProjectList` (tạo + "Sửa nhóm").
 - [ ] 2.3 Nhắc "bổ sung mục tiêu" trên trang tổng hợp cho nhóm cũ
 
 ### 3. Trang tổng hợp Nhóm
