@@ -217,6 +217,37 @@ describe("updateProjectGroup (project-grouping task 2.2)", () => {
     const [patch] = docUpdate.mock.calls[0]
     expect(patch).toEqual({ name: "Chỉ tên" })
   })
+
+  // project-group-fields task 2.1 — the new fields flow through the edit path.
+  it("persists the new group fields (objective / time scope / target date / budget)", async () => {
+    await updateProjectGroup(manager, "g1", {
+      objective: "  Đẩy ROAS lên 2.0  ",
+      time_scope_text: "Quý 4/2026",
+      target_end_date: "2026-12-31",
+      budget_amount: 80_000_000,
+      budget_currency: "vnd",
+    })
+    expect(docUpdate).toHaveBeenCalledWith({
+      objective: "Đẩy ROAS lên 2.0",
+      time_scope_text: "Quý 4/2026",
+      target_end_date: "2026-12-31",
+      budget_amount: 80_000_000,
+      budget_currency: "VND",
+    })
+  })
+
+  it("rejects a budget amount without a currency on edit (400)", async () => {
+    await expect(
+      updateProjectGroup(manager, "g1", { budget_amount: 5_000_000 })
+    ).rejects.toMatchObject({ status: 400 })
+    expect(docUpdate).not.toHaveBeenCalled()
+  })
+
+  it("lets a manager add an objective to a legacy group", async () => {
+    fx.groups = { legacy: { name: "Nhóm cũ", lifecycle: "active" } }
+    await updateProjectGroup(manager, "legacy", { objective: "Mục tiêu bổ sung" })
+    expect(docUpdate).toHaveBeenCalledWith({ objective: "Mục tiêu bổ sung" })
+  })
 })
 
 describe("setProjectGroupLifecycle (project-grouping task 2.3)", () => {

@@ -39,7 +39,8 @@ không** là Dự án: không link tiến độ đồng bộ, không đúc kết
       `parseOrThrow(projectGroupCreateSchema)`); server test.
 
 ### 2. Form và API Nhóm
-- [ ] 2.1 API tạo/sửa nhận thêm các trường; manager-only; verify
+- [x] 2.1 API tạo/sửa nhận thêm các trường (spread qua schema đã parse);
+      manager-only sẵn có; server test cho update path + cặp ngân sách.
 - [ ] 2.2 `ProjectGroupFormSheet` — form tạo/sửa với các trường mới
 - [ ] 2.3 Nhắc "bổ sung mục tiêu" trên trang tổng hợp cho nhóm cũ
 
