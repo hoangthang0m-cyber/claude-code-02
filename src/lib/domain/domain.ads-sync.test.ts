@@ -21,7 +21,7 @@ import {
 // reject a bad enum or a missing required field.
 
 describe("collection registry", () => {
-  it("includes the task 1.3 collections plus googleConnections (task 6.1)", () => {
+  it("includes the task 1.3 collections", () => {
     expect(Object.keys(COLLECTIONS)).toEqual([
       "users",
       "projects",
@@ -35,7 +35,6 @@ describe("collection registry", () => {
       "sheetSyncMappings",
       "syncRuns",
       "syncConflicts",
-      "googleConnections",
       "notifications",
       "notificationPreferences",
       "projectGroups",

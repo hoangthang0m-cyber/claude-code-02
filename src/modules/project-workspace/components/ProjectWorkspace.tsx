@@ -14,7 +14,6 @@ import { DeleteProjectControl } from "@/modules/project-workspace/components/Del
 import { LifecycleControl } from "@/modules/project-workspace/components/LifecycleControl"
 import { ProjectFormSheet } from "@/modules/project-workspace/components/ProjectFormSheet"
 import { ProjectMembersPanel } from "@/modules/project-workspace/components/ProjectMembersPanel"
-import { SheetSyncPanel } from "@/modules/sheets-sync/components/SheetSyncPanel"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -105,8 +104,6 @@ export function ProjectWorkspace({ projectId }: { projectId: string }) {
       />
 
       <ProjectMembersPanel projectId={projectId} canManage={canEdit} />
-
-      {canEdit && <SheetSyncPanel projectId={projectId} />}
 
       {isManager && (
         <DeleteProjectControl projectId={projectId} projectName={project.name} />
