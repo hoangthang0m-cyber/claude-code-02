@@ -5,7 +5,15 @@ import Link from "next/link"
 import { ArrowLeftIcon } from "lucide-react"
 import { toast } from "sonner"
 
-import { COMPARED_METRICS, COMPARED_METRIC_LABELS, groupNeedsObjective } from "@/lib/domain"
+import {
+  ACTUAL_COST_CURRENCY,
+  COMPARED_METRICS,
+  COMPARED_METRIC_LABELS,
+  computeGroupBudgetReconciliation,
+  computeGroupTimeStatus,
+  groupNeedsObjective,
+} from "@/lib/domain"
+import { formatMoney } from "@/utils/format"
 import { downloadCsv } from "@/modules/analytics/services/analytics.client"
 import type { ReportKind } from "@/modules/analytics/services/analytics.client"
 import { useProjectGroup } from "@/modules/project-grouping/hooks/useProjectGroup"
@@ -53,6 +61,31 @@ const pct = (p: number | null) =>
   p == null ? "—" : `${p > 0 ? "+" : ""}${Math.round(p * 1000) / 10}%`
 const ARROW = { up: "▲", down: "▼", flat: "–" } as const
 
+// task 3.5 — a human label for the period the numbers cover, from the report's
+// own `start_date` (avoids the +07 boundary issues of the raw ms).
+function periodLabel(kind: string, startDate: string): string {
+  const [y, m, d] = startDate.split("-").map(Number)
+  if (!y || !m || !d) return startDate
+  if (kind === "month") return `tháng ${m}/${y}`
+  const start = new Date(Date.UTC(y, m - 1, d))
+  const end = new Date(start.getTime() + 6 * 86_400_000)
+  const dm = (x: Date) =>
+    `${String(x.getUTCDate()).padStart(2, "0")}/${String(
+      x.getUTCMonth() + 1
+    ).padStart(2, "0")}`
+  return `tuần ${dm(start)}–${dm(end)}/${end.getUTCFullYear()}`
+}
+
+function Info({ label, value }: { label: string; value?: string }) {
+  if (!value) return null
+  return (
+    <div className="flex flex-col gap-0.5">
+      <dt className="text-xs text-muted-foreground">{label}</dt>
+      <dd className="text-sm whitespace-pre-wrap">{value}</dd>
+    </div>
+  )
+}
+
 export function GroupRollupView({ groupId }: { groupId: string }) {
   const { group } = useProjectGroup(groupId)
   const [dash, setDash] = React.useState<GroupDashboardResult | null>(null)
@@ -63,6 +96,8 @@ export function GroupRollupView({ groupId }: { groupId: string }) {
     new Date().toISOString().slice(0, 10)
   )
   const [compare, setCompare] = React.useState(false)
+  // one clock read at mount — the time status is day-granular (task 3.6)
+  const [nowMs] = React.useState(() => Date.now())
 
   const key = `${kind}|${date}|${compare}`
   const [report, setReport] = React.useState<{
@@ -109,6 +144,27 @@ export function GroupRollupView({ groupId }: { groupId: string }) {
     }
   }
 
+  const period = meta?.period
+  const scopeLabel = period ? periodLabel(period.kind, period.start_date) : null
+  const actualSpend = cur?.total_spend ?? 0
+  const recon = group
+    ? computeGroupBudgetReconciliation({
+        budgetAmount: group.budget_amount,
+        budgetCurrency: group.budget_currency,
+        actualSpend,
+      })
+    : null
+  const timeStatus = group
+    ? computeGroupTimeStatus(group.target_end_date, nowMs)
+    : null
+  const hasGroupInfo =
+    !!group &&
+    (!!group.objective ||
+      !!group.description ||
+      !!group.time_scope_text ||
+      !!group.target_end_date ||
+      group.budget_amount != null)
+
   return (
     <div className="flex flex-col gap-5">
       <div className="flex flex-col gap-1">
@@ -138,6 +194,158 @@ export function GroupRollupView({ groupId }: { groupId: string }) {
         </p>
       )}
 
+      {/* period selector — drives both the info blocks below and the report */}
+      <div className="flex flex-wrap items-center gap-2">
+        <Select
+          value={kind}
+          onValueChange={(v) => v && setKind(v as ReportKind)}
+        >
+          <SelectTrigger size="sm" className="w-28">
+            <SelectValue>{kind === "month" ? "Tháng" : "Tuần"}</SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="week">Tuần</SelectItem>
+            <SelectItem value="month">Tháng</SelectItem>
+          </SelectContent>
+        </Select>
+        <Input
+          type="date"
+          className="h-8 w-40"
+          value={date}
+          onChange={(e) => setDate(e.target.value)}
+        />
+      </div>
+
+      {/* "Thông tin nhóm" (task 3.1) */}
+      {hasGroupInfo && group && (
+        <Card size="sm" className="gap-3 p-4">
+          <span className="text-sm font-semibold">Thông tin nhóm</span>
+          <dl className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <Info label="Mục tiêu" value={group.objective} />
+            <Info label="Mô tả chi tiết" value={group.description} />
+            <Info label="Quy mô thời gian" value={group.time_scope_text} />
+            <Info
+              label="Ngày kết thúc dự kiến"
+              value={
+                group.target_end_date
+                  ? new Date(
+                      `${group.target_end_date}T00:00:00Z`
+                    ).toLocaleDateString("vi-VN")
+                  : undefined
+              }
+            />
+            <Info
+              label="Ngân sách dự kiến"
+              value={
+                group.budget_amount != null
+                  ? formatMoney(
+                      group.budget_amount,
+                      group.budget_currency ?? "VND"
+                    )
+                  : undefined
+              }
+            />
+          </dl>
+        </Card>
+      )}
+
+      {/* "Ngân sách & tiến độ thời gian" (tasks 3.2–3.6) */}
+      {group && (
+        <Card size="sm" className="gap-3 p-4">
+          <span className="text-sm font-semibold">
+            Ngân sách &amp; tiến độ thời gian
+          </span>
+
+          <div className="flex flex-col gap-1 text-sm">
+            <div className="flex flex-wrap items-baseline gap-x-2">
+              <span className="text-muted-foreground">
+                Chi phí thực tế{scopeLabel ? ` (${scopeLabel})` : ""}:
+              </span>
+              <span className="font-medium">
+                {loading || !cur
+                  ? "—"
+                  : formatMoney(actualSpend, ACTUAL_COST_CURRENCY)}
+              </span>
+            </div>
+
+            {recon && recon.state === "no_budget" && (
+              <p className="text-xs text-muted-foreground">
+                Nhóm chưa đặt ngân sách dự kiến.
+              </p>
+            )}
+
+            {recon &&
+              (recon.state === "within" || recon.state === "over") && (
+                <>
+                  <div className="flex flex-wrap items-baseline gap-x-2">
+                    <span className="text-muted-foreground">
+                      Ngân sách dự kiến:
+                    </span>
+                    <span className="font-medium">
+                      {formatMoney(recon.budget_amount, recon.budget_currency)}
+                    </span>
+                  </div>
+                  <p
+                    className={
+                      recon.state === "over"
+                        ? "text-destructive"
+                        : "text-muted-foreground"
+                    }
+                  >
+                    Đã dùng {Math.round(recon.percent_used * 100)}% ngân sách
+                    {scopeLabel ? ` (chi phí trong ${scopeLabel})` : ""}
+                    {recon.state === "over" && (
+                      <> — vượt {formatMoney(recon.over_amount, recon.budget_currency)}</>
+                    )}
+                  </p>
+                </>
+              )}
+
+            {recon && recon.state === "currency_mismatch" && (
+              <>
+                <div className="flex flex-wrap items-baseline gap-x-2">
+                  <span className="text-muted-foreground">
+                    Ngân sách dự kiến:
+                  </span>
+                  <span className="font-medium">
+                    {formatMoney(recon.budget_amount, recon.budget_currency)}
+                  </span>
+                </div>
+                <p className="text-xs text-amber-700 dark:text-amber-400">
+                  Ngân sách ({recon.budget_currency}) và chi phí thực tế (
+                  {recon.spend_currency}) khác đơn vị tiền tệ — không so sánh
+                  trực tiếp được.
+                </p>
+              </>
+            )}
+
+            {timeStatus && (
+              <div className="flex flex-wrap items-baseline gap-x-2 pt-1">
+                <span className="text-muted-foreground">
+                  Tình trạng thời gian:
+                </span>
+                <span
+                  className={
+                    timeStatus.state === "overdue"
+                      ? "font-medium text-destructive"
+                      : timeStatus.state === "due_soon"
+                        ? "font-medium text-amber-700 dark:text-amber-400"
+                        : "font-medium"
+                  }
+                >
+                  {timeStatus.state === "on_track" &&
+                    `Đang trong hạn — còn ${timeStatus.days_left} ngày`}
+                  {timeStatus.state === "due_soon" &&
+                    `Sắp hết hạn — còn ${timeStatus.days_left} ngày`}
+                  {timeStatus.state === "overdue" &&
+                    `Quá hạn ${timeStatus.days_over} ngày`}
+                </span>
+              </div>
+            )}
+          </div>
+        </Card>
+      )}
+
       {/* stat cards (task 5.6) */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
         {CARDS.map(([k, label]) => (
@@ -163,21 +371,10 @@ export function GroupRollupView({ groupId }: { groupId: string }) {
       {/* weekly/monthly report (task 5.6) */}
       <section className="flex flex-col gap-3">
         <div className="flex flex-wrap items-center gap-2">
-          <Select value={kind} onValueChange={(v) => v && setKind(v as ReportKind)}>
-            <SelectTrigger size="sm" className="w-28">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="week">Tuần</SelectItem>
-              <SelectItem value="month">Tháng</SelectItem>
-            </SelectContent>
-          </Select>
-          <Input
-            type="date"
-            className="h-8 w-40"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-          />
+          <span className="text-sm font-semibold">
+            Báo cáo {kind === "month" ? "tháng" : "tuần"}
+            {scopeLabel ? ` — ${scopeLabel}` : ""}
+          </span>
           <label className="flex items-center gap-1.5 text-sm">
             <Checkbox
               checked={compare}

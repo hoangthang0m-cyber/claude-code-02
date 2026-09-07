@@ -48,12 +48,17 @@ không** là Dự án: không link tiến độ đồng bộ, không đúc kết
       `GroupRollupView` khi `groupNeedsObjective(group)`; không chặn gì.
 
 ### 3. Trang tổng hợp Nhóm
-- [ ] 3.1 Khối "Thông tin nhóm" ở đầu trang
-- [ ] 3.2 Chi phí thực tế = `report.total_spend` của khoảng đang xem
-- [ ] 3.3 Đối chiếu ngân sách: % + cảnh báo vượt + số tiền vượt; ẩn khi chưa đặt
-- [ ] 3.4 Khác đơn vị tiền tệ → 2 số riêng + ghi chú
-- [ ] 3.5 Nhãn khoảng thời gian cạnh con số
-- [ ] 3.6 Tình trạng thời gian computed từ `target_end_date`
+- [x] 3.1 Khối "Thông tin nhóm" (Card) ở đầu trang — mục tiêu, mô tả, quy mô
+      thời gian, ngày kết thúc, ngân sách; ẩn field chưa nhập.
+- [x] 3.2 Chi phí thực tế = `cur.total_spend` (roll-up report) của kỳ đang xem;
+      selector kỳ (tuần/tháng + ngày) chuyển lên đầu, điều khiển cả block + báo cáo.
+- [x] 3.3 `computeGroupBudgetReconciliation` — % đã dùng, cảnh báo vượt + số
+      tiền vượt (destructive); state `no_budget` ẩn phần ngân sách.
+- [x] 3.4 State `currency_mismatch` → 2 số riêng + ghi chú amber.
+- [x] 3.5 `periodLabel(kind, start_date)` cạnh chi phí + cạnh dòng "% ngân sách"
+      + tiêu đề block báo cáo.
+- [x] 3.6 `computeGroupTimeStatus(target_end_date, nowMs, 7)` — on_track /
+      due_soon (≤7 ngày, amber) / overdue (destructive); ẩn khi không có ngày.
 
 ### 4. Kiểm thử & xác minh tích hợp
 - [ ] 4.1 Tạo/sửa: đủ trường, thiếu mục tiêu bị chặn, không ngày kết thúc, Nhân sự bị chặn
