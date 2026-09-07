@@ -40,6 +40,22 @@ import {
 
 type Mode = PeriodKind | "range"
 
+const MODE_LABELS: Record<Mode, string> = {
+  week: "Tuần",
+  month: "Tháng",
+  range: "Khoảng ngày",
+}
+const CHART_METRIC_LABELS: Record<"spend" | "revenue" | "roas", string> = {
+  spend: "Chi phí",
+  revenue: "Doanh thu",
+  roas: "ROAS",
+}
+const BUCKET_LABELS: Record<Granularity, string> = {
+  day: "Ngày",
+  week: "Tuần",
+  month: "Tháng",
+}
+
 const money = (n: number, currency: string) =>
   new Intl.NumberFormat("vi-VN", {
     style: "currency",
@@ -137,8 +153,8 @@ export function AdsOverviewView() {
       {/* controls */}
       <div className="flex flex-wrap items-center gap-2">
         <Select value={mode} onValueChange={(v) => v && setMode(v as Mode)}>
-          <SelectTrigger size="sm" className="w-32">
-            <SelectValue />
+          <SelectTrigger size="sm" className="w-36">
+            <SelectValue>{MODE_LABELS[mode]}</SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="week">Tuần</SelectItem>
@@ -281,7 +297,7 @@ export function AdsOverviewView() {
                 }
               >
                 <SelectTrigger size="sm" className="w-32">
-                  <SelectValue />
+                  <SelectValue>{CHART_METRIC_LABELS[chartMetric]}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="spend">Chi phí</SelectItem>
@@ -294,7 +310,7 @@ export function AdsOverviewView() {
                 onValueChange={(v) => v && setBucket(v as Granularity)}
               >
                 <SelectTrigger size="sm" className="w-28">
-                  <SelectValue />
+                  <SelectValue>{BUCKET_LABELS[bucket]}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="day">Ngày</SelectItem>
@@ -307,7 +323,12 @@ export function AdsOverviewView() {
                 onValueChange={(v) => setFocus(!v || v === "all" ? "" : v)}
               >
                 <SelectTrigger size="sm" className="w-44">
-                  <SelectValue />
+                  <SelectValue>
+                    {focus
+                      ? (report.products.find((p) => p.product_id === focus)?.name ??
+                        focus)
+                      : "Cả 3 sản phẩm"}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Cả 3 sản phẩm</SelectItem>

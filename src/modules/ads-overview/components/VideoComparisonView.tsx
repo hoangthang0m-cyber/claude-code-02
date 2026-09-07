@@ -63,6 +63,17 @@ const LINE_COLORS = [
 
 type Mode = PeriodKind | "range"
 
+const MODE_LABELS: Record<Mode, string> = {
+  week: "Tuần",
+  month: "Tháng",
+  range: "Khoảng ngày",
+}
+const BUCKET_LABELS: Record<Granularity, string> = {
+  day: "Ngày",
+  week: "Tuần",
+  month: "Tháng",
+}
+
 function fmt(metric: string, v: number | null): string {
   if (v == null) return "—"
   if (metric === "hook_rate" || metric === "retention_rate" || metric === "ctr") {
@@ -211,8 +222,8 @@ export function VideoComparisonView() {
       {/* controls */}
       <div className="flex flex-wrap items-center gap-2">
         <Select value={mode} onValueChange={(v) => v && setMode(v as Mode)}>
-          <SelectTrigger size="sm" className="w-32">
-            <SelectValue />
+          <SelectTrigger size="sm" className="w-36">
+            <SelectValue>{MODE_LABELS[mode]}</SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="week">Tuần</SelectItem>
@@ -319,7 +330,9 @@ export function VideoComparisonView() {
               <span className="text-sm font-medium">Diễn biến</span>
               <Select value={chartMetric} onValueChange={(v) => v && setChartMetric(v)}>
                 <SelectTrigger size="sm" className="w-44">
-                  <SelectValue />
+                  <SelectValue>
+                    {VIDEO_METRIC_LABELS[chartMetric] ?? chartMetric}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {[...VIDEO_CORE_METRICS, "ctr", "spend", "purchases", "impressions"].map(
@@ -333,7 +346,7 @@ export function VideoComparisonView() {
               </Select>
               <Select value={bucket} onValueChange={(v) => v && setBucket(v as Granularity)}>
                 <SelectTrigger size="sm" className="w-28">
-                  <SelectValue />
+                  <SelectValue>{BUCKET_LABELS[bucket]}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="day">Ngày</SelectItem>
