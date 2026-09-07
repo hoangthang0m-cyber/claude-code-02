@@ -10,20 +10,47 @@ import { describe, expect, it } from "vitest"
 
 const SRC = join(process.cwd(), "src")
 
+// A `.ts` / `.tsx` file anywhere under `dir` (recursively). Used instead of a
+// bare `existsSync` because Google Drive (this repo syncs through it) keeps
+// re-materialising the empty `modules/sheets-sync/{components,services}` folder
+// skeletons long after every file in them is deleted — an empty directory is
+// not a code-still-present failure.
+function hasSourceFiles(dir: string): boolean {
+  if (!existsSync(dir)) return false
+  for (const e of readdirSync(dir, { withFileTypes: true })) {
+    const full = join(dir, e.name)
+    if (e.isDirectory()) {
+      if (hasSourceFiles(full)) return true
+    } else if (/\.(ts|tsx|js|jsx|mjs)$/.test(e.name)) {
+      return true
+    }
+  }
+  return false
+}
+
 describe("7.1 Google Sheets sync is fully removed", () => {
   it("no sheets-sync module, no google server lib, no google/sheet routes", () => {
+    // files that must be gone outright
     for (const p of [
-      "modules/sheets-sync",
-      "lib/server/google",
       "lib/domain/googleConnection.ts",
       "lib/domain/sheetSyncMapping.ts",
       "lib/domain/syncRun.ts",
       "lib/domain/syncConflict.ts",
+    ]) {
+      expect(existsSync(join(SRC, p)), `${p} should be gone`).toBe(false)
+    }
+    // directories that must hold no source (an empty skeleton Drive keeps
+    // recreating is fine)
+    for (const p of [
+      "modules/sheets-sync",
+      "lib/server/google",
       "app/api/google",
       "app/api/jobs/sheets-sync",
       "app/api/projects/[projectId]/sheet",
     ]) {
-      expect(existsSync(join(SRC, p)), `${p} should be gone`).toBe(false)
+      expect(hasSourceFiles(join(SRC, p)), `${p} should have no code`).toBe(
+        false
+      )
     }
   })
 
