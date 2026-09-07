@@ -100,8 +100,14 @@ beforeEach(() => {
 describe("group lifecycle end-to-end (task 6.1)", () => {
   it("create → assign → move → archive → delete, projects always survive", async () => {
     // create two groups
-    const { id: g1 } = await createProjectGroup(mgr, { name: "UGC ROAS 2.0" })
-    const { id: g2 } = await createProjectGroup(mgr, { name: "Định hướng khác" })
+    const { id: g1 } = await createProjectGroup(mgr, {
+      name: "UGC ROAS 2.0",
+      objective: "Đẩy ROAS toàn nhóm lên 2.0",
+    })
+    const { id: g2 } = await createProjectGroup(mgr, {
+      name: "Định hướng khác",
+      objective: "Thử định dạng mới",
+    })
     expect(store.projectGroups.get(g1)).toMatchObject({ lifecycle: "active" })
 
     // assign pA, pB to g1

@@ -11,35 +11,97 @@ import type { Project } from "@/lib/domain/project"
 //   ProjectGroup (id, name, description nullable,
 //     lifecycle: active | archived, created_by, created_at)
 //
-// A plain folder over Project — deliberately WITHOUT the Project form fields
-// (objective, scale, progress_sheet_url, retrospective) so a group can never be
-// mistaken for a project. `created_at` is set server-side; `created_by` comes
-// from the verified auth context, never the request body.
+// project-group-fields change (design.md Decision 1) adds basic steering info:
+//   - `objective` — required when creating a NEW group (legacy groups read it
+//     back absent and the roll-up shows a "bổ sung mục tiêu" reminder, task 2.3)
+//   - `description` — kept, now playing the "mô tả chi tiết" role
+//   - `time_scope_text` — free text, e.g. "3 tháng", "Quý 3/2026"
+//   - `target_end_date` — a "YYYY-MM-DD" date, used ONLY to compute the time
+//     status ("đang trong hạn / sắp hết hạn / quá hạn"); no start date
+//   - `budget_amount` + `budget_currency` — one planned-budget figure and its
+//     ISO-4217 currency, entered together or not at all
+//
+// A group is still NOT a Project: no synced progress link, no retrospective, no
+// production state machine, no content items. `created_at` is set server-side;
+// `created_by` comes from the verified auth context, never the request body.
 
 export interface ProjectGroup {
   id: string
   name: string
+  objective?: string
   description?: string
+  time_scope_text?: string
+  target_end_date?: string
+  budget_amount?: number
+  budget_currency?: string
   lifecycle: ProjectGroupLifecycle
   created_by: string
   created_at: Timestamp
 }
 
-// Create (spec: name required, description optional). lifecycle defaults to
-// "active" server-side; created_by comes from auth.
-export const projectGroupCreateSchema = z.object({
+const groupTargetEndDate = z
+  .string()
+  .trim()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, "Ngày kết thúc dự kiến phải là dạng YYYY-MM-DD")
+
+const budgetCurrency = z
+  .string()
+  .trim()
+  .toUpperCase()
+  .regex(/^[A-Z]{3}$/, "Đơn vị tiền tệ phải là mã ISO 3 chữ (vd VND, USD)")
+
+const budgetAmount = z.number().positive("Ngân sách dự kiến phải lớn hơn 0")
+
+// The caller-supplied fields of a group. `objective` is required here; the edit
+// schema relaxes it with `.partial()` so a manager can add it to a legacy group
+// without re-sending every field. `budget_amount` / `budget_currency` are a
+// pair — both or neither (a lone currency has nothing to measure).
+const projectGroupFields = z.object({
   name: z.string().trim().min(1),
+  objective: z.string().trim().min(1, "Cần nhập mục tiêu nhóm"),
   description: z.string().trim().optional(),
+  time_scope_text: z.string().trim().min(1).max(200).optional(),
+  target_end_date: groupTargetEndDate.optional(),
+  budget_amount: budgetAmount.optional(),
+  budget_currency: budgetCurrency.optional(),
 })
+
+const budgetFieldsPaired = (v: {
+  budget_amount?: number
+  budget_currency?: string
+}) => (v.budget_amount == null) === (v.budget_currency == null)
+
+const budgetPairMessage = {
+  message: "Ngân sách dự kiến cần cả số tiền và đơn vị tiền tệ",
+  path: ["budget_currency"],
+}
+
+// Create (project-group-fields task 1.2): name + objective required; everything
+// else optional. lifecycle defaults to "active" server-side; created_by comes
+// from auth.
+export const projectGroupCreateSchema = projectGroupFields.refine(
+  budgetFieldsPaired,
+  budgetPairMessage
+)
 
 export type ProjectGroupCreate = z.infer<typeof projectGroupCreateSchema>
 
-// Edit (spec: "chỉnh sửa hai trường này sau khi tạo") — name and description
-// only, both optional. Does NOT carry `lifecycle`: archive / restore has its
-// own validated path (task 2.3), mirroring Project.
-export const projectGroupUpdateSchema = projectGroupCreateSchema.partial()
+// Edit — every field optional (so a legacy group can gain just an objective).
+// Does NOT carry `lifecycle`: archive / restore has its own validated path
+// (task 2.3), mirroring Project.
+export const projectGroupUpdateSchema = projectGroupFields
+  .partial()
+  .refine(budgetFieldsPaired, budgetPairMessage)
 
 export type ProjectGroupUpdate = z.infer<typeof projectGroupUpdateSchema>
+
+// task 2.3 — a legacy group (created before this change) has no objective. The
+// roll-up nudges the manager to fill it in but never blocks anything.
+export function groupNeedsObjective(
+  group: Pick<ProjectGroup, "objective">
+): boolean {
+  return !group.objective || group.objective.trim().length === 0
+}
 
 // task 2.2 / 2.3 — an archived group is read-only (spec: "lưu trữ … chỉ đọc").
 // Mirrors `isProjectWritable`.

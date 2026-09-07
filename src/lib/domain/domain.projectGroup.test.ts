@@ -7,6 +7,7 @@ import {
   SORT_INDEX_STEP,
   computeReorder,
   computeSortIndexBackfill,
+  groupNeedsObjective,
   groupProjectsForList,
   isProjectGroupWritable,
   nextSortIndex,
@@ -43,48 +44,116 @@ describe("ProjectGroup: registry & enum wiring", () => {
   })
 })
 
-describe("projectGroupCreateSchema", () => {
-  it("accepts a name only", () => {
+// project-group-fields task 1.1 / 1.2 — the group gains an objective (required
+// on create), a free-text time scope, an optional target end date, and a
+// budget amount + currency pair.
+describe("projectGroupCreateSchema (project-group-fields task 1.2)", () => {
+  it("accepts a name + objective", () => {
     expect(
-      projectGroupCreateSchema.safeParse({ name: "UGC ROAS 2.0" }).success
+      projectGroupCreateSchema.safeParse({
+        name: "UGC ROAS 2.0",
+        objective: "Đẩy ROAS toàn nhóm lên 2.0",
+      }).success
     ).toBe(true)
   })
 
-  it("accepts an optional description", () => {
+  it("rejects a create with no objective (required alongside name)", () => {
+    expect(
+      projectGroupCreateSchema.safeParse({ name: "UGC ROAS 2.0" }).success
+    ).toBe(false)
+  })
+
+  it("rejects a blank / whitespace objective", () => {
+    expect(
+      projectGroupCreateSchema.safeParse({ name: "N", objective: "   " })
+        .success
+    ).toBe(false)
+  })
+
+  it("accepts the full field set", () => {
     const r = projectGroupCreateSchema.safeParse({
       name: "UGC ROAS 2.0",
+      objective: "Đẩy ROAS toàn nhóm lên 2.0",
       description: "Các đợt UGC cùng định hướng",
+      time_scope_text: "3 tháng",
+      target_end_date: "2026-12-31",
+      budget_amount: 100_000_000,
+      budget_currency: "vnd",
     })
     expect(r.success).toBe(true)
+    if (r.success) expect(r.data.budget_currency).toBe("VND") // upper-cased
+  })
+
+  it("rejects a target_end_date that is not YYYY-MM-DD", () => {
+    expect(
+      projectGroupCreateSchema.safeParse({
+        name: "N",
+        objective: "o",
+        target_end_date: "31/12/2026",
+      }).success
+    ).toBe(false)
+  })
+
+  it("rejects a budget amount without a currency (the pair must be complete)", () => {
+    expect(
+      projectGroupCreateSchema.safeParse({
+        name: "N",
+        objective: "o",
+        budget_amount: 5_000_000,
+      }).success
+    ).toBe(false)
+  })
+
+  it("rejects a currency without an amount", () => {
+    expect(
+      projectGroupCreateSchema.safeParse({
+        name: "N",
+        objective: "o",
+        budget_currency: "USD",
+      }).success
+    ).toBe(false)
+  })
+
+  it("rejects a non-positive budget amount", () => {
+    expect(
+      projectGroupCreateSchema.safeParse({
+        name: "N",
+        objective: "o",
+        budget_amount: 0,
+        budget_currency: "VND",
+      }).success
+    ).toBe(false)
   })
 
   it("rejects a missing name", () => {
-    expect(projectGroupCreateSchema.safeParse({}).success).toBe(false)
-  })
-
-  it("rejects an empty / whitespace name", () => {
-    expect(projectGroupCreateSchema.safeParse({ name: "   " }).success).toBe(
+    expect(projectGroupCreateSchema.safeParse({ objective: "o" }).success).toBe(
       false
     )
   })
 
-  it("trims the name", () => {
-    const r = projectGroupCreateSchema.safeParse({ name: "  Nhóm A  " })
+  it("trims name and objective", () => {
+    const r = projectGroupCreateSchema.safeParse({
+      name: "  Nhóm A  ",
+      objective: "  Mục tiêu  ",
+    })
     expect(r.success).toBe(true)
-    if (r.success) expect(r.data.name).toBe("Nhóm A")
+    if (r.success) {
+      expect(r.data.name).toBe("Nhóm A")
+      expect(r.data.objective).toBe("Mục tiêu")
+    }
   })
 
-  it("does not carry the Project form fields", () => {
+  it("still does not carry the Project-only fields (scale / progress / retrospective)", () => {
     const r = projectGroupCreateSchema.safeParse({
       name: "Nhóm A",
-      objective: "x",
+      objective: "o",
       scale: "y",
       progress_sheet_url: "z",
       retrospective: "w",
     })
     expect(r.success).toBe(true)
     if (r.success) {
-      expect(r.data).toEqual({ name: "Nhóm A" })
+      expect(r.data).toEqual({ name: "Nhóm A", objective: "o" })
     }
   })
 })
@@ -102,8 +171,33 @@ describe("projectGroupUpdateSchema", () => {
     ).toBe(true)
   })
 
+  it("accepts adding an objective to a legacy group (objective optional on edit)", () => {
+    expect(
+      projectGroupUpdateSchema.safeParse({ objective: "Mục tiêu bổ sung" })
+        .success
+    ).toBe(true)
+  })
+
+  it("still rejects a blank objective on edit", () => {
+    expect(
+      projectGroupUpdateSchema.safeParse({ objective: "  " }).success
+    ).toBe(false)
+  })
+
   it("accepts an empty body (no-op edit)", () => {
     expect(projectGroupUpdateSchema.safeParse({}).success).toBe(true)
+  })
+
+  it("still enforces the budget amount + currency pair", () => {
+    expect(
+      projectGroupUpdateSchema.safeParse({ budget_amount: 1_000 }).success
+    ).toBe(false)
+    expect(
+      projectGroupUpdateSchema.safeParse({
+        budget_amount: 1_000,
+        budget_currency: "VND",
+      }).success
+    ).toBe(true)
   })
 
   it("strips lifecycle — archive / restore has its own path", () => {
@@ -113,6 +207,18 @@ describe("projectGroupUpdateSchema", () => {
     })
     expect(r.success).toBe(true)
     if (r.success) expect("lifecycle" in r.data).toBe(false)
+  })
+})
+
+describe("groupNeedsObjective (task 2.3)", () => {
+  it("is true for a legacy group with no objective", () => {
+    expect(groupNeedsObjective({})).toBe(true)
+    expect(groupNeedsObjective({ objective: undefined })).toBe(true)
+    expect(groupNeedsObjective({ objective: "   " })).toBe(true)
+  })
+
+  it("is false once an objective is set", () => {
+    expect(groupNeedsObjective({ objective: "Đẩy ROAS" })).toBe(false)
   })
 })
 

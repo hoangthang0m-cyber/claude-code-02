@@ -95,8 +95,15 @@ export function GroupedProjectList() {
               onClick={async () => {
                 const name = window.prompt("Tên nhóm dự án mới")?.trim()
                 if (!name) return
+                const objective = window
+                  .prompt("Mục tiêu của nhóm (bắt buộc)")
+                  ?.trim()
+                if (!objective) {
+                  toast.error("Cần nhập mục tiêu nhóm")
+                  return
+                }
                 try {
-                  await createProjectGroup({ name })
+                  await createProjectGroup({ name, objective })
                   toast.success("Đã tạo nhóm")
                 } catch (e) {
                   toast.error(e instanceof Error ? e.message : "Không tạo được")
