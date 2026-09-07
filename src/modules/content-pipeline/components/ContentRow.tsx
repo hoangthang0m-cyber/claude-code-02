@@ -18,6 +18,7 @@ import {
 import { AdsReportCell } from "@/modules/ads-performance/components/AdsReportCell"
 import { ContentStatusBadge } from "@/modules/content-pipeline/components/ContentStatusBadge"
 import { OverdueBadge } from "@/modules/content-pipeline/components/OverdueBadge"
+import { ReferenceLinksCell } from "@/modules/reference-links/components/ReferenceLinksCell"
 import { Input } from "@/components/ui/input"
 import {
   Select,
@@ -244,6 +245,19 @@ export function ContentRow({
         placeholder="Đánh giá / đề xuất"
         onSave={saveEvaluation}
       />
+
+      {/* Tài liệu — reference links (campaign-page-reference-links task 4.4) */}
+      <TableCell className="align-top">
+        <ReferenceLinksCell
+          contentItemId={item.id}
+          code={item.code}
+          count={
+            typeof item.reference_link_count === "number"
+              ? item.reference_link_count
+              : 0
+          }
+        />
+      </TableCell>
     </TableRow>
   )
 }

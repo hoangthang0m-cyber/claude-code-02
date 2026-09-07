@@ -195,8 +195,34 @@ export async function listContentItems(
 
   await attachAdsMetrics(items)
   await attachAdsBindingFlag(items)
+  await attachReferenceLinkCounts(items)
 
   return { items }
+}
+
+// campaign-page-reference-links task 4.4: the "Tài liệu" column shows how many
+// reference links a content item has.
+async function attachReferenceLinkCounts(
+  items: ContentListItem[]
+): Promise<void> {
+  const ids = items.map((i) => i.id)
+  if (ids.length === 0) return
+  const db = getAdminDb()
+  const count = new Map<string, number>()
+  for (let i = 0; i < ids.length; i += 30) {
+    const snap = await db
+      .collection(COLLECTIONS.referenceLinks)
+      .where("owner_type", "==", "content_item")
+      .where("owner_id", "in", ids.slice(i, i + 30))
+      .get()
+    for (const d of snap.docs) {
+      const key = String(d.data().owner_id ?? "")
+      count.set(key, (count.get(key) ?? 0) + 1)
+    }
+  }
+  for (const item of items) {
+    item.reference_link_count = count.get(item.id) ?? 0
+  }
 }
 
 // ads-overview-reporting task 6.1: the "Xem hiệu quả" button only shows for a

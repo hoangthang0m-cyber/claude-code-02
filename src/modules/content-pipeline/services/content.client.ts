@@ -27,6 +27,8 @@ export interface ContentListRow {
   ads_metric?: AdsMetricView | null
   /** ads-overview-reporting task 6.1: has ≥1 active ad-level AdsBinding */
   has_ads_binding?: boolean
+  /** campaign-page-reference-links task 4.4: number of reference links */
+  reference_link_count?: number
   [key: string]: unknown
 }
 

@@ -46,6 +46,7 @@ const COLUMNS = [
   "Research KH",
   "Báo cáo ads",
   "Đánh giá",
+  "Tài liệu",
 ]
 
 export function ContentTable({
