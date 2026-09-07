@@ -73,14 +73,14 @@ toàn tách biệt Meta Ads. Gỡ an toàn theo nhóm 1–4 của change này.
 
 ## Checklist
 
-### 1. Gỡ đồng bộ Google Sheets
+### 1. Gỡ đồng bộ Google Sheets — XONG
 - [x] 1.1 Rà soát nơi dùng Google API — bảng trên
-- [ ] 1.2 Gỡ endpoint đồng bộ
-- [ ] 1.3 Gỡ job nền + cron
-- [ ] 1.4 Gỡ module đọc/ghi Sheets, chuẩn hoá cột, tra trạng thái, xung đột
-- [ ] 1.5 Drop `SheetSyncMapping`, `SyncRun`, `SyncConflict`, `SheetStatusAlias`; bỏ `ContentItem.sheet_row_ref` + cờ mất liên kết
-- [ ] 1.6 Huỷ `sheets-sync-fixed-schema` (xoá nhánh)
-- [ ] 1.7 Bỏ khái niệm "mã tạm" (`tmp-*`)
+- [x] 1.2 Gỡ 4 endpoint `/api/projects/[id]/sheet/{verify,preview,mapping,sync}`
+- [x] 1.3 Gỡ job `/api/jobs/sheets-sync` + cron `sheets-sync` trong `scheduled-jobs.yml`
+- [x] 1.4 Xoá `lib/server/google`, `api/google`, cả module `sheets-sync`; `googleConnection` domain + `googleConnections` collection + `GOOGLE_CONNECTION_STATES` + rule
+- [x] 1.5 Xoá domain `sheetSyncMapping`/`syncRun`/`syncConflict` + collection + rule; bỏ `ContentItem.sheet_row_ref` / `sheet_unlinked_at` (+ badge "mất liên kết sheet"); gỡ `SYNC_KINDS`/`SYNC_CONFLICT_*`, notification `sync_issue` + nhóm `sync`; `deleteProject` bỏ cascade sync; `updateProject` bỏ logic reset mapping. `SheetStatusAlias` chưa từng có trên `main` → không cần drop. (767 test pass)
+- [x] 1.6 Xoá nhánh `feat/sheets-sync-fixed-schema` (local + remote). Không có migration Firestore để hoàn tác.
+- [x] 1.7 Không nơi nào sinh mã `tmp-*` (đã theo module `sheets-sync` bị xoá). `createContentItem` yêu cầu `code` tường minh.
 
 ### 2. Data model tài liệu tham khảo
 - [ ] 2.1 Collection `referenceLinks`
