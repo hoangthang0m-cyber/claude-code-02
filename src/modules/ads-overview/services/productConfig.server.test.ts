@@ -92,11 +92,14 @@ vi.mock("firebase-admin/firestore", () => ({
 
 import type { AuthedUser } from "@/lib/server/auth"
 import {
+  addCurrencyRate,
   createProduct,
+  deleteCurrencyRate,
   deleteProduct,
   setAccountRules,
   setCampaignOverride,
   updateProduct,
+  updateReportingSettings,
 } from "@/modules/ads-overview/services/productConfig.server"
 
 const manager: AuthedUser = { uid: "u-mgr", email: null, system_role: "manager" }
@@ -267,5 +270,53 @@ describe("setCampaignOverride (task 2.5)", () => {
         product_id: "t",
       })
     ).rejects.toMatchObject({ status: 403 })
+  })
+})
+
+describe("reporting settings + currency rates (task 5.6)", () => {
+  it("updates the reporting currency (uppercased)", async () => {
+    const r = await updateReportingSettings(manager, { reporting_currency: "usd" })
+    expect(r).toEqual({ reporting_currency: "USD" })
+    expect(col("reportingSettings").get("default")).toMatchObject({
+      reporting_currency: "USD",
+    })
+  })
+
+  it("rejects staff on settings", async () => {
+    await expect(
+      updateReportingSettings(staff, { reporting_currency: "USD" })
+    ).rejects.toMatchObject({ status: 403 })
+  })
+
+  it("adds a currency rate keyed by (from, to, effective_from)", async () => {
+    const r = await addCurrencyRate(manager, {
+      from_currency: "usd",
+      to_currency: "vnd",
+      rate: 25000,
+      effective_from: "2026-06-01",
+    })
+    expect(r).toEqual({ id: "USD__VND__2026-06-01" })
+    expect(col("currencyRates").get("USD__VND__2026-06-01")).toMatchObject({
+      rate: 25000,
+      entered_by: "u-mgr",
+    })
+  })
+
+  it("rejects a rate with identical currencies", async () => {
+    await expect(
+      addCurrencyRate(manager, {
+        from_currency: "VND",
+        to_currency: "VND",
+        rate: 1,
+        effective_from: "2026-06-01",
+      })
+    ).rejects.toMatchObject({ status: 400 })
+  })
+
+  it("deletes a currency rate", async () => {
+    col("currencyRates").set("USD__VND__2026-06-01", { rate: 1 })
+    const r = await deleteCurrencyRate(manager, "USD__VND__2026-06-01")
+    expect(r).toMatchObject({ removed: true })
+    expect(col("currencyRates").has("USD__VND__2026-06-01")).toBe(false)
   })
 })

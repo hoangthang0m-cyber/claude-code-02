@@ -120,13 +120,13 @@ the account is dropped from the total ("đang gộp N/M tài khoản").
 - [x] 4.5 `report.freshness` — `data_through` (max `latest_synced_date`), `accounts_total` (M), `accounts_merged` (M − thiếu tỷ giá − lỗi), `accounts_delayed` (last_result ≠ ok), `accounts_missing_rate`.
 - [x] 4.6 `GET /export?format=report|timeseries` — CSV (BOM UTF-8 cho Excel), `Content-Disposition: attachment`.
 
-### 5. Giao diện trang Báo cáo
-- [ ] 5.1 Mục "Báo cáo" ở menu; bộ chọn kỳ + toggle so sánh; trạng thái rỗng
-- [ ] 5.2 Khối 3 sản phẩm + khối tổng + dòng "Chưa phân loại"
-- [ ] 5.3 Biểu đồ diễn biến (shadcn/Recharts), ROAS tách thang, công tắc ngày/tuần/tháng
-- [ ] 5.4 Biểu đồ trống có nhãn; responsive + theme sáng/tối
-- [ ] 5.5 Nút xuất
-- [ ] 5.6 Trang cấu hình sản phẩm (sản phẩm, gán tài khoản, mặc định, gán tay, `reporting_currency`, tỷ giá)
+### 5. Giao diện trang Báo cáo — `src/modules/ads-overview/components/**`, route `/reports` (+ `/reports/settings`)
+- [x] 5.1 `/reports` = tab "Hiệu quả quảng cáo" (manager) + "Tiến độ nội dung"; `AdsOverviewView` có bộ chọn Tuần/Tháng/Khoảng ngày + ô date + toggle so sánh; trạng thái rỗng "chưa kết nối tài khoản" → link `/ad-accounts`.
+- [x] 5.2 4 khối (3 sản phẩm + khối Tổng) chi phí/doanh thu/ROAS, kèm Δ% khi bật so sánh (từ `/report/comparison`); dòng "Chưa phân loại" riêng. Dòng "số liệu tính đến … / đang gộp N/M tài khoản / trễ-lỗi / thiếu tỷ giá".
+- [x] 5.3 `ReportTrendChart` (shadcn `ChartContainer` + Recharts): Area cho chi phí/doanh thu, Line cho ROAS; công tắc Ngày/Tuần/Tháng + chọn chỉ số + lọc 1 sản phẩm / cả 3 chồng nhau.
+- [x] 5.4 Biểu đồ rỗng → nhãn "Chưa có dữ liệu trong khoảng này"; `ChartContainer` responsive + theme-aware sẵn.
+- [x] 5.5 Nút "Xuất báo cáo" / "Xuất biểu đồ" → `/api/ads-reporting/export` qua `downloadCsv`.
+- [x] 5.6 `/reports/settings` (`ProductConfigView`, manager-only): CRUD sản phẩm, gán tài khoản → sản phẩm (chọn + đặt mặc định), bảng gán tay campaign, ô `reporting_currency` + bảng tỷ giá. APIs mới: `PUT /settings`, `POST/DELETE /currency-rates`.
 
 ### 6. So sánh video ads (từ trang Chiến dịch)
 - [ ] 6.1 Nút "Xem hiệu quả" trên dòng video có `AdsBinding`

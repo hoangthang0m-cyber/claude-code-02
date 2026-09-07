@@ -2,14 +2,19 @@ import { FieldValue } from "firebase-admin/firestore"
 
 import {
   COLLECTIONS,
+  REPORTING_SETTINGS_DOC_ID,
   accountRulesSetSchema,
   campaignProductOverrideId,
   campaignProductOverrideSetSchema,
+  currencyRateId,
+  currencyRateWriteSchema,
   productAccountRuleId,
   productUpdateSchema,
   productWriteSchema,
+  reportingSettingsWriteSchema,
   type ClassifyConfig,
   type CampaignProductOverrideView,
+  type CurrencyRateView,
   type ProductAccountRuleView,
   type ProductView,
 } from "@/lib/domain"
@@ -62,6 +67,8 @@ export interface ProductConfigView {
   overrides: CampaignProductOverrideView[]
   /** connected ad accounts the manager can map (name + id) */
   accounts: Array<{ ad_account_id: string; name: string }>
+  reporting_currency: string
+  currency_rates: CurrencyRateView[]
 }
 
 export async function getProductConfig(
@@ -69,15 +76,21 @@ export async function getProductConfig(
 ): Promise<ProductConfigView> {
   requireReportingManager(actor)
   const db = getAdminDb()
-  const [products, rules, overrides, connections] = await Promise.all([
-    db.collection(COLLECTIONS.products).orderBy("code").get(),
-    db.collection(COLLECTIONS.productAccountRules).get(),
-    db.collection(COLLECTIONS.campaignProductOverrides).get(),
-    db
-      .collection(COLLECTIONS.adAccountConnections)
-      .where("project_owner_id", "==", actor.uid)
-      .get(),
-  ])
+  const [products, rules, overrides, connections, settings, rates] =
+    await Promise.all([
+      db.collection(COLLECTIONS.products).orderBy("code").get(),
+      db.collection(COLLECTIONS.productAccountRules).get(),
+      db.collection(COLLECTIONS.campaignProductOverrides).get(),
+      db
+        .collection(COLLECTIONS.adAccountConnections)
+        .where("project_owner_id", "==", actor.uid)
+        .get(),
+      db
+        .collection(COLLECTIONS.reportingSettings)
+        .doc(REPORTING_SETTINGS_DOC_ID)
+        .get(),
+      db.collection(COLLECTIONS.currencyRates).get(),
+    ])
   return {
     products: products.docs.map((d) => ({
       id: d.id,
@@ -103,7 +116,79 @@ export async function getProductConfig(
       ad_account_id: String(d.data().ad_account_id ?? ""),
       name: String(d.data().name ?? ""),
     })),
+    reporting_currency:
+      typeof settings.data()?.reporting_currency === "string"
+        ? String(settings.data()!.reporting_currency)
+        : "VND",
+    currency_rates: rates.docs
+      .map((d) => ({
+        id: d.id,
+        from_currency: String(d.data().from_currency ?? ""),
+        to_currency: String(d.data().to_currency ?? ""),
+        rate: Number(d.data().rate ?? 0),
+        effective_from: String(d.data().effective_from ?? ""),
+      }))
+      .sort((a, b) => b.effective_from.localeCompare(a.effective_from)),
   }
+}
+
+// ── reporting settings + currency rates (task 5.6) ───────────────────────
+
+export async function updateReportingSettings(
+  actor: AuthedUser,
+  body: unknown
+): Promise<{ reporting_currency: string }> {
+  requireReportingManager(actor)
+  const input = parseOrThrow(reportingSettingsWriteSchema, body)
+  await getAdminDb()
+    .collection(COLLECTIONS.reportingSettings)
+    .doc(REPORTING_SETTINGS_DOC_ID)
+    .set(
+      {
+        reporting_currency: input.reporting_currency,
+        updated_at: FieldValue.serverTimestamp(),
+        updated_by: actor.uid,
+      },
+      { merge: true }
+    )
+  return { reporting_currency: input.reporting_currency }
+}
+
+export async function addCurrencyRate(
+  actor: AuthedUser,
+  body: unknown
+): Promise<{ id: string }> {
+  requireReportingManager(actor)
+  const input = parseOrThrow(currencyRateWriteSchema, body)
+  if (input.from_currency === input.to_currency) {
+    throw new HttpError(400, "Tỷ giá cần hai tiền tệ khác nhau")
+  }
+  const id = currencyRateId(
+    input.from_currency,
+    input.to_currency,
+    input.effective_from
+  )
+  await getAdminDb()
+    .collection(COLLECTIONS.currencyRates)
+    .doc(id)
+    .set({
+      from_currency: input.from_currency,
+      to_currency: input.to_currency,
+      rate: input.rate,
+      effective_from: input.effective_from,
+      entered_by: actor.uid,
+      created_at: FieldValue.serverTimestamp(),
+    })
+  return { id }
+}
+
+export async function deleteCurrencyRate(
+  actor: AuthedUser,
+  rateId: string
+): Promise<{ id: string; removed: true }> {
+  requireReportingManager(actor)
+  await getAdminDb().collection(COLLECTIONS.currencyRates).doc(rateId).delete()
+  return { id: rateId, removed: true }
 }
 
 // ── products ─────────────────────────────────────────────────────────────
