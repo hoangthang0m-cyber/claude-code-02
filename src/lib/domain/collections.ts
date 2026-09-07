@@ -14,9 +14,6 @@ export const COLLECTIONS = {
   adAccountConnections: "adAccountConnections",
   adsBindings: "adsBindings",
   adsMetrics: "adsMetrics",
-  sheetSyncMappings: "sheetSyncMappings",
-  syncRuns: "syncRuns",
-  syncConflicts: "syncConflicts",
   notifications: "notifications",
   notificationPreferences: "notificationPreferences",
   // project-grouping change task 1.1 — folder-style grouping over Project

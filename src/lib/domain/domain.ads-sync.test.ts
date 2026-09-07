@@ -10,15 +10,11 @@ import {
   adsMetricWriteSchema,
   notificationPreferenceWriteSchema,
   notificationWriteSchema,
-  parseSheetUrl,
-  sheetSyncMappingWriteSchema,
-  syncConflictWriteSchema,
-  syncRunWriteSchema,
 } from "@/lib/domain"
 
-// Group 7.1 task 1.3 — schema for the 8 ads / sheets-sync / notification
-// entities (SPEC §6.1). Same "clean" check as task 1.2: accept a valid body,
-// reject a bad enum or a missing required field.
+// Group 7.1 task 1.3 — schema for the ads / notification entities (SPEC §6.1).
+// Same "clean" check as task 1.2: accept a valid body, reject a bad enum or a
+// missing required field.
 
 describe("collection registry", () => {
   it("includes the task 1.3 collections", () => {
@@ -32,9 +28,6 @@ describe("collection registry", () => {
       "adAccountConnections",
       "adsBindings",
       "adsMetrics",
-      "sheetSyncMappings",
-      "syncRuns",
-      "syncConflicts",
       "notifications",
       "notificationPreferences",
       "projectGroups",
@@ -159,121 +152,6 @@ describe("adsMetricManualSchema (SPEC §5.4 R4)", () => {
 
   it("rejects a negative figure", () => {
     expect(adsMetricManualSchema.safeParse({ roas: -1 }).success).toBe(false)
-  })
-})
-
-describe("sheetSyncMappingWriteSchema (SPEC §5.5 R1)", () => {
-  it("accepts a mapping, defaulting conflict_rule to system_wins", () => {
-    const r = sheetSyncMappingWriteSchema.safeParse({
-      project_id: "p1",
-      spreadsheet_id: "1AbC",
-      sheet_tab: "Tiến độ",
-      header_row: 1,
-      column_map: { deadline: "C", assignee_id: "D", status: "F" },
-    })
-    expect(r.success).toBe(true)
-    if (r.success) expect(r.data.conflict_rule).toBe("system_wins")
-  })
-
-  it("rejects a non-positive header_row", () => {
-    expect(
-      sheetSyncMappingWriteSchema.safeParse({
-        project_id: "p1",
-        spreadsheet_id: "1AbC",
-        sheet_tab: "T",
-        header_row: 0,
-        column_map: {},
-      }).success
-    ).toBe(false)
-  })
-
-  it("rejects a conflict_rule outside the enum", () => {
-    expect(
-      sheetSyncMappingWriteSchema.safeParse({
-        project_id: "p1",
-        spreadsheet_id: "1AbC",
-        sheet_tab: "T",
-        header_row: 1,
-        column_map: {},
-        conflict_rule: "latest_wins",
-      }).success
-    ).toBe(false)
-  })
-})
-
-describe("parseSheetUrl (SPEC §5.1 R1 / §5.5 R1, task 6.1)", () => {
-  it("pulls the spreadsheet id and gid from a full edit URL", () => {
-    expect(
-      parseSheetUrl(
-        "https://docs.google.com/spreadsheets/d/1A2b3C_d-EF/edit#gid=123456"
-      )
-    ).toEqual({ spreadsheet_id: "1A2b3C_d-EF", sheet_gid: 123456 })
-  })
-
-  it("handles ?gid= and &gid= too", () => {
-    expect(
-      parseSheetUrl("https://docs.google.com/spreadsheets/d/XYZ/edit?gid=7")
-    ).toEqual({ spreadsheet_id: "XYZ", sheet_gid: 7 })
-    expect(
-      parseSheetUrl(
-        "https://docs.google.com/spreadsheets/d/XYZ/edit?usp=sharing&gid=9"
-      )
-    ).toEqual({ spreadsheet_id: "XYZ", sheet_gid: 9 })
-  })
-
-  it("returns null gid when the URL has no tab", () => {
-    expect(
-      parseSheetUrl("https://docs.google.com/spreadsheets/d/ABC/edit")
-    ).toEqual({ spreadsheet_id: "ABC", sheet_gid: null })
-  })
-
-  it("returns null for a non-Sheets URL", () => {
-    expect(parseSheetUrl("https://docs.google.com/document/d/ABC/edit")).toBeNull()
-    expect(parseSheetUrl("not a url")).toBeNull()
-    expect(parseSheetUrl("")).toBeNull()
-  })
-})
-
-describe("syncRunWriteSchema / syncConflictWriteSchema (SPEC §5.5 R3/R4)", () => {
-  it("accepts a sync run with default row counts", () => {
-    const r = syncRunWriteSchema.safeParse({ project_id: "p1", kind: "sheets" })
-    expect(r.success).toBe(true)
-    if (r.success) {
-      expect(r.data.rows_read).toBe(0)
-      expect(r.data.rows_written).toBe(0)
-    }
-  })
-
-  it("rejects a sync kind outside the enum", () => {
-    expect(
-      syncRunWriteSchema.safeParse({ project_id: "p1", kind: "tiktok" }).success
-    ).toBe(false)
-  })
-
-  it("accepts a conflict record", () => {
-    expect(
-      syncConflictWriteSchema.safeParse({
-        project_id: "p1",
-        content_item_id: "c1",
-        field: "deadline",
-        system_value: "2026-09-01",
-        sheet_value: "2026-09-03",
-        chosen_side: "system",
-      }).success
-    ).toBe(true)
-  })
-
-  it("rejects a chosen_side outside the enum", () => {
-    expect(
-      syncConflictWriteSchema.safeParse({
-        project_id: "p1",
-        content_item_id: "c1",
-        field: "deadline",
-        system_value: "a",
-        sheet_value: "b",
-        chosen_side: "manual",
-      }).success
-    ).toBe(false)
   })
 })
 

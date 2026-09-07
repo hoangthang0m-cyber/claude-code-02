@@ -18,7 +18,6 @@ import {
 import { AdsReportCell } from "@/modules/ads-performance/components/AdsReportCell"
 import { ContentStatusBadge } from "@/modules/content-pipeline/components/ContentStatusBadge"
 import { OverdueBadge } from "@/modules/content-pipeline/components/OverdueBadge"
-import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import {
   Select,
@@ -120,14 +119,6 @@ export function ContentRow({
         <div className="flex flex-wrap items-center gap-1.5">
           <span>{item.code}</span>
           <OverdueBadge overdue={item.is_overdue} />
-          {item.sheet_unlinked_at && (
-            <Badge
-              variant="outline"
-              className="shrink-0 text-[10px] text-muted-foreground"
-            >
-              Mất liên kết sheet
-            </Badge>
-          )}
         </div>
       </TableCell>
 

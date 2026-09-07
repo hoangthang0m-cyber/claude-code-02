@@ -53,8 +53,6 @@ export type NotificationEvent =
   | (ItemEvent & { type: "comment_added"; assignee_id: string | null; also_notified?: string[] })
   // → exactly the people named
   | (ItemEvent & { type: "comment_mention"; mentioned_ids: string[] })
-  // → the project managers, with a caller-supplied message
-  | (EventBase & { type: "sync_issue"; message: string })
 
 // SPEC §5.7 R1 event → recipient table. Returns the raw recipient set BEFORE the
 // actor is removed.
@@ -72,7 +70,6 @@ export async function notificationRecipients(
 
     case "review_requested":
     case "ads_stopped":
-    case "sync_issue":
       return new Set(await projectManagerUids(db, event.project_id))
 
     case "content_overdue": {
@@ -117,8 +114,6 @@ export function notificationMessage(event: NotificationEvent): string {
       return `Bình luận mới trên hạng mục ${event.code}`
     case "comment_mention":
       return `Bạn được nhắc tên trong bình luận ở hạng mục ${event.code}`
-    case "sync_issue":
-      return event.message
   }
 }
 

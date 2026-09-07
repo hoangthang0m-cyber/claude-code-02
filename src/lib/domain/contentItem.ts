@@ -13,8 +13,10 @@ import { idString, isoDateString, urlString } from "@/lib/domain/shared"
 //   (id, project_id, code, deadline nullable, assignee_id nullable,
 //    script_url nullable, video_url nullable, topic nullable,
 //    customer_research_url nullable, status, evaluation nullable,
-//    sheet_row_ref nullable, created_at, updated_at)
+//    created_at, updated_at)
 // + content_format (SPEC §8 Q3, answered): fixed enum, optional.
+// Content items are entered by hand only — no external source creates or
+// updates them (campaign-page-reference-links).
 
 export interface ContentItem {
   id: string
@@ -29,11 +31,6 @@ export interface ContentItem {
   customer_research_url?: string
   status: ContentStatus
   evaluation?: string
-  sheet_row_ref?: string | null
-  // Set when the item's row was deleted from the sheet (SPEC §6.3, task 6.7):
-  // the item is kept, `sheet_row_ref` is nulled, this stamps when. Cleared if
-  // the row comes back. Beyond the §6.1 sketch.
-  sheet_unlinked_at?: Timestamp | null
   created_at: Timestamp
   updated_at: Timestamp
   // Required by SPEC §5.2 R1 ("người cập nhật"); the §6.1 sketch omits it.

@@ -125,21 +125,6 @@ service cloud.firestore {
       allow write: if false;
     }
 
-    match /sheetSyncMappings/{mappingId} {
-      allow read: if isSignedIn();
-      allow write: if false;
-    }
-
-    match /syncRuns/{runId} {
-      allow read: if isSignedIn();
-      allow write: if false;
-    }
-
-    match /syncConflicts/{conflictId} {
-      allow read: if isSignedIn();
-      allow write: if false;
-    }
-
     // notifications/ — chủ nhân (recipient_id) đọc + đánh dấu đã đọc; engine
     // tạo/xoá qua server (SPEC §5.7 R1/R2).
     match /notifications/{notificationId} {

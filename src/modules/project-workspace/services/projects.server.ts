@@ -81,13 +81,10 @@ export async function createProject(
 
 export interface UpdateProjectResult {
   id: string
-  /** true when progress_sheet_url changed and the old sheet mapping was reset */
-  sheet_mapping_reset: boolean
 }
 
 // SPEC §5.1 R2: the project's manager edits any form field after creation. Saves
-// with updated_at + updated_by. Changing progress_sheet_url detaches the old
-// Google Sheet mapping (the new mapping is set up in group 7.6).
+// with updated_at + updated_by.
 export async function updateProject(
   actor: AuthedUser,
   projectId: string,
@@ -114,27 +111,12 @@ export async function updateProject(
     throw new HttpError(409, "Dự án đã lưu trữ — chỉ đọc")
   }
 
-  const sheetUrlChanged =
-    input.progress_sheet_url !== undefined &&
-    input.progress_sheet_url !== current.progress_sheet_url
-
-  const batch = db.batch()
-  batch.update(ref, {
+  await ref.update({
     ...input,
     updated_at: FieldValue.serverTimestamp(),
     updated_by: actor.uid,
   })
-
-  if (sheetUrlChanged) {
-    const mappings = await db
-      .collection(COLLECTIONS.sheetSyncMappings)
-      .where("project_id", "==", projectId)
-      .get()
-    mappings.forEach((m) => batch.delete(m.ref))
-  }
-
-  await batch.commit()
-  return { id: projectId, sheet_mapping_reset: sheetUrlChanged }
+  return { id: projectId }
 }
 
 export interface ChangeLifecycleResult {
@@ -252,9 +234,6 @@ export async function deleteProject(
   add(itemsSnap.docs.map((d) => d.ref as AnyRef))
 
   add(await byField(COLLECTIONS.projectMembers, "project_id", projectId))
-  add(await byField(COLLECTIONS.sheetSyncMappings, "project_id", projectId))
-  add(await byField(COLLECTIONS.syncRuns, "project_id", projectId))
-  add(await byField(COLLECTIONS.syncConflicts, "project_id", projectId))
   add(await byField(COLLECTIONS.notifications, "project_id", projectId))
 
   if (itemIds.length > 0) {
@@ -263,7 +242,6 @@ export async function deleteProject(
       COLLECTIONS.comments,
       COLLECTIONS.adsBindings,
       COLLECTIONS.adsMetrics,
-      COLLECTIONS.syncConflicts,
       COLLECTIONS.notifications,
     ]) {
       add(await byFieldIn(col, "content_item_id", itemIds))

@@ -104,42 +104,30 @@ export type AdsDeliveryStatus = (typeof ADS_DELIVERY_STATUSES)[number]
 export const AD_REPORT_SYNC_SCOPES = ["campaign", "ad"] as const
 export type AdReportSyncScope = (typeof AD_REPORT_SYNC_SCOPES)[number]
 
-// ── Sheets sync (SPEC §6.1, group 7.1 task 1.3) ──────────────────────────────
-
-export const SYNC_KINDS = ["sheets", "ads"] as const
-export type SyncKind = (typeof SYNC_KINDS)[number]
-
+// Result of a background sync run (ads-overview-reporting
+// AdAccountReportSyncState.last_result).
 export const SYNC_RESULTS = ["ok", "warning", "error"] as const
 export type SyncResult = (typeof SYNC_RESULTS)[number]
 
-export const SYNC_CONFLICT_RULES = ["system_wins", "sheet_wins"] as const
-export type SyncConflictRule = (typeof SYNC_CONFLICT_RULES)[number]
-
-export const SYNC_CONFLICT_SIDES = ["system", "sheet"] as const
-export type SyncConflictSide = (typeof SYNC_CONFLICT_SIDES)[number]
-
 // ── Notifications (SPEC §5.7, group 7.1 task 1.3) ────────────────────────────
 
-// Preference groups the user can toggle (SPEC §5.7 R4).
+// Preference groups the user can toggle (SPEC §5.7 R4). The "sync" group is
+// gone with Google Sheets sync (campaign-page-reference-links).
 export const NOTIFICATION_GROUPS = [
   "assignment",
   "approval",
   "overdue",
   "ads",
   "comment_mention",
-  "sync",
 ] as const
 export type NotificationGroup = (typeof NOTIFICATION_GROUPS)[number]
 
-// SPEC §5.7 R4 spells the toggle list: giao việc, duyệt, quá hạn, ads,
-// bình luận/mention, đồng bộ.
 export const NOTIFICATION_GROUP_LABELS: Record<NotificationGroup, string> = {
   assignment: "Giao việc",
   approval: "Duyệt / trả lại",
   overdue: "Quá hạn",
   ads: "Ads",
   comment_mention: "Bình luận / nhắc tên",
-  sync: "Đồng bộ",
 }
 
 // Event types (SPEC §5.7 R1 event → recipient table).
@@ -152,7 +140,6 @@ export const NOTIFICATION_TYPES = [
   "ads_stopped",
   "comment_added",
   "comment_mention",
-  "sync_issue",
 ] as const
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number]
 
@@ -168,5 +155,4 @@ export const NOTIFICATION_TYPE_GROUP: Record<
   ads_stopped: "ads",
   comment_added: "comment_mention",
   comment_mention: "comment_mention",
-  sync_issue: "sync",
 }
