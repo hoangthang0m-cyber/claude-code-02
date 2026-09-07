@@ -19,6 +19,7 @@ import { AdsReportCell } from "@/modules/ads-performance/components/AdsReportCel
 import { ContentStatusBadge } from "@/modules/content-pipeline/components/ContentStatusBadge"
 import { OverdueBadge } from "@/modules/content-pipeline/components/OverdueBadge"
 import { ReferenceLinksCell } from "@/modules/reference-links/components/ReferenceLinksCell"
+import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
   Select,
@@ -27,7 +28,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import {
+  Sheet,
+  SheetContent,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet"
 import { TableCell, TableRow } from "@/components/ui/table"
+import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/utils/cn"
 
 type Member = { user_id: string; name: string }
@@ -246,11 +256,13 @@ export function ContentRow({
         </div>
       </TableCell>
 
-      {/* Evaluation — manager-only free-text note (SPEC §5.4 R5) */}
-      <TextCell
+      {/* Evaluation — manager-only free-text note (SPEC §5.4 R5). Opens a wide
+          scrollable panel so a long write-up is not cramped into one line. */}
+      <LongTextCell
         value={item.evaluation as string | undefined}
         editable={canEvaluate}
-        placeholder="Đánh giá / đề xuất"
+        title={`Đánh giá / đề xuất — ${item.code}`}
+        placeholder="Đánh giá / đề xuất cho hạng mục này…"
         onSave={saveEvaluation}
       />
 
@@ -296,6 +308,90 @@ function AdsNoteEditor({
         if (t !== (value ?? "")) onSave(t || null)
       }}
     />
+  )
+}
+
+// A cell for a long free-text field (e.g. the evaluation). The cell itself shows
+// a clamped preview; clicking opens a wide side panel with a tall, scrollable
+// textarea so a multi-paragraph write-up has room. Read-only viewers can still
+// open it to read the full text when there is any.
+function LongTextCell({
+  value,
+  editable,
+  title,
+  placeholder,
+  onSave,
+}: {
+  value?: string
+  editable: boolean
+  title: string
+  placeholder?: string
+  onSave: (v: string | null) => void
+}) {
+  const [open, setOpen] = React.useState(false)
+  const [v, setV] = React.useState(value ?? "")
+
+  const canOpen = editable || !!value
+
+  return (
+    <TableCell className="min-w-44 max-w-64 align-top">
+      <Sheet
+        open={open}
+        onOpenChange={(next) => {
+          if (next) setV(value ?? "")
+          setOpen(next && canOpen)
+        }}
+      >
+        <SheetTrigger
+          render={
+            <button
+              type="button"
+              disabled={!canOpen}
+              className={cn(
+                "w-full rounded border bg-transparent px-1.5 py-1 text-left text-xs",
+                canOpen ? "hover:bg-muted" : "cursor-default opacity-70"
+              )}
+            >
+              {value ? (
+                <span className="line-clamp-4 whitespace-pre-wrap">{value}</span>
+              ) : (
+                <span className="text-muted-foreground">
+                  {editable ? (placeholder ?? "Bấm để nhập") : "—"}
+                </span>
+              )}
+            </button>
+          }
+        />
+        <SheetContent className="flex w-full flex-col sm:max-w-xl">
+          <SheetHeader>
+            <SheetTitle>{title}</SheetTitle>
+          </SheetHeader>
+          <div className="flex flex-1 flex-col overflow-y-auto px-4 pb-4">
+            <Textarea
+              autoFocus={editable}
+              readOnly={!editable}
+              className="min-h-[55vh] max-h-[70vh] w-full flex-1 resize-y text-sm"
+              placeholder={placeholder}
+              value={v}
+              onChange={(e) => setV(e.target.value)}
+            />
+          </div>
+          {editable && (
+            <SheetFooter>
+              <Button
+                onClick={() => {
+                  const trimmed = v.trim()
+                  if (trimmed !== (value ?? "")) onSave(trimmed || null)
+                  setOpen(false)
+                }}
+              >
+                Lưu
+              </Button>
+            </SheetFooter>
+          )}
+        </SheetContent>
+      </Sheet>
+    </TableCell>
   )
 }
 

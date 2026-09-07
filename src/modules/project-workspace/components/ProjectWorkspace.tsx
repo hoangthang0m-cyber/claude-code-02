@@ -86,7 +86,7 @@ export function ProjectWorkspace({ projectId }: { projectId: string }) {
       <ReferenceLinksPanel
         ownerType="project"
         ownerId={projectId}
-        title="Tài liệu tham khảo"
+        title="CHI TIẾT DỰ ÁN"
       />
 
       <ContentTable
