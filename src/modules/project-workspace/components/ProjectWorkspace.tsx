@@ -10,6 +10,7 @@ import {
 import { useMyProjectRole } from "@/modules/project-workspace/hooks/useMyProjectRole"
 import { useProject } from "@/modules/project-workspace/hooks/useProject"
 import { ContentTable } from "@/modules/content-pipeline/components/ContentTable"
+import { DeleteProjectControl } from "@/modules/project-workspace/components/DeleteProjectControl"
 import { LifecycleControl } from "@/modules/project-workspace/components/LifecycleControl"
 import { ProjectFormSheet } from "@/modules/project-workspace/components/ProjectFormSheet"
 import { ProjectMembersPanel } from "@/modules/project-workspace/components/ProjectMembersPanel"
@@ -106,6 +107,10 @@ export function ProjectWorkspace({ projectId }: { projectId: string }) {
       <ProjectMembersPanel projectId={projectId} canManage={canEdit} />
 
       {canEdit && <SheetSyncPanel projectId={projectId} />}
+
+      {isManager && (
+        <DeleteProjectControl projectId={projectId} projectName={project.name} />
+      )}
     </div>
   )
 }

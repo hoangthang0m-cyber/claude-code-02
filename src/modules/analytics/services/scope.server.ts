@@ -13,6 +13,19 @@ export interface AnalyticsScope {
   project_ids: string[]
 }
 
+// project-grouping change task 1.4 — what an aggregation actually runs over: an
+// explicit project-id SET plus the viewer (a staff viewer only ever sees their
+// own assigned items). The dashboard / period-report cores take THIS instead of
+// an AuthedUser, so a group-level roll-up (task 5.x) can hand them its own set
+// of child project ids (mode "manager" — only a manager opens a group roll-up).
+export interface ScopedView extends AnalyticsScope {
+  uid: string
+}
+
+export function scopedView(scope: AnalyticsScope, uid: string): ScopedView {
+  return { mode: scope.mode, project_ids: scope.project_ids, uid }
+}
+
 export async function resolveAnalyticsScope(
   actor: AuthedUser
 ): Promise<AnalyticsScope> {

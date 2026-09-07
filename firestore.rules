@@ -71,6 +71,15 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // projectGroups/ (project-grouping change) — thư mục gom Project. Tạo/sửa/
+    // xoá/lưu trữ nhóm chỉ qua route handler + firebase-admin, giới hạn
+    // system_role = manager (design.md Decision 3). Client chỉ đọc (tên + mô tả,
+    // không nhạy cảm); số liệu roll-up cấp nhóm đi qua API có lọc quyền.
+    match /projectGroups/{groupId} {
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
+
     match /projectMembers/{memberId} {
       // get: own membership row, or any row of a project you belong to.
       allow get: if isSignedIn() && (

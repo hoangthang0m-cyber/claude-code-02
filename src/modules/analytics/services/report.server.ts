@@ -22,7 +22,8 @@ import {
 import {
   chunkedIn,
   resolveAnalyticsScope,
-  type AnalyticsScope,
+  scopedView,
+  type ScopedView,
 } from "@/modules/analytics/services/scope.server"
 
 // SPEC §5.6 R3 / R4, tasks 8.3 / 8.4: the weekly / monthly overview report and
@@ -74,10 +75,12 @@ function validatePeriod(kind: string, date: string): ReportPeriod {
   }
 }
 
-// The §5.6 R3 metrics for one [start, end) window, within the caller's scope.
+// The §5.6 R3 metrics for one [start, end) window, over an explicit project-id
+// set (task 1.4 — `scope.project_ids` may be one project, a manager's managed
+// set, or a group's child projects).
 async function reportForWindow(
   db: Db,
-  scope: AnalyticsScope & { uid: string },
+  scope: ScopedView,
   start: number,
   end: number
 ): Promise<PeriodReport> {
@@ -159,14 +162,16 @@ async function reportForWindow(
   return computePeriodReport(cohort, returnsInPeriod)
 }
 
-export async function getPeriodReport(
-  actor: AuthedUser,
+// task 1.4 — the report core: the §5.6 R3 report for a period over an explicit
+// project-id set. `getPeriodReport` (project-level) and the group roll-up
+// (task 5.3) are thin wrappers that resolve their own set and call this.
+export async function periodReportForScope(
+  scope: ScopedView,
   kind: string,
   date: string
 ): Promise<PeriodReportResult> {
   const period = validatePeriod(kind, date)
   const db = getAdminDb()
-  const scope = { ...(await resolveAnalyticsScope(actor)), uid: actor.uid }
   const report = await reportForWindow(db, scope, period.start, period.end)
   return {
     ...report,
@@ -180,16 +185,14 @@ export async function getPeriodReport(
   }
 }
 
-// SPEC §5.6 R4: the same report for the requested period and the one before it,
-// plus the per-metric absolute + percentage change.
-export async function getPeriodComparison(
-  actor: AuthedUser,
+// task 1.4 — the comparison core (task 5.4 reuses it for the group roll-up).
+export async function periodComparisonForScope(
+  scope: ScopedView,
   kind: string,
   date: string
 ): Promise<PeriodComparisonResult> {
   const period = validatePeriod(kind, date)
   const db = getAdminDb()
-  const scope = { ...(await resolveAnalyticsScope(actor)), uid: actor.uid }
 
   const [current, previous] = await Promise.all([
     reportForWindow(db, scope, period.start, period.end),
@@ -214,4 +217,30 @@ export async function getPeriodComparison(
     previous,
     deltas: comparePeriodReports(current, previous),
   }
+}
+
+export async function getPeriodReport(
+  actor: AuthedUser,
+  kind: string,
+  date: string
+): Promise<PeriodReportResult> {
+  return periodReportForScope(
+    scopedView(await resolveAnalyticsScope(actor), actor.uid),
+    kind,
+    date
+  )
+}
+
+// SPEC §5.6 R4: the same report for the requested period and the one before it,
+// plus the per-metric absolute + percentage change.
+export async function getPeriodComparison(
+  actor: AuthedUser,
+  kind: string,
+  date: string
+): Promise<PeriodComparisonResult> {
+  return periodComparisonForScope(
+    scopedView(await resolveAnalyticsScope(actor), actor.uid),
+    kind,
+    date
+  )
 }

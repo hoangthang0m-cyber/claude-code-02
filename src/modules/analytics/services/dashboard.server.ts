@@ -15,6 +15,8 @@ import {
 import {
   chunkedIn,
   resolveAnalyticsScope,
+  scopedView,
+  type ScopedView,
 } from "@/modules/analytics/services/scope.server"
 
 // SPEC §5.6 R1, task 8.1: the live progress dashboard.
@@ -36,13 +38,16 @@ function tsMs(v: unknown): number | null {
   return typeof t?.toMillis === "function" ? t.toMillis() : null
 }
 
-export async function getProgressDashboard(
-  actor: AuthedUser
+// task 1.4 — the aggregation core: the six counters over an explicit
+// project-id set. `getProgressDashboard` (project-level) and the group roll-up
+// (task 5.1) are thin wrappers that resolve their own set and call this.
+export async function progressDashboardForScope(
+  scope: ScopedView
 ): Promise<ProgressDashboardResult> {
   const db = getAdminDb()
-  const { mode, project_ids: scopeProjects } = await resolveAnalyticsScope(actor)
+  const { mode, project_ids, uid } = scope
 
-  if (scopeProjects.length === 0) {
+  if (project_ids.length === 0) {
     return {
       ...EMPTY_PROGRESS_DASHBOARD,
       mode,
@@ -51,7 +56,7 @@ export async function getProgressDashboard(
     }
   }
 
-  const itemDocs = await chunkedIn(scopeProjects, async (batch) => {
+  const itemDocs = await chunkedIn(project_ids, async (batch) => {
     const snap = await db
       .collection(COLLECTIONS.contentItems)
       .where("project_id", "in", batch)
@@ -60,9 +65,7 @@ export async function getProgressDashboard(
   })
   const items = itemDocs
     .map((d) => ({ id: d.id, data: d.data() }))
-    .filter((i) =>
-      mode === "manager" ? true : i.data.assignee_id === actor.uid
-    )
+    .filter((i) => (mode === "manager" ? true : i.data.assignee_id === uid))
 
   const activeAdItemIds = await currentlyRunningAdItemIds(
     db,
@@ -79,9 +82,17 @@ export async function getProgressDashboard(
   return {
     ...computeProgressDashboard(rowsForDash, now),
     mode,
-    project_ids: scopeProjects,
+    project_ids,
     as_of: now,
   }
+}
+
+export async function getProgressDashboard(
+  actor: AuthedUser
+): Promise<ProgressDashboardResult> {
+  return progressDashboardForScope(
+    scopedView(await resolveAnalyticsScope(actor), actor.uid)
+  )
 }
 
 // content items whose current AdsMetric (latest synced, else latest manual —

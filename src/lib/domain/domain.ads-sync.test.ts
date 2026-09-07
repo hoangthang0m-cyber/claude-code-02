@@ -38,6 +38,7 @@ describe("collection registry", () => {
       "googleConnections",
       "notifications",
       "notificationPreferences",
+      "projectGroups",
     ])
   })
 })

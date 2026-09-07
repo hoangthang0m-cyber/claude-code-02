@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 
 import type { Project, ProjectCreate, ProjectFormUpdate } from "@/lib/domain"
+import { useProjectGroups } from "@/modules/project-grouping/hooks/useProjectGroups"
 import {
   createProject,
   updateProject,
@@ -12,6 +13,13 @@ import {
 import { Button } from "@/components/ui/button"
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import {
   Sheet,
   SheetContent,
@@ -21,6 +29,10 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet"
 import { Textarea } from "@/components/ui/textarea"
+
+// project-grouping task 3.3 — the "no group" option in the create form's group
+// picker; stripped before the payload is sent.
+const NO_GROUP = "__none__"
 
 type Values = {
   name: string
@@ -64,12 +76,17 @@ export function ProjectFormSheet({
   const router = useRouter()
   const [open, setOpen] = React.useState(false)
   const [values, setValues] = React.useState<Values>(toValues(project))
+  const [groupId, setGroupId] = React.useState<string>(NO_GROUP)
   const [submitting, setSubmitting] = React.useState(false)
+  const { groups } = useProjectGroups()
 
   // Reset to the current project values each time the sheet opens.
   function handleOpenChange(next: boolean) {
     setOpen(next)
-    if (next) setValues(toValues(project))
+    if (next) {
+      setValues(toValues(project))
+      setGroupId(project?.group_id ?? NO_GROUP)
+    }
   }
 
   const set = (k: keyof Values) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
@@ -85,6 +102,7 @@ export function ProjectFormSheet({
     try {
       const payload = toPayload(values)
       if (mode === "create") {
+        if (groupId !== NO_GROUP) payload.group_id = groupId
         const { id } = await createProject(payload as unknown as ProjectCreate)
         toast.success("Đã tạo dự án")
         setOpen(false)
@@ -149,6 +167,24 @@ export function ProjectFormSheet({
               <FieldLabel htmlFor="p-scale">Quy mô dự án</FieldLabel>
               <Input id="p-scale" value={values.scale} onChange={set("scale")} />
             </Field>
+            {mode === "create" && (
+              <Field>
+                <FieldLabel htmlFor="p-group">Nhóm dự án</FieldLabel>
+                <Select value={groupId} onValueChange={(v) => v && setGroupId(v)}>
+                  <SelectTrigger id="p-group" size="sm" className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NO_GROUP}>Chưa phân nhóm</SelectItem>
+                    {groups.map((g) => (
+                      <SelectItem key={g.id} value={g.id}>
+                        {g.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+            )}
             <Field>
               <FieldLabel htmlFor="p-sheet">
                 Tiến độ dự án (link Google Sheets)
