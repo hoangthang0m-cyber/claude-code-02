@@ -87,17 +87,36 @@ toàn tách biệt Meta Ads. Gỡ an toàn theo nhóm 1–4 của change này.
 - [x] 2.2 `Project.progress_sheet_url` bỏ hẳn khỏi interface + `projectFormUpdateSchema`. Create form: field `progress_link_url` (create-only) → `createProject` tạo `ReferenceLink` label "Tiến độ dự án". `npm run migrate:progress-links -- --write` cho dữ liệu cũ (idempotent).
 - [x] 2.3 `ContentItem.ads_report_note` thêm (không tồn tại trên `main` — di sản `sheets-sync-fixed-schema` chưa merge; spec §"giữ lại" → thực chất là thêm mới cho task 6.3) + trong `contentFieldUpdateSchema`.
 
-### 3. API tài liệu tham khảo
-- [ ] 3.1 Thêm link (label bắt buộc) — [ ] 3.2 Sửa/xoá — [ ] 3.3 Liệt kê + sắp thứ tự — [ ] 3.4 Validate URL nhẹ — [ ] 3.5 Phân quyền (mọi thành viên) — [ ] 3.6 Cảnh báo > 20
+### 3. API tài liệu tham khảo — `referenceLinks.server.ts` + `/api/reference-links{,/[linkId],/reorder}` (9 test)
+- [x] 3.1 `addReferenceLink` — label bắt buộc (schema), owner_type+owner_id trong body
+- [x] 3.2 `updateReferenceLink` / `deleteReferenceLink`
+- [x] 3.3 `listReferenceLinks` sắp theo sort_index; `reorderReferenceLinkList` (đúng bộ id của owner)
+- [x] 3.4 URL http(s) mức nhẹ — KHÔNG gọi Google API
+- [x] 3.5 `requireProjectScope` (mọi thành viên, kể cả Nhân sự); owner content_item → project_id; người ngoài → 403
+- [x] 3.6 cờ `over_warn_limit` khi > 20 (không chặn thêm)
 
-### 4. Trang Chiến dịch
-- [ ] 4.1 Bỏ card "Đồng bộ Google Sheets" — [ ] 4.2 Card "Tài liệu tham khảo" cấp dự án — [ ] 4.3 Phần tài liệu trong hạng mục — [ ] 4.4 Cột "Tài liệu" ở cuối bảng
+### 4. Trang Chiến dịch — XONG
+- [x] 4.1 Card "Đồng bộ Google Sheets" đã gỡ (1.4)
+- [x] 4.2 `ReferenceLinksPanel` cấp dự án trong `ProjectWorkspace` (list + thêm/sửa/xoá inline + lên/xuống + cảnh báo)
+- [x] 4.3 `ReferenceLinksCell` → Sheet chứa panel của hạng mục
+- [x] 4.4 Cột "Tài liệu" cuối bảng; `content.server` join `reference_link_count` (batched)
 
 ### 5. Bảng hạng mục nhập tay
-- [ ] 5.1 Giữ đúng 10 cột cũ — [ ] 5.2 Tạo nhanh + sửa trực tiếp — [ ] 5.3 Form chi tiết — [ ] 5.4 Kanban/lọc/sắp xếp/bình luận hồi quy
+- [x] 5.1 12 cột: 10 cột spec đúng thứ tự (Mã…Đánh giá) + "Định dạng" (từ content-performance-tracker Q3, giữ) + "Tài liệu" cuối
+- [x] 5.2 Quick-add bằng Mã + sửa inline (đã có sẵn trong content-pipeline)
+- [x] 5.3 **Không có form modal chi tiết riêng** — bảng inline đã phủ mọi trường (spec: "trên bảng HOẶC form chi tiết"). Nếu cần form riêng → task bổ sung.
+- [x] 5.4 Kanban / lọc / sắp xếp / bình luận không đổi (793 test xanh)
 
 ### 6. Cột "Báo cáo hiệu quả ads"
-- [ ] 6.1 Có AdsBinding → chỉ số Meta — [ ] 6.2 Chưa có → ô trống + gợi ý — [ ] 6.3 `ads_report_note` tách riêng — [ ] 6.4 Bỏ đường text từ sheet
+- [x] 6.1 `AdsReportCell` giữ nguyên (chỉ số Meta + "đến {ngày}" + Tự động/Nhập tay)
+- [x] 6.2 Ô trống → "Chưa có dữ liệu — liên kết ad để lấy số liệu từ Meta"
+- [x] 6.3 `AdsNoteEditor` — textarea `ads_report_note` nhập tay, manager-only, cạnh chỉ số Meta, không trộn/ghi đè
+- [x] 6.4 Không còn đường text từ sheet (module `sheets-sync` đã xoá)
 
 ### 7. Kiểm thử & xác minh tích hợp
-- [ ] 7.1–7.6
+- [x] 7.1 `campaignPageReferenceLinks.integration.test.ts` — không còn module/lib/route/collection/notification sheets-sync; không file nào import chúng
+- [x] 7.2 `projects.server.test.ts` — createProject biến `progress_link_url` thành ReferenceLink, không ghi vào project doc
+- [x] 7.3 `referenceLinks.server.test.ts` — thêm nhiều link, Nhân sự xoá được, người ngoài 403, cảnh báo > 20, sắp thứ tự, URL sai định dạng bị từ chối, Sheet không tạo hạng mục
+- [x] 7.4 Toàn bộ suite content-pipeline xanh (793 test)
+- [x] 7.5 `campaignPageReferenceLinks.integration.test.ts` — Meta lib / ad-account routes / ads-overview + ads-performance còn nguyên
+- [ ] 7.6 E2E thủ công — `docs/E2E-CAMPAIGN-PAGE-REFERENCE-LINKS.md`
