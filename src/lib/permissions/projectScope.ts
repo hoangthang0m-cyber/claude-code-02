@@ -68,11 +68,15 @@ export function requireProjectManager(scope: ProjectScope): void {
 }
 
 // Requires a global manager. Used where there is no project context to scope by:
-// creating a project (SPEC §6.9) and managing project groups (project-grouping
-// change §2/§3 — design Decision 3).
-export function requireSystemManager(user: AuthedUser): void {
+// creating a project (SPEC §6.9), managing project groups (project-grouping
+// change §2/§3), and the manager-wide reporting screens (ads-overview-reporting
+// passes its own message).
+export function requireSystemManager(
+  user: AuthedUser,
+  message = "Chỉ Trưởng phòng được thực hiện thao tác này"
+): void {
   if (user.system_role !== "manager") {
-    throw new HttpError(403, "Chỉ Trưởng phòng được thực hiện thao tác này")
+    throw new HttpError(403, message)
   }
 }
 

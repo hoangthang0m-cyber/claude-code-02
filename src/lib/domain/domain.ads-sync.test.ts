@@ -39,6 +39,15 @@ describe("collection registry", () => {
       "notifications",
       "notificationPreferences",
       "projectGroups",
+      // ads-overview-reporting change (group 1)
+      "products",
+      "productAccountRules",
+      "campaignProductOverrides",
+      "adsInsightSnapshots",
+      "adCreativeInsightSnapshots",
+      "adAccountReportSyncStates",
+      "reportingSettings",
+      "currencyRates",
     ])
   })
 })

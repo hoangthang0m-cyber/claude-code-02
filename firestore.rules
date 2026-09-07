@@ -159,5 +159,18 @@ service cloud.firestore {
       allow update: if isOwner(resource.data.user_id)
         && isOwner(request.resource.data.user_id);
     }
+
+    // === ads-overview-reporting (changes/ads-overview-reporting) ===
+    // Trang Báo cáo + cấu hình sản phẩm chỉ dành cho system_role = manager và
+    // luôn đi qua route handler (gộp + phân loại + quy đổi tiền tệ ở server).
+    // Client không đọc trực tiếp — chặn hết ở đây.
+    match /products/{productId} { allow read, write: if false; }
+    match /productAccountRules/{ruleId} { allow read, write: if false; }
+    match /campaignProductOverrides/{overrideId} { allow read, write: if false; }
+    match /adsInsightSnapshots/{snapshotId} { allow read, write: if false; }
+    match /adCreativeInsightSnapshots/{snapshotId} { allow read, write: if false; }
+    match /adAccountReportSyncStates/{stateId} { allow read, write: if false; }
+    match /reportingSettings/{settingsId} { allow read, write: if false; }
+    match /currencyRates/{rateId} { allow read, write: if false; }
   }
 }
