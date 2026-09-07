@@ -285,6 +285,15 @@ describe("computeGroupTimeStatus (task 3.6)", () => {
       days_left: 20,
     })
   })
+
+  it("a completed (archived) group has no time status, even when overdue", () => {
+    expect(
+      computeGroupTimeStatus("2026-09-02", now, 7, { completed: true })
+    ).toBeNull()
+    expect(
+      computeGroupTimeStatus("2026-09-27", now, 7, { completed: true })
+    ).toBeNull()
+  })
 })
 
 describe("computeGroupBudgetReconciliation (task 3.3 / 3.4)", () => {

@@ -155,7 +155,9 @@ export function GroupRollupView({ groupId }: { groupId: string }) {
       })
     : null
   const timeStatus = group
-    ? computeGroupTimeStatus(group.target_end_date, nowMs)
+    ? computeGroupTimeStatus(group.target_end_date, nowMs, 7, {
+        completed: group.lifecycle === "archived",
+      })
     : null
   const hasGroupInfo =
     !!group &&

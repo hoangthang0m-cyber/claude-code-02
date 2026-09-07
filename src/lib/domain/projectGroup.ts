@@ -115,6 +115,11 @@ export const ACTUAL_COST_CURRENCY = "VND"
 // Pure (no clock, no storage): the caller passes `nowMs`. Day-granular — the
 // target's own day still counts as "in range" (days_left 0). `warnDays` is the
 // "sắp hết hạn" window, 7 by default (design.md Decision 3).
+//
+// The spec conditions "quá hạn" on the group not being finished. A group has no
+// "done" state (only active | archived), so an archived group is treated as
+// closed: `completed` suppresses the status entirely — a filed-away group needs
+// no countdown or alarm.
 export type GroupTimeStatus =
   | { state: "on_track"; days_left: number }
   | { state: "due_soon"; days_left: number }
@@ -129,8 +134,10 @@ function utcDayNumber(ms: number): number {
 export function computeGroupTimeStatus(
   targetEndDate: string | undefined | null,
   nowMs: number,
-  warnDays = 7
+  warnDays = 7,
+  opts: { completed?: boolean } = {}
 ): GroupTimeStatus | null {
+  if (opts.completed) return null
   if (!targetEndDate || !/^\d{4}-\d{2}-\d{2}$/.test(targetEndDate)) return null
   const endMs = Date.parse(`${targetEndDate}T00:00:00Z`)
   if (Number.isNaN(endMs)) return null
