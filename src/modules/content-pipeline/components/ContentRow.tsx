@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 
 import {
@@ -58,6 +59,34 @@ export function ContentRow({
   canEvaluate: boolean
   onChanged: () => void
 }) {
+  const router = useRouter()
+
+  // ads-overview-reporting task 6.2: accumulate videos into a comparison basket
+  // (localStorage), hard-capped at 6, then open the comparison page.
+  function openComparison() {
+    const KEY = "aor:vc:basket"
+    let ids: string[] = []
+    try {
+      const raw = JSON.parse(localStorage.getItem(KEY) ?? "[]")
+      if (Array.isArray(raw)) ids = raw.filter((x): x is string => typeof x === "string")
+    } catch {
+      /* ignore */
+    }
+    if (!ids.includes(item.id)) {
+      if (ids.length >= 6) {
+        toast.error("Tối đa 6 video trong một bảng so sánh — bỏ bớt trước")
+        return
+      }
+      ids = [...ids, item.id]
+    }
+    try {
+      localStorage.setItem(KEY, JSON.stringify(ids))
+    } catch {
+      /* ignore */
+    }
+    router.push(`/reports/video-comparison?items=${ids.join(",")}`)
+  }
+
   async function patch(field: keyof ContentFieldUpdate, value: string | null) {
     try {
       await updateContentFields(item.id, { [field]: value })
@@ -206,6 +235,15 @@ export function ContentRow({
       {/* Ads report — current AdsMetric, read-only (SPEC §5.4 R3, task 5.10) */}
       <TableCell className="min-w-44 align-top">
         <AdsReportCell metric={item.ads_metric} />
+        {canEvaluate && item.has_ads_binding === true && (
+          <button
+            type="button"
+            onClick={openComparison}
+            className="mt-1 inline-block text-xs text-primary hover:underline"
+          >
+            Xem hiệu quả
+          </button>
+        )}
       </TableCell>
 
       {/* Evaluation — manager-only free-text note (SPEC §5.4 R5) */}

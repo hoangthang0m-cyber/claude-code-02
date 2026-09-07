@@ -235,3 +235,85 @@ export function deleteCurrencyRate(rateId: string) {
     { method: "DELETE" }
   )
 }
+
+// ── video comparison (group 6) ──────────────────────────────────────────
+
+export const VIDEO_CORE_METRICS = [
+  "cost_per_purchase",
+  "roas",
+  "hook_rate",
+  "retention_rate",
+] as const
+export const VIDEO_EXTRA_METRICS = [
+  "ctr",
+  "reach",
+  "purchases",
+  "spend",
+  "impressions",
+] as const
+
+export const VIDEO_METRIC_LABELS: Record<string, string> = {
+  cost_per_purchase: "Chi phí / lượt mua",
+  roas: "ROAS",
+  hook_rate: "Tỷ lệ lôi cuốn",
+  retention_rate: "Tỷ lệ giữ chân",
+  ctr: "CTR",
+  reach: "Reach",
+  purchases: "Lượt mua",
+  spend: "Chi phí",
+  impressions: "Impressions",
+}
+
+export const VIDEO_COMPARISON_LIMIT = 6
+
+export interface VideoComparisonResponse {
+  window: WindowView
+  reporting_currency: string
+  metrics_shown: string[]
+  accounts_missing_rate: string[]
+  items: Array<{
+    content_item_id: string
+    code: string
+    status: "ok" | "pending" | "no_binding"
+    metrics: Record<string, number | null>
+    reach: number | null
+  }>
+  series: {
+    metric: string
+    buckets: string[]
+    lines: Array<{
+      content_item_id: string
+      code: string
+      values: (number | null)[]
+    }>
+  } | null
+}
+
+export function getVideoComparison(opts: {
+  items: string[]
+  query: ReportQuery
+  extras: string[]
+  bucket?: Granularity
+  seriesMetric?: string
+}) {
+  const q = new URLSearchParams(windowQuery(opts.query))
+  q.set("items", opts.items.join(","))
+  if (opts.extras.length) q.set("metrics", opts.extras.join(","))
+  if (opts.bucket) q.set("bucket", opts.bucket)
+  if (opts.seriesMetric) q.set("series_metric", opts.seriesMetric)
+  return authedJson<VideoComparisonResponse>(
+    `/api/ads-reporting/video-comparison?${q}`
+  )
+}
+
+export function videoComparisonExportUrl(opts: {
+  items: string[]
+  query: ReportQuery
+  extras: string[]
+}): string {
+  const q = new URLSearchParams(windowQuery(opts.query))
+  q.set("items", opts.items.join(","))
+  if (opts.extras.length) q.set("metrics", opts.extras.join(","))
+  q.set("format", "csv")
+  return `/api/ads-reporting/video-comparison?${q}`
+}

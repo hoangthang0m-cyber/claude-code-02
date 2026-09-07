@@ -128,15 +128,15 @@ the account is dropped from the total ("đang gộp N/M tài khoản").
 - [x] 5.5 Nút "Xuất báo cáo" / "Xuất biểu đồ" → `/api/ads-reporting/export` qua `downloadCsv`.
 - [x] 5.6 `/reports/settings` (`ProductConfigView`, manager-only): CRUD sản phẩm, gán tài khoản → sản phẩm (chọn + đặt mặc định), bảng gán tay campaign, ô `reporting_currency` + bảng tỷ giá. APIs mới: `PUT /settings`, `POST/DELETE /currency-rates`.
 
-### 6. So sánh video ads (từ trang Chiến dịch)
-- [ ] 6.1 Nút "Xem hiệu quả" trên dòng video có `AdsBinding`
-- [ ] 6.2 Bảng so sánh nhận danh sách `content_item_id` (URL param); giới hạn cứng 6 video
-- [ ] 6.3 API bảng so sánh — cộng dồn `AdCreativeInsightSnapshot`; 4 cốt lõi + phụ
-- [ ] 6.4 Bộ chọn chỉ số hiển thị; nhớ lựa chọn; reach cấp kỳ
-- [ ] 6.5 Chọn kỳ cho bảng so sánh
-- [ ] 6.6 Biểu đồ diễn biến trong bảng so sánh
-- [ ] 6.7 Trạng thái "đang lấy số liệu" cho video vừa gắn ad
-- [ ] 6.8 Xuất CSV/Excel bảng so sánh
+### 6. So sánh video ads — `videoComparison.ts` (thuần) + `.server.ts` + `/api/ads-reporting/video-comparison` + `/reports/video-comparison`
+- [x] 6.1 Nút "Xem hiệu quả" trong `ContentRow` khi `canEvaluate && item.has_ads_binding` (list content gắn cờ `has_ads_binding` từ `adsBindings` active `object_level=ad`).
+- [x] 6.2 `/reports/video-comparison?items=` — "giỏ" tích luỹ trong `localStorage` (`aor:vc:basket`), chặn cứng ở 6 (toast); nút ✕ trên mỗi cột bỏ video + cập nhật URL.
+- [x] 6.3 `buildVideoComparison` — mỗi hạng mục cộng dồn snapshot của các ad gắn (nhiều ad → cộng trước khi lấy tỷ số), quy đổi tiền tệ theo ngày. 4 cốt lõi (chi phí/lượt mua, ROAS, hook, retention) luôn có; 0 lượt mua → null ("—").
+- [x] 6.4 `?metrics=ctr,reach,purchases,spend,impressions` — checkbox client, nhớ qua `useSyncExternalStore` + `localStorage` (`aor:vc:metrics`); reach lấy qua `ReachCache` (task 3.3), cấp kỳ, cộng qua các ad của hạng mục.
+- [x] 6.5 Bộ chọn kỳ Tuần/Tháng/Khoảng ngày; đổi kỳ tính lại toàn bộ + reach.
+- [x] 6.6 `?bucket=day|week|month&series_metric=` → `buildVideoComparisonSeries`; `LineChart` (shadcn) mỗi video một đường.
+- [x] 6.7 Binding có nhưng chưa có snapshot → `status: "pending"` → hiển thị "đang lấy số liệu…".
+- [x] 6.8 `?format=csv` trên cùng route → CSV (BOM UTF-8), mỗi video một dòng, các chỉ số đang hiển thị.
 
 ### 7. Kiểm thử & xác minh tích hợp
 - [ ] 7.1–7.7 (phân loại, cộng dồn, cửa sổ quy đổi, đa tiền tệ, bảng so sánh, phân quyền, E2E thủ công)

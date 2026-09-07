@@ -194,8 +194,33 @@ export async function listContentItems(
   })
 
   await attachAdsMetrics(items)
+  await attachAdsBindingFlag(items)
 
   return { items }
+}
+
+// ads-overview-reporting task 6.1: the "Xem hiệu quả" button only shows for a
+// content item that has at least one active ad-level AdsBinding.
+async function attachAdsBindingFlag(items: ContentListItem[]): Promise<void> {
+  const ids = items.map((i) => i.id)
+  if (ids.length === 0) return
+  const db = getAdminDb()
+  const bound = new Set<string>()
+  for (let i = 0; i < ids.length; i += 30) {
+    const snap = await db
+      .collection(COLLECTIONS.adsBindings)
+      .where("content_item_id", "in", ids.slice(i, i + 30))
+      .where("active", "==", true)
+      .get()
+    for (const d of snap.docs) {
+      if (d.data().object_level === "ad") {
+        bound.add(String(d.data().content_item_id ?? ""))
+      }
+    }
+  }
+  for (const item of items) {
+    item.has_ads_binding = bound.has(item.id)
+  }
 }
 
 // SPEC §5.4 R3 (task 5.10): the "báo cáo hiệu quả ads" cell shows the current
