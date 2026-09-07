@@ -21,14 +21,24 @@ import {
 import type { TimeseriesResponse } from "@/modules/ads-overview/services/adsReporting.client"
 
 // task 5.3 / 5.4: spend + revenue as areas on the money axis, ROAS as a line on
-// its own right axis so the scales don't fight. One chart per rendered series
-// (a product, or "Chưa phân loại"), or all products stacked when no filter.
+// its own right axis so the scales don't fight. One line per product (or "Chưa
+// phân loại"), or all products overlaid when no filter.
 
-const SERIES_COLORS = [
-  "var(--chart-1)",
+// Line colours fixed per product (design.md codes a / t / h), theme-aware so
+// the "trắng" product stays visible on a light background:
+//   a  An Mệnh Hòa Duyên  → đỏ
+//   t  Tứ Bản Định Mệnh    → cam
+//   h  Hiếu Mệnh Dưỡng Con → trắng
+const PRODUCT_COLORS: Record<string, { light: string; dark: string }> = {
+  a: { light: "#dc2626", dark: "#f04438" },
+  t: { light: "#ea580c", dark: "#f79009" },
+  h: { light: "#18181b", dark: "#fafafa" },
+}
+const FALLBACK_COLORS = [
+  "var(--chart-4)",
+  "var(--chart-5)",
   "var(--chart-2)",
   "var(--chart-3)",
-  "var(--chart-4)",
 ]
 
 interface Props {
@@ -40,17 +50,20 @@ interface Props {
 
 export function ReportTrendChart({ data, focus, metric }: Props) {
   const series = React.useMemo(() => {
-    const list = data.series.map((s, i) => ({
+    let fb = 0
+    const list = data.series.map((s) => ({
       key: s.product_id,
       label: s.name,
-      color: SERIES_COLORS[i % SERIES_COLORS.length],
+      theme: PRODUCT_COLORS[s.code] as { light: string; dark: string } | undefined,
+      fallback: FALLBACK_COLORS[fb++ % FALLBACK_COLORS.length],
       points: s.points,
     }))
     if (data.unclassified && !focus) {
       list.push({
         key: "__unc__",
         label: "Chưa phân loại",
-        color: "var(--muted-foreground)",
+        theme: undefined,
+        fallback: "var(--muted-foreground)",
         points: data.unclassified.points,
       })
     }
@@ -67,7 +80,11 @@ export function ReportTrendChart({ data, focus, metric }: Props) {
 
   const config: ChartConfig = React.useMemo(() => {
     const c: ChartConfig = {}
-    for (const s of series) c[s.key] = { label: s.label, color: s.color }
+    for (const s of series) {
+      c[s.key] = s.theme
+        ? { label: s.label, theme: s.theme }
+        : { label: s.label, color: s.fallback }
+    }
     return c
   }, [series])
 
@@ -108,7 +125,7 @@ export function ReportTrendChart({ data, focus, metric }: Props) {
               key={s.key}
               type="monotone"
               dataKey={s.key}
-              stroke={s.color}
+              stroke={`var(--color-${s.key})`}
               strokeWidth={2}
               dot={false}
             />
@@ -117,8 +134,8 @@ export function ReportTrendChart({ data, focus, metric }: Props) {
               key={s.key}
               type="monotone"
               dataKey={s.key}
-              stroke={s.color}
-              fill={s.color}
+              stroke={`var(--color-${s.key})`}
+              fill={`var(--color-${s.key})`}
               fillOpacity={0.15}
               strokeWidth={2}
             />
