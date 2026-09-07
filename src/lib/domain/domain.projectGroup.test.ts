@@ -1,10 +1,13 @@
 import { describe, expect, it } from "vitest"
 
 import {
+  ACTUAL_COST_CURRENCY,
   COLLECTIONS,
   PROJECT_GROUP_LIFECYCLES,
   PROJECT_GROUP_LIFECYCLE_LABELS,
   SORT_INDEX_STEP,
+  computeGroupBudgetReconciliation,
+  computeGroupTimeStatus,
   computeReorder,
   computeSortIndexBackfill,
   groupNeedsObjective,
@@ -219,6 +222,141 @@ describe("groupNeedsObjective (task 2.3)", () => {
 
   it("is false once an objective is set", () => {
     expect(groupNeedsObjective({ objective: "Đẩy ROAS" })).toBe(false)
+  })
+})
+
+describe("computeGroupTimeStatus (task 3.6)", () => {
+  // "today" fixed at 2026-09-07T10:00:00Z
+  const now = Date.parse("2026-09-07T10:00:00Z")
+
+  it("returns null when there is no target end date", () => {
+    expect(computeGroupTimeStatus(undefined, now)).toBeNull()
+    expect(computeGroupTimeStatus(null, now)).toBeNull()
+    expect(computeGroupTimeStatus("not-a-date", now)).toBeNull()
+  })
+
+  it("on track when more than the warn window remains", () => {
+    // 2026-09-27 is 20 days out
+    expect(computeGroupTimeStatus("2026-09-27", now)).toEqual({
+      state: "on_track",
+      days_left: 20,
+    })
+  })
+
+  it("due soon at exactly the 7-day threshold and inside it", () => {
+    expect(computeGroupTimeStatus("2026-09-14", now)).toEqual({
+      state: "due_soon",
+      days_left: 7,
+    })
+    expect(computeGroupTimeStatus("2026-09-08", now)).toEqual({
+      state: "due_soon",
+      days_left: 1,
+    })
+  })
+
+  it("the target day itself is still due soon, not overdue (days_left 0)", () => {
+    expect(computeGroupTimeStatus("2026-09-07", now)).toEqual({
+      state: "due_soon",
+      days_left: 0,
+    })
+  })
+
+  it("8 days out is still on track (just past the threshold)", () => {
+    expect(computeGroupTimeStatus("2026-09-15", now)).toEqual({
+      state: "on_track",
+      days_left: 8,
+    })
+  })
+
+  it("overdue once the target day has passed", () => {
+    expect(computeGroupTimeStatus("2026-09-02", now)).toEqual({
+      state: "overdue",
+      days_over: 5,
+    })
+    expect(computeGroupTimeStatus("2026-09-06", now)).toEqual({
+      state: "overdue",
+      days_over: 1,
+    })
+  })
+
+  it("respects a custom warn window", () => {
+    expect(computeGroupTimeStatus("2026-09-27", now, 30)).toEqual({
+      state: "due_soon",
+      days_left: 20,
+    })
+  })
+})
+
+describe("computeGroupBudgetReconciliation (task 3.3 / 3.4)", () => {
+  it("no_budget when the group has no budget amount", () => {
+    expect(
+      computeGroupBudgetReconciliation({
+        budgetAmount: null,
+        budgetCurrency: null,
+        actualSpend: 10,
+      })
+    ).toEqual({ state: "no_budget" })
+    expect(
+      computeGroupBudgetReconciliation({
+        budgetAmount: 0,
+        budgetCurrency: "VND",
+        actualSpend: 10,
+      }).state
+    ).toBe("no_budget")
+  })
+
+  it("within budget → percent_used ratio, over_amount 0", () => {
+    const r = computeGroupBudgetReconciliation({
+      budgetAmount: 100_000_000,
+      budgetCurrency: "VND",
+      actualSpend: 60_000_000,
+    })
+    expect(r).toEqual({
+      state: "within",
+      budget_amount: 100_000_000,
+      budget_currency: "VND",
+      actual_spend: 60_000_000,
+      spend_currency: ACTUAL_COST_CURRENCY,
+      percent_used: 0.6,
+      over_amount: 0,
+    })
+  })
+
+  it("over budget → state over, over_amount = spend − budget", () => {
+    const r = computeGroupBudgetReconciliation({
+      budgetAmount: 50_000_000,
+      budgetCurrency: "VND",
+      actualSpend: 65_500_000,
+    })
+    expect(r.state).toBe("over")
+    if (r.state === "over") {
+      expect(r.over_amount).toBe(15_500_000)
+      expect(r.percent_used).toBeCloseTo(1.31)
+    }
+  })
+
+  it("currency_mismatch when the budget is in a different currency", () => {
+    const r = computeGroupBudgetReconciliation({
+      budgetAmount: 5_000,
+      budgetCurrency: "USD",
+      actualSpend: 60_000_000,
+    })
+    expect(r).toEqual({
+      state: "currency_mismatch",
+      budget_amount: 5_000,
+      budget_currency: "USD",
+      actual_spend: 60_000_000,
+      spend_currency: "VND",
+    })
+  })
+
+  it("clamps a negative actual spend to 0", () => {
+    const r = computeGroupBudgetReconciliation({
+      budgetAmount: 100,
+      budgetCurrency: "VND",
+      actualSpend: -5,
+    })
+    if (r.state === "within") expect(r.actual_spend).toBe(0)
   })
 })
 

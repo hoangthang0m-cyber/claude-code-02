@@ -103,6 +103,103 @@ export function groupNeedsObjective(
   return !group.objective || group.objective.trim().length === 0
 }
 
+// task 3.2 / 3.4 — the currency the roll-up's "actual cost" is in. The analytics
+// roll-up sums `AdsMetric.spend` straight (Meta returns it in the ad account's
+// currency); the codebase does not carry a per-metric currency, so this is
+// pinned to VND — the team's operating currency, matching
+// `DEFAULT_REPORTING_CURRENCY`. A group budget in any other currency is shown
+// side by side without conversion (design.md Non-Goals).
+export const ACTUAL_COST_CURRENCY = "VND"
+
+// task 3.6 — the group's time status, computed from `target_end_date` and today.
+// Pure (no clock, no storage): the caller passes `nowMs`. Day-granular — the
+// target's own day still counts as "in range" (days_left 0). `warnDays` is the
+// "sắp hết hạn" window, 7 by default (design.md Decision 3).
+export type GroupTimeStatus =
+  | { state: "on_track"; days_left: number }
+  | { state: "due_soon"; days_left: number }
+  | { state: "overdue"; days_over: number }
+
+const MS_PER_DAY = 86_400_000
+
+function utcDayNumber(ms: number): number {
+  return Math.floor(ms / MS_PER_DAY)
+}
+
+export function computeGroupTimeStatus(
+  targetEndDate: string | undefined | null,
+  nowMs: number,
+  warnDays = 7
+): GroupTimeStatus | null {
+  if (!targetEndDate || !/^\d{4}-\d{2}-\d{2}$/.test(targetEndDate)) return null
+  const endMs = Date.parse(`${targetEndDate}T00:00:00Z`)
+  if (Number.isNaN(endMs)) return null
+
+  const daysLeft = utcDayNumber(endMs) - utcDayNumber(nowMs)
+  if (daysLeft < 0) return { state: "overdue", days_over: -daysLeft }
+  if (daysLeft <= warnDays) return { state: "due_soon", days_left: daysLeft }
+  return { state: "on_track", days_left: daysLeft }
+}
+
+// task 3.3 / 3.4 — reconcile the group's planned budget against the actual cost
+// of the period currently on screen. Pure. `actualSpend` / `spendCurrency` come
+// from the roll-up report (spendCurrency is always ACTUAL_COST_CURRENCY today,
+// but it is a parameter so the mismatch branch is real and testable).
+export type GroupBudgetReconciliation =
+  | { state: "no_budget" }
+  | {
+      state: "currency_mismatch"
+      budget_amount: number
+      budget_currency: string
+      actual_spend: number
+      spend_currency: string
+    }
+  | {
+      state: "within" | "over"
+      budget_amount: number
+      budget_currency: string
+      actual_spend: number
+      spend_currency: string
+      /** actual_spend / budget_amount, as a ratio (0.6 = "đã dùng 60%") */
+      percent_used: number
+      /** how much actual_spend exceeds the budget; 0 when within */
+      over_amount: number
+    }
+
+export function computeGroupBudgetReconciliation(input: {
+  budgetAmount: number | undefined | null
+  budgetCurrency: string | undefined | null
+  actualSpend: number
+  spendCurrency?: string
+}): GroupBudgetReconciliation {
+  const { budgetAmount, budgetCurrency } = input
+  const spendCurrency = input.spendCurrency ?? ACTUAL_COST_CURRENCY
+  const actualSpend = Math.max(0, input.actualSpend)
+
+  if (budgetAmount == null || budgetAmount <= 0 || !budgetCurrency) {
+    return { state: "no_budget" }
+  }
+
+  const common = {
+    budget_amount: budgetAmount,
+    budget_currency: budgetCurrency,
+    actual_spend: actualSpend,
+    spend_currency: spendCurrency,
+  }
+
+  if (budgetCurrency !== spendCurrency) {
+    return { state: "currency_mismatch", ...common }
+  }
+
+  const over = actualSpend > budgetAmount
+  return {
+    ...common,
+    state: over ? "over" : "within",
+    percent_used: actualSpend / budgetAmount,
+    over_amount: over ? actualSpend - budgetAmount : 0,
+  }
+}
+
 // task 2.2 / 2.3 — an archived group is read-only (spec: "lưu trữ … chỉ đọc").
 // Mirrors `isProjectWritable`.
 export function isProjectGroupWritable(
