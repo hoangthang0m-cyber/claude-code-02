@@ -126,12 +126,12 @@ describe("projectCreateSchema (SPEC §5.1 R1)", () => {
     ).toBe(false)
   })
 
-  it("keeps a non-Sheets progress_sheet_url (stored, flagged downstream)", () => {
+  it("accepts a progress_link_url on create (turned into a reference link)", () => {
     expect(
       projectCreateSchema.safeParse({
         name: "P",
         objective: "o",
-        progress_sheet_url: "not-a-real-url",
+        progress_link_url: "https://docs.google.com/spreadsheets/d/x/edit",
       }).success
     ).toBe(true)
   })

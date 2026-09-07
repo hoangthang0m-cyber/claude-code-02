@@ -2,6 +2,8 @@ import { FieldValue } from "firebase-admin/firestore"
 
 import {
   COLLECTIONS,
+  PROGRESS_LINK_LABEL,
+  REFERENCE_LINK_SORT_STEP,
   canChangeLifecycle,
   isBackgroundSyncActive,
   isProjectWritable,
@@ -44,10 +46,13 @@ export async function createProject(
 ): Promise<CreateProjectResult> {
   requireSystemManager(actor)
 
-  const input = parseOrThrow(projectCreateSchema, body)
+  const { progress_link_url, ...fields } = parseOrThrow(
+    projectCreateSchema,
+    body
+  )
   const db = getAdminDb()
 
-  const bucket = input.group_id ?? null
+  const bucket = fields.group_id ?? null
   if (bucket !== null) {
     await assertAssignableGroup(db, bucket)
   }
@@ -60,7 +65,7 @@ export async function createProject(
 
   const batch = db.batch()
   batch.set(projectRef, {
-    ...input,
+    ...fields,
     lifecycle: "running",
     sort_index,
     created_by: actor.uid,
@@ -74,6 +79,20 @@ export async function createProject(
     project_role: "manager",
     skill_tag: null,
   })
+  // campaign-page-reference-links: the "tiến độ dự án" field becomes a plain
+  // reference link on the project (no sync).
+  if (progress_link_url) {
+    batch.set(db.collection(COLLECTIONS.referenceLinks).doc(), {
+      owner_type: "project",
+      owner_id: projectRef.id,
+      url: progress_link_url,
+      label: PROGRESS_LINK_LABEL,
+      note: null,
+      created_by: actor.uid,
+      created_at: FieldValue.serverTimestamp(),
+      sort_index: REFERENCE_LINK_SORT_STEP,
+    })
+  }
   await batch.commit()
 
   return { id: projectRef.id }

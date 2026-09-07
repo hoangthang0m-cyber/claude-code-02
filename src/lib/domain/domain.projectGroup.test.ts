@@ -79,7 +79,7 @@ describe("projectGroupCreateSchema", () => {
       name: "Nhóm A",
       objective: "x",
       scale: "y",
-      progress_sheet_url: "z",
+      progress_link_url: "z",
       retrospective: "w",
     })
     expect(r.success).toBe(true)

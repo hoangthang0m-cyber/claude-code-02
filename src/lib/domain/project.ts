@@ -5,8 +5,10 @@ import { PROJECT_LIFECYCLES, type ProjectLifecycle } from "@/lib/domain/enums"
 import { looseLinkString } from "@/lib/domain/shared"
 
 // SPEC §6.1: Project (id, name, objective, description, scale,
-//   progress_sheet_url nullable, retrospective nullable,
-//   lifecycle: running | done | archived, created_by)
+//   retrospective nullable, lifecycle: running | done | archived, created_by)
+//
+// The old `progress_sheet_url` is gone (campaign-page-reference-links): the
+// "tiến độ dự án" link is now a plain ReferenceLink on the project, no sync.
 //
 // created_at / updated_at follow the ContentItem convention in §6.1 and are set
 // server-side. updated_by is required by SPEC §5.1 R2 ("lưu kèm thời điểm +
@@ -18,7 +20,6 @@ export interface Project {
   objective: string
   description?: string
   scale?: string
-  progress_sheet_url?: string
   retrospective?: string
   lifecycle: ProjectLifecycle
   created_by: string
@@ -42,8 +43,10 @@ export const projectCreateSchema = z.object({
   objective: z.string().trim().min(1),
   description: z.string().trim().optional(),
   scale: z.string().trim().optional(),
-  // Stored even if not a usable Sheets URL (SPEC §5.1 R1) — validated downstream.
-  progress_sheet_url: looseLinkString.optional(),
+  // campaign-page-reference-links: an optional "tiến độ dự án" link entered on
+  // the create form. Not stored on the project — createProject turns it into a
+  // ReferenceLink (label "Tiến độ dự án"). Any non-empty string is accepted.
+  progress_link_url: looseLinkString.optional(),
   retrospective: z.string().trim().optional(),
   // project-grouping change task 3.3 — optional group picker on the create form.
   // Omitted → "Chưa phân nhóm". The edit form (projectFormUpdateSchema) does NOT
@@ -58,7 +61,7 @@ export type ProjectCreate = z.infer<typeof projectCreateSchema>
 // nor `group_id` — moving a project between groups is PATCH .../group
 // (project-grouping task 3.1).
 export const projectFormUpdateSchema = projectCreateSchema
-  .omit({ group_id: true })
+  .omit({ group_id: true, progress_link_url: true })
   .partial()
 
 export type ProjectFormUpdate = z.infer<typeof projectFormUpdateSchema>

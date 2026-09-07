@@ -31,6 +31,7 @@ describe("collection registry", () => {
       "notifications",
       "notificationPreferences",
       "projectGroups",
+      "referenceLinks",
       // ads-overview-reporting change (group 1)
       "products",
       "productAccountRules",

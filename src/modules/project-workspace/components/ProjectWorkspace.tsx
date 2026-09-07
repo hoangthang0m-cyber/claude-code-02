@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { ArrowLeftIcon, ExternalLinkIcon, PencilIcon } from "lucide-react"
+import { ArrowLeftIcon, PencilIcon } from "lucide-react"
 
 import {
   PROJECT_LIFECYCLE_LABELS,
@@ -77,21 +77,6 @@ export function ProjectWorkspace({ projectId }: { projectId: string }) {
         {project.scale && <Info label="Quy mô" value={project.scale} />}
         {project.retrospective && (
           <Info label="Đúc kết" value={project.retrospective} />
-        )}
-        {project.progress_sheet_url && (
-          <div className="flex flex-col gap-0.5">
-            <dt className="text-xs text-muted-foreground">Tiến độ (Sheets)</dt>
-            <dd>
-              <a
-                href={project.progress_sheet_url}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-1 text-primary hover:underline"
-              >
-                Mở Google Sheet <ExternalLinkIcon className="size-3.5" />
-              </a>
-            </dd>
-          </div>
         )}
       </dl>
 

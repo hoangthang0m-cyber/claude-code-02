@@ -18,6 +18,8 @@ export const COLLECTIONS = {
   notificationPreferences: "notificationPreferences",
   // project-grouping change task 1.1 — folder-style grouping over Project
   projectGroups: "projectGroups",
+  // campaign-page-reference-links — labelled links on a project / content item
+  referenceLinks: "referenceLinks",
   // ads-overview-reporting change — product-organised Meta Ads reporting.
   // group 1 tasks 1.1–1.5. All server-written; client read-only.
   products: "products",

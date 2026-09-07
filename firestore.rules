@@ -110,6 +110,14 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // referenceLinks/ (campaign-page-reference-links) — link tài liệu tham khảo
+    // của một dự án / hạng mục. Client đọc; thêm/sửa/xoá qua route handler
+    // (kiểm tra thành viên dự án + phân giải owner).
+    match /referenceLinks/{linkId} {
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
+
     // Chứa token_encrypted — client KHÔNG được đọc (SPEC §1.5). Toàn bộ qua server.
     match /adAccountConnections/{connectionId} {
       allow read, write: if false;
