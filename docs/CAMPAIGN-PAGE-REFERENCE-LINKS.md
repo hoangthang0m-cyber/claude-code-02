@@ -82,10 +82,10 @@ toàn tách biệt Meta Ads. Gỡ an toàn theo nhóm 1–4 của change này.
 - [x] 1.6 Xoá nhánh `feat/sheets-sync-fixed-schema` (local + remote). Không có migration Firestore để hoàn tác.
 - [x] 1.7 Không nơi nào sinh mã `tmp-*` (đã theo module `sheets-sync` bị xoá). `createContentItem` yêu cầu `code` tường minh.
 
-### 2. Data model tài liệu tham khảo
-- [ ] 2.1 Collection `referenceLinks`
-- [ ] 2.2 Migration `progress_sheet_url` → `ReferenceLink`, bỏ cột
-- [ ] 2.3 Giữ `ContentItem.ads_report_note`
+### 2. Data model tài liệu tham khảo — XONG
+- [x] 2.1 `src/lib/domain/referenceLink.ts` (ReferenceLink + schema + sort helpers) + collection `referenceLinks` + firestore.rules (client đọc, ghi qua server). 10 unit test.
+- [x] 2.2 `Project.progress_sheet_url` bỏ hẳn khỏi interface + `projectFormUpdateSchema`. Create form: field `progress_link_url` (create-only) → `createProject` tạo `ReferenceLink` label "Tiến độ dự án". `npm run migrate:progress-links -- --write` cho dữ liệu cũ (idempotent).
+- [x] 2.3 `ContentItem.ads_report_note` thêm (không tồn tại trên `main` — di sản `sheets-sync-fixed-schema` chưa merge; spec §"giữ lại" → thực chất là thêm mới cho task 6.3) + trong `contentFieldUpdateSchema`.
 
 ### 3. API tài liệu tham khảo
 - [ ] 3.1 Thêm link (label bắt buộc) — [ ] 3.2 Sửa/xoá — [ ] 3.3 Liệt kê + sắp thứ tự — [ ] 3.4 Validate URL nhẹ — [ ] 3.5 Phân quyền (mọi thành viên) — [ ] 3.6 Cảnh báo > 20
