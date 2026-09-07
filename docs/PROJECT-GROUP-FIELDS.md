@@ -61,8 +61,24 @@ không** là Dự án: không link tiến độ đồng bộ, không đúc kết
       due_soon (≤7 ngày, amber) / overdue (destructive); ẩn khi không có ngày.
 
 ### 4. Kiểm thử & xác minh tích hợp
-- [ ] 4.1 Tạo/sửa: đủ trường, thiếu mục tiêu bị chặn, không ngày kết thúc, Nhân sự bị chặn
-- [ ] 4.2 Nhóm cũ: mở được + nhắc; chức năng project-grouping không đổi
-- [ ] 4.3 Đối chiếu ngân sách: trong/vượt/không đặt/khác đơn vị
-- [ ] 4.4 Tình trạng thời gian: còn hạn / sắp hết hạn / quá hạn / không đặt
-- [ ] 4.5 E2E thủ công (người dùng chạy)
+- [x] 4.1 `projectGroupFields.integration.test.ts` — tạo/sửa đủ trường, thiếu
+      mục tiêu bị chặn, không ngày kết thúc (lưu + ẩn tình trạng), Nhân sự 403
+- [x] 4.2 Nhóm cũ (schema project-grouping): `groupNeedsObjective` true, vẫn
+      archive/restore, thêm mục tiêu sau được
+- [x] 4.3 Đối chiếu ngân sách: within / over / no_budget / currency_mismatch
+- [x] 4.4 Tình trạng thời gian: on_track / due_soon / overdue / null
+- [ ] 4.5 E2E thủ công (người dùng chạy) — xem "E2E thủ công" bên dưới
+
+## E2E thủ công (task 4.5)
+
+1. Tạo nhóm "UGC ROAS 2.0" — nhập tên + mục tiêu + quy mô "3 tháng" + ngày kết
+   thúc dự kiến + ngân sách 100.000.000 VND → lưu, mở lại thấy đủ trường.
+2. Thử lưu nhóm không nhập mục tiêu → bị chặn "Cần nhập tên nhóm và mục tiêu".
+3. Gán 2 dự án con vào nhóm → mở "Xem tổng hợp":
+   - Khối "Thông tin nhóm" hiện mục tiêu / mô tả / quy mô / ngày kết thúc / ngân sách.
+   - Chọn kỳ (tháng + ngày) → "Chi phí thực tế (tháng M/YYYY): …" khớp tổng 2 dự án.
+   - "Đã dùng X% ngân sách (chi phí trong tháng M/YYYY)"; nếu vượt → dòng đỏ "vượt …".
+   - "Tình trạng thời gian: Đang trong hạn — còn N ngày" (hoặc sắp hết hạn / quá hạn).
+4. Sửa ngân sách sang USD → khối hiện 2 số riêng + ghi chú "khác đơn vị tiền tệ".
+5. Mở một nhóm cũ (chưa có mục tiêu) → banner amber "chưa có mục tiêu"; mọi thao
+   tác project-grouping (gán, kéo-thả, lưu trữ, xoá) vẫn chạy.
