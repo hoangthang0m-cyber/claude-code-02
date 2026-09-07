@@ -1,12 +1,16 @@
 import { describe, expect, it } from "vitest"
 
 import {
+  ACTUAL_COST_CURRENCY,
   COLLECTIONS,
   PROJECT_GROUP_LIFECYCLES,
   PROJECT_GROUP_LIFECYCLE_LABELS,
   SORT_INDEX_STEP,
+  computeGroupBudgetReconciliation,
+  computeGroupTimeStatus,
   computeReorder,
   computeSortIndexBackfill,
+  groupNeedsObjective,
   groupProjectsForList,
   isProjectGroupWritable,
   nextSortIndex,
@@ -43,48 +47,116 @@ describe("ProjectGroup: registry & enum wiring", () => {
   })
 })
 
-describe("projectGroupCreateSchema", () => {
-  it("accepts a name only", () => {
+// project-group-fields task 1.1 / 1.2 — the group gains an objective (required
+// on create), a free-text time scope, an optional target end date, and a
+// budget amount + currency pair.
+describe("projectGroupCreateSchema (project-group-fields task 1.2)", () => {
+  it("accepts a name + objective", () => {
     expect(
-      projectGroupCreateSchema.safeParse({ name: "UGC ROAS 2.0" }).success
+      projectGroupCreateSchema.safeParse({
+        name: "UGC ROAS 2.0",
+        objective: "Đẩy ROAS toàn nhóm lên 2.0",
+      }).success
     ).toBe(true)
   })
 
-  it("accepts an optional description", () => {
+  it("rejects a create with no objective (required alongside name)", () => {
+    expect(
+      projectGroupCreateSchema.safeParse({ name: "UGC ROAS 2.0" }).success
+    ).toBe(false)
+  })
+
+  it("rejects a blank / whitespace objective", () => {
+    expect(
+      projectGroupCreateSchema.safeParse({ name: "N", objective: "   " })
+        .success
+    ).toBe(false)
+  })
+
+  it("accepts the full field set", () => {
     const r = projectGroupCreateSchema.safeParse({
       name: "UGC ROAS 2.0",
+      objective: "Đẩy ROAS toàn nhóm lên 2.0",
       description: "Các đợt UGC cùng định hướng",
+      time_scope_text: "3 tháng",
+      target_end_date: "2026-12-31",
+      budget_amount: 100_000_000,
+      budget_currency: "vnd",
     })
     expect(r.success).toBe(true)
+    if (r.success) expect(r.data.budget_currency).toBe("VND") // upper-cased
+  })
+
+  it("rejects a target_end_date that is not YYYY-MM-DD", () => {
+    expect(
+      projectGroupCreateSchema.safeParse({
+        name: "N",
+        objective: "o",
+        target_end_date: "31/12/2026",
+      }).success
+    ).toBe(false)
+  })
+
+  it("rejects a budget amount without a currency (the pair must be complete)", () => {
+    expect(
+      projectGroupCreateSchema.safeParse({
+        name: "N",
+        objective: "o",
+        budget_amount: 5_000_000,
+      }).success
+    ).toBe(false)
+  })
+
+  it("rejects a currency without an amount", () => {
+    expect(
+      projectGroupCreateSchema.safeParse({
+        name: "N",
+        objective: "o",
+        budget_currency: "USD",
+      }).success
+    ).toBe(false)
+  })
+
+  it("rejects a non-positive budget amount", () => {
+    expect(
+      projectGroupCreateSchema.safeParse({
+        name: "N",
+        objective: "o",
+        budget_amount: 0,
+        budget_currency: "VND",
+      }).success
+    ).toBe(false)
   })
 
   it("rejects a missing name", () => {
-    expect(projectGroupCreateSchema.safeParse({}).success).toBe(false)
-  })
-
-  it("rejects an empty / whitespace name", () => {
-    expect(projectGroupCreateSchema.safeParse({ name: "   " }).success).toBe(
+    expect(projectGroupCreateSchema.safeParse({ objective: "o" }).success).toBe(
       false
     )
   })
 
-  it("trims the name", () => {
-    const r = projectGroupCreateSchema.safeParse({ name: "  Nhóm A  " })
+  it("trims name and objective", () => {
+    const r = projectGroupCreateSchema.safeParse({
+      name: "  Nhóm A  ",
+      objective: "  Mục tiêu  ",
+    })
     expect(r.success).toBe(true)
-    if (r.success) expect(r.data.name).toBe("Nhóm A")
+    if (r.success) {
+      expect(r.data.name).toBe("Nhóm A")
+      expect(r.data.objective).toBe("Mục tiêu")
+    }
   })
 
-  it("does not carry the Project form fields", () => {
+  it("still does not carry the Project-only fields (scale / progress / retrospective)", () => {
     const r = projectGroupCreateSchema.safeParse({
       name: "Nhóm A",
-      objective: "x",
+      objective: "o",
       scale: "y",
       progress_link_url: "z",
       retrospective: "w",
     })
     expect(r.success).toBe(true)
     if (r.success) {
-      expect(r.data).toEqual({ name: "Nhóm A" })
+      expect(r.data).toEqual({ name: "Nhóm A", objective: "o" })
     }
   })
 })
@@ -102,8 +174,33 @@ describe("projectGroupUpdateSchema", () => {
     ).toBe(true)
   })
 
+  it("accepts adding an objective to a legacy group (objective optional on edit)", () => {
+    expect(
+      projectGroupUpdateSchema.safeParse({ objective: "Mục tiêu bổ sung" })
+        .success
+    ).toBe(true)
+  })
+
+  it("still rejects a blank objective on edit", () => {
+    expect(
+      projectGroupUpdateSchema.safeParse({ objective: "  " }).success
+    ).toBe(false)
+  })
+
   it("accepts an empty body (no-op edit)", () => {
     expect(projectGroupUpdateSchema.safeParse({}).success).toBe(true)
+  })
+
+  it("still enforces the budget amount + currency pair", () => {
+    expect(
+      projectGroupUpdateSchema.safeParse({ budget_amount: 1_000 }).success
+    ).toBe(false)
+    expect(
+      projectGroupUpdateSchema.safeParse({
+        budget_amount: 1_000,
+        budget_currency: "VND",
+      }).success
+    ).toBe(true)
   })
 
   it("strips lifecycle — archive / restore has its own path", () => {
@@ -113,6 +210,162 @@ describe("projectGroupUpdateSchema", () => {
     })
     expect(r.success).toBe(true)
     if (r.success) expect("lifecycle" in r.data).toBe(false)
+  })
+})
+
+describe("groupNeedsObjective (task 2.3)", () => {
+  it("is true for a legacy group with no objective", () => {
+    expect(groupNeedsObjective({})).toBe(true)
+    expect(groupNeedsObjective({ objective: undefined })).toBe(true)
+    expect(groupNeedsObjective({ objective: "   " })).toBe(true)
+  })
+
+  it("is false once an objective is set", () => {
+    expect(groupNeedsObjective({ objective: "Đẩy ROAS" })).toBe(false)
+  })
+})
+
+describe("computeGroupTimeStatus (task 3.6)", () => {
+  // "today" fixed at 2026-09-07T10:00:00Z
+  const now = Date.parse("2026-09-07T10:00:00Z")
+
+  it("returns null when there is no target end date", () => {
+    expect(computeGroupTimeStatus(undefined, now)).toBeNull()
+    expect(computeGroupTimeStatus(null, now)).toBeNull()
+    expect(computeGroupTimeStatus("not-a-date", now)).toBeNull()
+  })
+
+  it("on track when more than the warn window remains", () => {
+    // 2026-09-27 is 20 days out
+    expect(computeGroupTimeStatus("2026-09-27", now)).toEqual({
+      state: "on_track",
+      days_left: 20,
+    })
+  })
+
+  it("due soon at exactly the 7-day threshold and inside it", () => {
+    expect(computeGroupTimeStatus("2026-09-14", now)).toEqual({
+      state: "due_soon",
+      days_left: 7,
+    })
+    expect(computeGroupTimeStatus("2026-09-08", now)).toEqual({
+      state: "due_soon",
+      days_left: 1,
+    })
+  })
+
+  it("the target day itself is still due soon, not overdue (days_left 0)", () => {
+    expect(computeGroupTimeStatus("2026-09-07", now)).toEqual({
+      state: "due_soon",
+      days_left: 0,
+    })
+  })
+
+  it("8 days out is still on track (just past the threshold)", () => {
+    expect(computeGroupTimeStatus("2026-09-15", now)).toEqual({
+      state: "on_track",
+      days_left: 8,
+    })
+  })
+
+  it("overdue once the target day has passed", () => {
+    expect(computeGroupTimeStatus("2026-09-02", now)).toEqual({
+      state: "overdue",
+      days_over: 5,
+    })
+    expect(computeGroupTimeStatus("2026-09-06", now)).toEqual({
+      state: "overdue",
+      days_over: 1,
+    })
+  })
+
+  it("respects a custom warn window", () => {
+    expect(computeGroupTimeStatus("2026-09-27", now, 30)).toEqual({
+      state: "due_soon",
+      days_left: 20,
+    })
+  })
+
+  it("a completed (archived) group has no time status, even when overdue", () => {
+    expect(
+      computeGroupTimeStatus("2026-09-02", now, 7, { completed: true })
+    ).toBeNull()
+    expect(
+      computeGroupTimeStatus("2026-09-27", now, 7, { completed: true })
+    ).toBeNull()
+  })
+})
+
+describe("computeGroupBudgetReconciliation (task 3.3 / 3.4)", () => {
+  it("no_budget when the group has no budget amount", () => {
+    expect(
+      computeGroupBudgetReconciliation({
+        budgetAmount: null,
+        budgetCurrency: null,
+        actualSpend: 10,
+      })
+    ).toEqual({ state: "no_budget" })
+    expect(
+      computeGroupBudgetReconciliation({
+        budgetAmount: 0,
+        budgetCurrency: "VND",
+        actualSpend: 10,
+      }).state
+    ).toBe("no_budget")
+  })
+
+  it("within budget → percent_used ratio, over_amount 0", () => {
+    const r = computeGroupBudgetReconciliation({
+      budgetAmount: 100_000_000,
+      budgetCurrency: "VND",
+      actualSpend: 60_000_000,
+    })
+    expect(r).toEqual({
+      state: "within",
+      budget_amount: 100_000_000,
+      budget_currency: "VND",
+      actual_spend: 60_000_000,
+      spend_currency: ACTUAL_COST_CURRENCY,
+      percent_used: 0.6,
+      over_amount: 0,
+    })
+  })
+
+  it("over budget → state over, over_amount = spend − budget", () => {
+    const r = computeGroupBudgetReconciliation({
+      budgetAmount: 50_000_000,
+      budgetCurrency: "VND",
+      actualSpend: 65_500_000,
+    })
+    expect(r.state).toBe("over")
+    if (r.state === "over") {
+      expect(r.over_amount).toBe(15_500_000)
+      expect(r.percent_used).toBeCloseTo(1.31)
+    }
+  })
+
+  it("currency_mismatch when the budget is in a different currency", () => {
+    const r = computeGroupBudgetReconciliation({
+      budgetAmount: 5_000,
+      budgetCurrency: "USD",
+      actualSpend: 60_000_000,
+    })
+    expect(r).toEqual({
+      state: "currency_mismatch",
+      budget_amount: 5_000,
+      budget_currency: "USD",
+      actual_spend: 60_000_000,
+      spend_currency: "VND",
+    })
+  })
+
+  it("clamps a negative actual spend to 0", () => {
+    const r = computeGroupBudgetReconciliation({
+      budgetAmount: 100,
+      budgetCurrency: "VND",
+      actualSpend: -5,
+    })
+    if (r.state === "within") expect(r.actual_spend).toBe(0)
   })
 })
 

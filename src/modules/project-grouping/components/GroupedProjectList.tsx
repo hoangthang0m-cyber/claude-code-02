@@ -25,16 +25,18 @@ import {
 } from "lucide-react"
 
 import { useAuth } from "@/context/AuthContext"
-import type { GroupedProjectList as GroupedList } from "@/lib/domain"
+import type {
+  GroupedProjectList as GroupedList,
+  ProjectGroup,
+} from "@/lib/domain"
 import { useCollapsedGroups } from "@/modules/project-grouping/hooks/useCollapsedGroups"
 import { useGroupedProjects } from "@/modules/project-grouping/hooks/useGroupedProjects"
+import { ProjectGroupFormSheet } from "@/modules/project-grouping/components/ProjectGroupFormSheet"
 import {
-  createProjectGroup,
   deleteProjectGroup,
   reorderProject,
   setProjectGroup,
   setProjectGroupLifecycle,
-  updateProjectGroup,
 } from "@/modules/project-grouping/services/projectGroups.client"
 import { ProjectCard } from "@/modules/project-workspace/components/ProjectCard"
 import { ProjectFormSheet } from "@/modules/project-workspace/components/ProjectFormSheet"
@@ -90,22 +92,15 @@ export function GroupedProjectList() {
             Nhóm đã lưu trữ
           </label>
           {isManager && (
-            <Button
-              variant="outline"
-              onClick={async () => {
-                const name = window.prompt("Tên nhóm dự án mới")?.trim()
-                if (!name) return
-                try {
-                  await createProjectGroup({ name })
-                  toast.success("Đã tạo nhóm")
-                } catch (e) {
-                  toast.error(e instanceof Error ? e.message : "Không tạo được")
-                }
-              }}
-            >
-              <FolderPlusIcon />
-              Nhóm mới
-            </Button>
+            <ProjectGroupFormSheet
+              mode="create"
+              trigger={
+                <Button variant="outline">
+                  <FolderPlusIcon />
+                  Nhóm mới
+                </Button>
+              }
+            />
           )}
           {isManager && (
             <ProjectFormSheet
@@ -136,6 +131,7 @@ export function GroupedProjectList() {
               key={block.group.id}
               blockKey={block.group.id}
               title={block.group.name}
+              group={block.group}
               count={block.count}
               projects={block.projects}
               bucketId={block.group.id}
@@ -166,6 +162,7 @@ export function GroupedProjectList() {
                 key={block.group.id}
                 blockKey={block.group.id}
                 title={block.group.name}
+                group={block.group}
                 count={block.count}
                 projects={block.projects}
                 bucketId={block.group.id}
@@ -204,6 +201,7 @@ function collectProjects(grouped: GroupedList<MyProject>): MyProject[] {
 function Block({
   blockKey,
   title,
+  group,
   count,
   projects,
   bucketId,
@@ -216,6 +214,7 @@ function Block({
 }: {
   blockKey: string
   title: string
+  group?: ProjectGroup
   count: number
   projects: MyProject[]
   bucketId: string | null
@@ -328,6 +327,22 @@ function Block({
           </Link>
         )}
 
+        {isManager && group && !archived && (
+          <ProjectGroupFormSheet
+            mode="edit"
+            group={group}
+            trigger={
+              <Button
+                variant="ghost"
+                size="xs"
+                className="text-xs text-muted-foreground"
+              >
+                Sửa nhóm
+              </Button>
+            }
+          />
+        )}
+
         {isManager && bucketId !== null && (
           <DropdownMenu>
             <DropdownMenuTrigger
@@ -343,24 +358,6 @@ function Block({
               <MoreVerticalIcon className="size-4" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              {!archived && (
-                <DropdownMenuItem
-                  onClick={async () => {
-                    const name = window
-                      .prompt("Tên nhóm", title)
-                      ?.trim()
-                    if (!name || name === title) return
-                    try {
-                      await updateProjectGroup(bucketId, { name })
-                      toast.success("Đã đổi tên")
-                    } catch (e) {
-                      toast.error(e instanceof Error ? e.message : "Lỗi")
-                    }
-                  }}
-                >
-                  Đổi tên
-                </DropdownMenuItem>
-              )}
               <DropdownMenuItem
                 onClick={async () => {
                   try {

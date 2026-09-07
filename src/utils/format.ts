@@ -9,6 +9,21 @@ export function formatCurrency(value?: number): string {
   return currencyFormatter.format(value)
 }
 
+// Currency-aware amount formatter — `formatCurrency` is VND-only; a project
+// group budget can be in another currency (project-group-fields task 3.4).
+export function formatMoney(value: number, currency = "VND"): string {
+  if (Number.isNaN(value)) return "—"
+  try {
+    return new Intl.NumberFormat("vi-VN", {
+      style: "currency",
+      currency,
+      maximumFractionDigits: 0,
+    }).format(value)
+  } catch {
+    return `${new Intl.NumberFormat("vi-VN").format(value)} ${currency}`
+  }
+}
+
 export function formatCompactNumber(value?: number): string {
   if (value === undefined || Number.isNaN(value)) return "—"
   if (Math.abs(value) < 1000) return String(value)
