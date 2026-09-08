@@ -10,6 +10,7 @@ const PAGE_TITLES: Record<string, string> = {
   "/campaigns": "Dự án",
   "/calendar": "Lịch đội",
   "/documents": "Tài liệu",
+  "/knowledge": "Tri thức",
   "/reports": "Báo cáo",
   "/ad-accounts": "Cài đặt",
 }

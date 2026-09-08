@@ -1,11 +1,11 @@
 ## 1. Data model (domain layer)
 
-- [ ] 1.1 Thêm enum vào `src/lib/domain/enums.ts`: `KNOWLEDGE_LIFECYCLES`
+- [x] 1.1 Thêm enum vào `src/lib/domain/enums.ts`: `KNOWLEDGE_LIFECYCLES`
   (`active` | `archived`) + labels, `KNOWLEDGE_LINK_SECTIONS`
   (`detail` | `process` | `conclusion`) + labels, `KNOWLEDGE_PROJECT_REF_TYPES`
   (`project` | `project_group`) + labels. Verify: `src/lib/domain/domain.*` test
   mới khẳng định đúng bộ giá trị và thứ tự.
-- [ ] 1.2 Thêm `src/lib/domain/knowledge.ts`: interface `KnowledgeEntry`,
+- [x] 1.2 Thêm `src/lib/domain/knowledge.ts`: interface `KnowledgeEntry`,
   `KnowledgeLink`(+`View`), `KnowledgeProjectRef`(+`View`); Zod
   `knowledgeEntryCreateSchema` (name + overview bắt buộc, `*_note` tuỳ chọn có
   giới hạn độ dài), `knowledgeEntryUpdateSchema` (`.partial()`, chặn rỗng
@@ -17,7 +17,7 @@
   `reorderReferenceLinks` từ `@/lib/domain` cho `sort_index`. Verify: unit test
   mỗi schema nhận body hợp lệ và từ chối enum sai / thiếu trường bắt buộc / URL
   không http(s).
-- [ ] 1.3 Đăng ký `knowledgeEntries`, `knowledgeLinks`, `knowledgeProjectRefs`
+- [x] 1.3 Đăng ký `knowledgeEntries`, `knowledgeLinks`, `knowledgeProjectRefs`
   trong `src/lib/domain/collections.ts`; `export * from "@/lib/domain/knowledge"`
   trong `src/lib/domain/index.ts`. Verify: test khẳng định 3 khoá `COLLECTIONS`
   mới; `npm run typecheck` sạch.
@@ -86,36 +86,36 @@
 
 ## 6. UI — danh sách tri thức
 
-- [ ] 6.1 `src/modules/knowledge/hooks/useKnowledgeEntries.ts` — `onSnapshot`
+- [x] 6.1 `src/modules/knowledge/hooks/useKnowledgeEntries.ts` — `onSnapshot`
   `knowledgeEntries`; lọc `archived` trừ khi `includeArchived`; sắp `updated_at`
   giảm dần. Verify: trang danh sách hiển thị đúng entry hoạt động.
-- [ ] 6.2 `src/modules/knowledge/components/KnowledgeList.tsx` +
+- [x] 6.2 `src/modules/knowledge/components/KnowledgeList.tsx` +
   `src/app/(dashboard)/knowledge/page.tsx` — tiêu đề + mô tả mục đích ngắn, nút
   "Tạo tri thức", ô tìm theo tên, toggle "Hiện đã lưu trữ", thẻ mỗi tri thức
   (tên + trích `overview` + "cập nhật lúc" + nhãn "Đã lưu trữ") link tới
   `/knowledge/{id}`; trạng thái rỗng có hướng dẫn. Verify: `npm run build` có
   route `/knowledge`; quan sát danh sách, tìm kiếm, lọc hoạt động.
-- [ ] 6.3 `src/modules/knowledge/components/KnowledgeEntryFormSheet.tsx` — Sheet
+- [x] 6.3 `src/modules/knowledge/components/KnowledgeEntryFormSheet.tsx` — Sheet
   tạo/sửa (mẫu `ProjectGroupFormSheet`): `name`, `overview`, `detail_note`,
   `process_note`, `conclusion_note`; gọi `knowledge.client`. Verify: tạo tri
   thức mới từ UI xuất hiện ngay trong danh sách (realtime).
 
 ## 7. UI — trang chi tiết
 
-- [ ] 7.1 `src/modules/knowledge/hooks/useKnowledgeEntry.ts` — `onSnapshot` doc
+- [x] 7.1 `src/modules/knowledge/hooks/useKnowledgeEntry.ts` — `onSnapshot` doc
   entry + `knowledgeLinks where entry_id==` + `knowledgeProjectRefs where
   entry_id==`; gộp link theo `section`, sắp theo `sort_index`; trả `notFound`.
   Verify: mở `/knowledge/{id}` hiển thị đúng dữ liệu, cập nhật realtime.
-- [ ] 7.2 `src/modules/knowledge/components/KnowledgeLinksPanel.tsx` — phỏng theo
+- [x] 7.2 `src/modules/knowledge/components/KnowledgeLinksPanel.tsx` — phỏng theo
   `ReferenceLinksPanel`: list link của (entry, section), thêm/sửa/gỡ inline,
   lên/xuống gọi `reorder`, mở link tab mới, cảnh báo khi > 20. Verify: thêm link
   vào từng đầu mục 3/4/5, mở ra tab mới, sắp thứ tự giữ khi tải lại.
-- [ ] 7.3 `src/modules/knowledge/components/KnowledgeProjectRefPanel.tsx` +
+- [x] 7.3 `src/modules/knowledge/components/KnowledgeProjectRefPanel.tsx` +
   `KnowledgeProjectRefChip.tsx` — list thẻ tham chiếu (tên + loại, link tới
   `/campaigns/{id}` hoặc `/campaigns/groups/{id}`), nút "Gắn dự án / nhóm" mở ô
   chọn từ `useMyProjects()` / `useProjectGroups()`, gỡ thẻ. Verify: gắn 1 Dự án +
   1 Nhóm, bấm thẻ mở đúng trang; đổi tên dự án gốc → thẻ vẫn tên cũ.
-- [ ] 7.4 `src/app/(dashboard)/knowledge/[entryId]/page.tsx` +
+- [x] 7.4 `src/app/(dashboard)/knowledge/[entryId]/page.tsx` +
   `KnowledgeEntryView.tsx` — render 5 đầu mục theo thứ tự; nút "Sửa" (mọi thành
   viên); với `profile.system_role === "manager"`: nút "Lưu trữ"/"Bỏ lưu trữ" và
   "Xoá" (xác nhận nhập lại tên). Entry `archived` → panel chỉ đọc, ẩn nút
@@ -124,7 +124,7 @@
 
 ## 8. Điều hướng
 
-- [ ] 8.1 `src/components/common/AppSidebar.tsx` — thêm mục
+- [x] 8.1 `src/components/common/AppSidebar.tsx` — thêm mục
   `{ title: "Tri thức", url: "/knowledge", icon: <NavIcon icon={…} /> }` vào
   `data.navMain` sau "Tài liệu". `src/components/common/SiteHeader.tsx` — thêm
   `"/knowledge": "Tri thức"` vào `PAGE_TITLES`. Verify: mục "Tri thức" hiện trên
@@ -132,19 +132,19 @@
 
 ## 9. Kiểm thử & xác minh tích hợp
 
-- [ ] 9.1 `src/lib/domain/knowledge.test.ts` — đăng ký collection + enum wiring +
+- [x] 9.1 `src/lib/domain/knowledge.test.ts` — đăng ký collection + enum wiring +
   từng schema nhận/từ chối; `isKnowledgeEntryWritable`. Chạy `npm test` xanh.
-- [ ] 9.2 `src/modules/knowledge/services/knowledge.server.test.ts` — Firestore
+- [x] 9.2 `src/modules/knowledge/services/knowledge.server.test.ts` — Firestore
   mock (mẫu header `referenceLinks.server.test.ts`): staff tạo/sửa OK; staff gọi
   DELETE / lifecycle → 403; manager làm được; sửa entry archived → 409; xoá sai
   `confirm_name` → 400; `addKnowledgeLink` gán `sort_index` tăng dần theo section
   + cờ > 20; reorder khớp bộ id; `addKnowledgeProjectRef` đích không tồn tại →
   404, đích OK lưu `ref_name`; URL không http(s) → 400.
-- [ ] 9.3 `src/modules/knowledge/services/knowledgeBase.integration.test.ts` —
+- [x] 9.3 `src/modules/knowledge/services/knowledgeBase.integration.test.ts` —
   mock stateful: tạo entry → thêm link 3 section → gắn 1 project + 1 group → sửa
   note → staff không xoá được → manager lưu trữ (mutation vào entry → 409) →
   manager xoá (cascade sạch link + ref).
-- [ ] 9.4 Chạy `npm run typecheck`, `npm run lint`, `npm test`, `npm run build` —
+- [x] 9.4 Chạy `npm run typecheck`, `npm run lint`, `npm test`, `npm run build` —
   tất cả sạch, toàn bộ suite cũ không hồi quy.
 - [ ] 9.5 Kiểm thủ công end-to-end: sidebar có "Tri thức" → tạo tri thức đủ 5 đầu
   mục → thêm link vào đầu mục 3/4/5 và mở ra tab mới → đầu mục 4 gắn 1 Dự án + 1

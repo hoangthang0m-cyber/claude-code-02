@@ -253,7 +253,6 @@ describe("knowledge links (tasks 3.1–3.3)", () => {
     expect(a.over_warn_limit).toBe(false)
 
     for (let i = 0; i < 19; i++) {
-      // eslint-disable-next-line no-await-in-loop
       await addKnowledgeLink(staff, id, {
         section: "detail",
         url: `https://x/n${i}`,
