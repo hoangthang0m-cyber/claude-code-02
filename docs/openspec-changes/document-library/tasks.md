@@ -7,11 +7,11 @@
 
 ## 2. Trang Tài liệu
 
-- [ ] 2.1 Route/menu "Tài liệu" mở trang hai phần: "Biên bản họp" và "Tài liệu tổ chức"; verify điều hướng, hai kho tách biệt
-- [ ] 2.2 Mỗi phần: danh sách mục (tiêu đề mở tab mới với rel="noopener noreferrer", ngày, ghi chú), nút Thêm, sửa/xoá inline; verify
-- [ ] 2.3 Form thêm/sửa (tiêu đề, link, ngày tuỳ chọn, ghi chú tuỳ chọn); báo lỗi khi thiếu tiêu đề/link; verify
-- [ ] 2.4 Ô tìm theo tiêu đề + chọn sắp xếp cho từng kho; verify lọc và sắp đúng
-- [ ] 2.5 Trạng thái rỗng ("chưa có biên bản/tài liệu nào") + nút thêm; verify
+- [x] 2.1 Route/menu "Tài liệu" mở trang hai phần: "Biên bản họp" và "Tài liệu tổ chức"; verify điều hướng, hai kho tách biệt
+- [x] 2.2 Mỗi phần: danh sách mục (tiêu đề mở tab mới với rel="noopener noreferrer", ngày, ghi chú), nút Thêm, sửa/xoá inline; verify
+- [x] 2.3 Form thêm/sửa (tiêu đề, link, ngày tuỳ chọn, ghi chú tuỳ chọn); báo lỗi khi thiếu tiêu đề/link; verify
+- [x] 2.4 Ô tìm theo tiêu đề + chọn sắp xếp cho từng kho; verify lọc và sắp đúng
+- [x] 2.5 Trạng thái rỗng ("chưa có biên bản/tài liệu nào") + nút thêm; verify
 
 ## 3. Kiểm thử
 
