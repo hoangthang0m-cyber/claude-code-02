@@ -24,61 +24,61 @@
 
 ## 2. API — tri thức (CRUD + lifecycle)
 
-- [ ] 2.1 `src/modules/knowledge/services/knowledge.server.ts`:
+- [x] 2.1 `src/modules/knowledge/services/knowledge.server.ts`:
   `createKnowledgeEntry(actor, body)` — chỉ cần đăng nhập; set
   `lifecycle: "active"`, `created_by`/`created_at`, `updated_by`/`updated_at`.
   `POST /api/knowledge`. Verify: server test — staff tạo được; thiếu
   name/overview → 400.
-- [ ] 2.2 `updateKnowledgeEntry(actor, entryId, body)` — chỉ cần đăng nhập; 404
+- [x] 2.2 `updateKnowledgeEntry(actor, entryId, body)` — chỉ cần đăng nhập; 404
   nếu không có; 409 nếu `!isKnowledgeEntryWritable`; body rỗng → 400; ghi
   `updated_by`/`updated_at`. `PATCH /api/knowledge/[entryId]`. Verify: server
   test — sửa được; sửa entry archived → 409; xoá trắng name → 400.
-- [ ] 2.3 `setKnowledgeEntryLifecycle(actor, entryId, body)` —
+- [x] 2.3 `setKnowledgeEntryLifecycle(actor, entryId, body)` —
   `requireSystemManager`; toggle `active` ⇄ `archived`; cùng trạng thái → 400.
   `POST /api/knowledge/[entryId]/lifecycle`. Verify: server test — staff → 403;
   manager lưu trữ rồi bỏ lưu trữ OK.
-- [ ] 2.4 `deleteKnowledgeEntry(actor, entryId, body)` — `requireSystemManager`;
+- [x] 2.4 `deleteKnowledgeEntry(actor, entryId, body)` — `requireSystemManager`;
   parse `knowledgeEntryDeleteSchema` và so `confirm_name` với `name` hiện tại
   (không khớp → 400); batch xoá mọi `knowledgeLinks` + `knowledgeProjectRefs`
   `where entry_id ==` rồi xoá entry; trả `{ links_removed, refs_removed }`.
   `DELETE /api/knowledge/[entryId]`. Verify: server test — staff → 403; sai tên →
   400; xoá đúng → entry + link + ref biến mất.
-- [ ] 2.5 `src/modules/knowledge/services/knowledge.client.ts` — wrapper
+- [x] 2.5 `src/modules/knowledge/services/knowledge.client.ts` — wrapper
   `authedJson` cho các endpoint mục 2. Verify: `npm run typecheck` sạch.
 
 ## 3. API — link tài liệu theo đầu mục
 
-- [ ] 3.1 `addKnowledgeLink(actor, entryId, body)` — chỉ cần đăng nhập; 404 nếu
+- [x] 3.1 `addKnowledgeLink(actor, entryId, body)` — chỉ cần đăng nhập; 404 nếu
   entry không có, 409 nếu archived; parse `knowledgeLinkCreateSchema`;
   `sort_index = nextReferenceLinkSortIndex(các link cùng entry_id + section)`;
   trả `{ id, over_warn_limit }` (cờ khi > 20 trong cùng section).
   `POST /api/knowledge/[entryId]/links`. Verify: server test — thêm link Sheets
   có nhãn OK; thiếu nhãn → 400; URL `ftp://…` → 400; link thứ 21 trong 1 section
   → `over_warn_limit = true`.
-- [ ] 3.2 `updateKnowledgeLink` / `deleteKnowledgeLink(actor, linkId, …)` — chỉ
+- [x] 3.2 `updateKnowledgeLink` / `deleteKnowledgeLink(actor, linkId, …)` — chỉ
   cần đăng nhập; 404 nếu không có. `PATCH` / `DELETE /api/knowledge/links/[linkId]`.
   Verify: server test — staff sửa nhãn + gỡ được; gỡ không đụng link khác.
-- [ ] 3.3 `reorderKnowledgeLinks(actor, entryId, body)` — `ordered_ids` phải
+- [x] 3.3 `reorderKnowledgeLinks(actor, entryId, body)` — `ordered_ids` phải
   khớp đúng bộ id của (entry_id, section), sai → 400; `reorderReferenceLinks()`
   → batch update. `PUT /api/knowledge/[entryId]/links/reorder`. Verify: server
   test — đảo thứ tự ghi lại `sort_index`; bộ id lệch → 400.
 
 ## 4. API — tham chiếu Dự án / Nhóm dự án
 
-- [ ] 4.1 `addKnowledgeProjectRef(actor, entryId, body)` — chỉ cần đăng nhập; 404
+- [x] 4.1 `addKnowledgeProjectRef(actor, entryId, body)` — chỉ cần đăng nhập; 404
   nếu entry không có, 409 nếu archived; parse `knowledgeProjectRefCreateSchema`;
   xác thực đích tồn tại: `ref_type === "project"` → `projects/{ref_id}` phải
   `exists`, `"project_group"` → `projectGroups/{ref_id}` phải `exists` (không có
   → 404); chụp `ref_name` từ `data().name`; `sort_index` như link.
   `POST /api/knowledge/[entryId]/refs`. Verify: server test — gắn 1 project + 1
   group OK, `ref_name` được lưu từ doc đích; `ref_id` không tồn tại → 404.
-- [ ] 4.2 `deleteKnowledgeProjectRef(actor, refId)` — chỉ cần đăng nhập; 404 nếu
+- [x] 4.2 `deleteKnowledgeProjectRef(actor, refId)` — chỉ cần đăng nhập; 404 nếu
   không có. `DELETE /api/knowledge/refs/[refId]`. Verify: server test — staff gỡ
   được; doc `projects`/`projectGroups` đích không bị đụng.
 
 ## 5. `firestore.rules`
 
-- [ ] 5.1 Thêm 3 block sau block `referenceLinks/`: `knowledgeEntries`,
+- [x] 5.1 Thêm 3 block sau block `referenceLinks/`: `knowledgeEntries`,
   `knowledgeLinks`, `knowledgeProjectRefs` — `allow read: if isSignedIn();
   allow write: if false;`. Verify: `firestore.rules` test (nếu repo có bộ test
   rules) hoặc `npm run rules:deploy` chạy được; client `onSnapshot` đọc được,

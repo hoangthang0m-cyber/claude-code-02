@@ -126,6 +126,22 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // knowledge-base — kho tri thức doanh nghiệp (5 đầu mục), link theo đầu mục,
+    // tham chiếu Dự án/Nhóm. Mọi thành viên đã đăng nhập đọc; mọi ghi qua route
+    // handler (nội dung: thành viên; xoá/lưu trữ: system_role = manager).
+    match /knowledgeEntries/{entryId} {
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
+    match /knowledgeLinks/{linkId} {
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
+    match /knowledgeProjectRefs/{refId} {
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
+
     // Chứa token_encrypted — client KHÔNG được đọc (SPEC §1.5). Toàn bộ qua server.
     match /adAccountConnections/{connectionId} {
       allow read, write: if false;
