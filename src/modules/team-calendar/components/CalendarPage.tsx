@@ -1,11 +1,15 @@
 "use client"
 
 import * as React from "react"
+import { doc, getDoc } from "firebase/firestore"
 import { PlusIcon } from "lucide-react"
+import { toast } from "sonner"
 
+import { db } from "@/firebase/config"
 import { useIsMobile } from "@/hooks/useMobile"
 import {
   AGENDA_PAGE_DAYS,
+  CALENDAR_COLLECTIONS,
   itemMatchesFilters,
   viewWindow,
   vnDateKey,
@@ -20,6 +24,7 @@ import { useCalendarFilters } from "@/modules/team-calendar/hooks/useCalendarFil
 import { useCalendarView } from "@/modules/team-calendar/hooks/useCalendarView"
 import { useHotkeys } from "@/modules/team-calendar/hooks/useHotkeys"
 import { setShowWeekNumbers } from "@/modules/team-calendar/services/userCalendarPrefs.client"
+import { CalendarNotificationBell } from "@/modules/team-calendar/components/CalendarNotificationBell"
 import { CalendarSidebar } from "@/modules/team-calendar/components/CalendarSidebar"
 import { CalendarToolbar } from "@/modules/team-calendar/components/CalendarToolbar"
 import { MiniMonth } from "@/modules/team-calendar/components/MiniMonth"
@@ -128,6 +133,31 @@ export function CalendarPage() {
     setEditor({ open: true, item })
   }
 
+  // task 10.8 — "bấm mở đúng mục trên lịch". A reminder row on a recurring item
+  // carries the occurrence date key directly; otherwise look up the item's day.
+  async function openItemFromNotification(
+    itemId: string,
+    occurrenceKey: string | null
+  ) {
+    let dayKey = occurrenceKey
+    if (!dayKey) {
+      try {
+        const snap = await getDoc(
+          doc(db, CALENDAR_COLLECTIONS.calendarItems, itemId)
+        )
+        if (!snap.exists() || snap.data().deletedAt != null) {
+          toast.error("Mục lịch không còn tồn tại")
+          return
+        }
+        dayKey = String(snap.data().startDay)
+      } catch {
+        return
+      }
+    }
+    setAnchor(dayKey)
+    setView("day")
+  }
+
   const sidebar = (
     <div className="flex w-64 shrink-0 flex-col gap-4 overflow-y-auto border-r p-3">
       <Button
@@ -178,6 +208,9 @@ export function CalendarPage() {
           if (filters.mine) toggleMine()
           setAssignees([])
         }}
+        notificationBell={
+          <CalendarNotificationBell onOpenItem={openItemFromNotification} />
+        }
       />
 
       <div className="flex min-h-0 flex-1">

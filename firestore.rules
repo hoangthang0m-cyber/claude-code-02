@@ -273,5 +273,12 @@ service cloud.firestore {
     match /dueReminders/{reminderId} {
       allow read, write: if false;
     }
+
+    // calendarNotifications/{uid}/items/{notifId} — chuông in-app. Chính chủ đọc
+    // feed của mình (realtime); ghi chỉ qua server (/api/calendar-notifications).
+    match /calendarNotifications/{uid}/items/{notifId} {
+      allow read: if isOwner(uid);
+      allow write: if false;
+    }
   }
 }

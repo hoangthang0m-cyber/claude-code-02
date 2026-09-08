@@ -43,6 +43,19 @@ export const MAX_REMINDERS_PER_ITEM = 5
 export const DUE_REMINDER_STATUSES = ["pending", "sent", "cancelled"] as const
 export type DueReminderStatus = (typeof DUE_REMINDER_STATUSES)[number]
 
+// ── In-app notification (chuông) — Mục C §1 `notifications/{uid}/items` ──────
+// A calendar-owned collection (`calendarNotifications/{uid}/items`) rather than
+// the CPT `notifications` collection, whose shape is project/content-scoped and
+// whose type enum lives in the CPT domain (which this feature must not touch).
+// Server-only writes; the owner reads their own via onSnapshot (Mục C §6).
+export const CALENDAR_NOTIFICATION_KINDS = [
+  "assigned", // được thêm làm người đảm nhận
+  "unassigned", // bị gỡ khỏi người đảm nhận
+  "reminder", // tới mốc nhắc của một mục
+] as const
+export type CalendarNotificationKind =
+  (typeof CALENDAR_NOTIFICATION_KINDS)[number]
+
 // ── Recurrence ──────────────────────────────────────────────────────────────
 
 export const RECURRENCE_EXCEPTION_ACTIONS = ["modified", "cancelled"] as const

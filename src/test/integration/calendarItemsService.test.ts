@@ -35,9 +35,21 @@ let everyoneCal: string
 let managerCal: string
 
 beforeEach(async () => {
-  for (const c of ["calendars", "calendarItems", "members"]) {
+  for (const c of [
+    "calendars",
+    "calendarItems",
+    "members",
+    "dueReminders",
+    "calendarNotifications",
+  ]) {
     const snap = await db.collection(c).get()
-    await Promise.all(snap.docs.map((d) => d.ref.delete()))
+    await Promise.all(
+      snap.docs.map(async (d) => {
+        const items = await d.ref.collection("items").get()
+        await Promise.all(items.docs.map((x) => x.ref.delete()))
+        await d.ref.delete()
+      })
+    )
   }
   // the assignee directory (Mục B item-assignees — assignees must be members)
   await Promise.all(

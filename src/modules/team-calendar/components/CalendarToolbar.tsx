@@ -33,6 +33,7 @@ export function CalendarToolbar({
   onFilterAssignees,
   onToggleMine,
   onClearAssigneeFilter,
+  notificationBell,
 }: {
   view: CalendarView
   onView: (v: CalendarView) => void
@@ -46,6 +47,7 @@ export function CalendarToolbar({
   onFilterAssignees: (ids: string[]) => void
   onToggleMine: () => void
   onClearAssigneeFilter: () => void
+  notificationBell?: React.ReactNode
 }) {
   return (
     <div className="flex flex-wrap items-center gap-2 border-b p-2">
@@ -74,6 +76,7 @@ export function CalendarToolbar({
       />
 
       <div className="ml-auto flex items-center gap-2">
+        {notificationBell}
         {(view === "week" || view === "month") && (
           <label className="hidden items-center gap-1 text-xs text-muted-foreground sm:flex">
             <input

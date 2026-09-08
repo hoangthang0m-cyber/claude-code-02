@@ -4,8 +4,10 @@ import * as React from "react"
 import { Popover as PopoverPrimitive } from "@base-ui/react/popover"
 import { toast } from "sonner"
 
-import { DEFAULT_CALENDAR_ITEM_TYPE } from "@/lib/domain/calendar"
-import { useMembers } from "@/modules/team-calendar/context/CalendarDataProvider"
+import {
+  DEFAULT_CALENDAR_ITEM_TYPE,
+  resolvePrimaryAssignee,
+} from "@/lib/domain/calendar"
 import { useVisibleCalendars } from "@/modules/team-calendar/hooks/useVisibleCalendars"
 import { usePermissions } from "@/modules/team-calendar/hooks/usePermissions"
 import { useCalendarUndo } from "@/modules/team-calendar/hooks/useCalendarUndo"
@@ -13,6 +15,7 @@ import {
   createCalendarItem,
   deleteCalendarItem,
 } from "@/modules/team-calendar/services/calendarItems.client"
+import { MemberMultiSelect } from "@/modules/team-calendar/components/MemberMultiSelect"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -44,12 +47,11 @@ export function QuickCreatePopover({
   onOpenFull: (draft: QuickCreateDraft & { title: string; calendarId: string }) => void
 }) {
   const { calendars } = useVisibleCalendars()
-  const { members } = useMembers()
   const { isManager } = usePermissions()
   const undo = useCalendarUndo()
   const [title, setTitle] = React.useState("")
   const [calendarId, setCalendarId] = React.useState<string>("")
-  const [assignee, setAssignee] = React.useState<string>("")
+  const [assigneeIds, setAssigneeIds] = React.useState<string[]>([])
   const [busy, setBusy] = React.useState(false)
 
   const writable = calendars.filter(
@@ -63,7 +65,7 @@ export function QuickCreatePopover({
   if (key !== seededKey) {
     setSeededKey(key)
     setTitle("")
-    setAssignee("")
+    setAssigneeIds([])
     setCalendarId(writable[0]?.calendar.id ?? "")
   }
 
@@ -89,8 +91,8 @@ export function QuickCreatePopover({
         allDay: draft.allDay,
         startAt: new Date(draft.startMs).toISOString(),
         endAt: new Date(draft.endMs).toISOString(),
-        assigneeIds: assignee ? [assignee] : [],
-        primaryAssigneeId: assignee || null,
+        assigneeIds,
+        primaryAssigneeId: resolvePrimaryAssignee(assigneeIds, null),
       })
       onClose()
       undo("Đã tạo mục", () => deleteCalendarItem(id))
@@ -147,18 +149,12 @@ export function QuickCreatePopover({
                   ))}
                 </SelectContent>
               </Select>
-              <Select value={assignee} onValueChange={(v) => setAssignee(v ?? "")}>
-                <SelectTrigger className="h-8">
-                  <SelectValue placeholder="Người đảm nhận" />
-                </SelectTrigger>
-                <SelectContent>
-                  {members.map((m) => (
-                    <SelectItem key={m.uid} value={m.uid}>
-                      {m.displayName}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <MemberMultiSelect
+                value={assigneeIds}
+                onChange={setAssigneeIds}
+                placeholder="Người đảm nhận"
+                triggerClassName="h-8"
+              />
               <div className="flex items-center justify-between">
                 <button
                   type="button"

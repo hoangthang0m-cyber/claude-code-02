@@ -184,6 +184,21 @@ beforeEach(async () => {
       title: "",
       startAt: new Date("2026-09-10T02:00:00Z"),
     })
+
+    await setDoc(
+      doc(db, "calendarNotifications/staff1/items/n1"),
+      {
+        recipientUid: "staff1",
+        kind: "assigned",
+        itemId: "itemByManager",
+        occurrenceKey: null,
+        itemTitle: "Họp",
+        itemStartAt: new Date("2026-09-10T02:00:00Z"),
+        message: "Bạn được giao: Họp",
+        readAt: null,
+        createdAt: new Date("2026-09-09T02:00:00Z"),
+      }
+    )
   })
 })
 
@@ -474,6 +489,44 @@ describe("dueReminders — server only", () => {
         status: "pending",
         title: "",
         startAt: new Date(),
+      })
+    )
+  })
+})
+
+describe("calendarNotifications — own feed, server-written", () => {
+  it("the owner reads their own bell feed", async () => {
+    await assertSucceeds(
+      getDoc(doc(asStaff1(), "calendarNotifications/staff1/items/n1"))
+    )
+  })
+
+  it("another member cannot read someone else's feed", async () => {
+    await assertFails(
+      getDoc(doc(asStaff2(), "calendarNotifications/staff1/items/n1"))
+    )
+    await assertFails(
+      getDoc(doc(asManager(), "calendarNotifications/staff1/items/n1"))
+    )
+  })
+
+  it("the owner cannot write their own feed (mark-read goes through the API)", async () => {
+    await assertFails(
+      updateDoc(doc(asStaff1(), "calendarNotifications/staff1/items/n1"), {
+        readAt: new Date(),
+      })
+    )
+    await assertFails(
+      setDoc(doc(asStaff1(), "calendarNotifications/staff1/items/n2"), {
+        recipientUid: "staff1",
+        kind: "reminder",
+        itemId: "x",
+        occurrenceKey: null,
+        itemTitle: "",
+        itemStartAt: new Date(),
+        message: "",
+        readAt: null,
+        createdAt: new Date(),
       })
     )
   })

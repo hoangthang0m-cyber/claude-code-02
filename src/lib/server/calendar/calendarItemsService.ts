@@ -19,6 +19,11 @@ import {
   type CalendarItemWriteInput,
 } from "@/lib/server/calendar/calendarItemsRepo"
 import { assertCanEditItem } from "@/lib/server/calendar/itemPermissions"
+import { notifyAssigneeChange } from "@/lib/server/calendar/calendarNotifications"
+import {
+  cancelItemReminders,
+  recomputeItemReminders,
+} from "@/lib/server/calendar/calendarReminders"
 import {
   deleteSeries,
   editSeries,
@@ -28,9 +33,9 @@ import { HttpError } from "@/lib/server/http"
 import { parseOrThrow } from "@/lib/server/validate"
 
 // Orchestrates a calendarItems mutation: auth-matrix check → calendar
-// acceptability (archived / managerOnly) → range validation → the repo write.
-// The route handlers stay thin. Hooks for group 9 (assignee notifications) and
-// group 10 (dueReminders recompute) attach here later.
+// acceptability (archived / managerOnly) → range validation → the repo write →
+// the side effects (assignee notifications, group 9 / `dueReminders` recompute,
+// group 10). The route handlers stay thin.
 
 type Actor = Pick<AuthedUser, "uid" | "system_role">
 
@@ -118,7 +123,17 @@ export async function createItem(
   }
 
   const result = await createCalendarItem(db, write, actor.uid)
-  // group 9: notify new assignees (except self). group 10: queue dueReminders.
+
+  await notifyAssigneeChange(db, {
+    itemId: result.id,
+    itemTitle: input.title,
+    itemStartAtMs: startMs,
+    before: [],
+    after: input.assigneeIds,
+    actorUid: actor.uid,
+  })
+  await recomputeItemReminders(db, result.id)
+
   return result
 }
 
@@ -140,7 +155,7 @@ export async function updateItem(
     if (patch.assigneeIds) {
       await assertAssigneesInDirectory(db, patch.assigneeIds)
     }
-    return editSeries(
+    const seriesResult = await editSeries(
       db,
       actor,
       itemId,
@@ -149,6 +164,10 @@ export async function updateItem(
       toOccurrencePatch(patch),
       overwriteExceptions
     )
+    // rebuild the series' pending reminders on the next expand pass (task 10.4);
+    // clearing now stops rows with a stale time / recipient set from firing.
+    await cancelItemReminders(db, itemId)
+    return seriesResult
   }
 
   const patch = parseOrThrow(calendarItemUpdateSchema, body)
@@ -198,6 +217,24 @@ export async function updateItem(
     },
     actor.uid
   )
+
+  if (patch.assigneeIds) {
+    await notifyAssigneeChange(db, {
+      itemId,
+      itemTitle: patch.title ?? String(current.title ?? ""),
+      itemStartAtMs: startMs,
+      before: Array.isArray(current.assigneeIds)
+        ? (current.assigneeIds as string[])
+        : [],
+      after: patch.assigneeIds,
+      actorUid: actor.uid,
+    })
+  }
+  // reminders follow the item's time / assignees / reminder list (task 10.3);
+  // for a now-recurring item this just clears the single-occurrence rows and the
+  // 15-min expand job (task 10.4) takes over.
+  await recomputeItemReminders(db, itemId)
+
   return { id: itemId }
 }
 
@@ -213,10 +250,14 @@ export async function deleteItem(
   const b = (body ?? {}) as Record<string, unknown>
   if (b.scope) {
     const { scope, occurrenceKey } = parseOrThrow(recurrenceScopeSchema, body)
-    return deleteSeries(db, actor, itemId, occurrenceKey, scope)
+    const res = await deleteSeries(db, actor, itemId, occurrenceKey, scope)
+    await cancelItemReminders(db, itemId)
+    return res
   }
   await assertCanEditItem(db, itemId, actor)
   await softDeleteCalendarItem(db, itemId, actor.uid)
+  // a soft-deleted item must not fire reminders (task 10.3 / Mục C §5)
+  await cancelItemReminders(db, itemId)
   return { id: itemId }
 }
 
@@ -246,6 +287,8 @@ export async function restoreItem(
 ): Promise<{ id: string }> {
   await assertCanEditItem(db, itemId, actor)
   await restoreCalendarItem(db, itemId, actor.uid)
+  // a restored item queues its still-future reminders again (task 10.3)
+  await recomputeItemReminders(db, itemId)
   return { id: itemId }
 }
 
@@ -261,6 +304,19 @@ export async function duplicateItem(
     .doc(itemId)
     .get()
   if (!snap.exists) throw new HttpError(404, "Không tìm thấy mục lịch")
-  await assertCalendarAcceptsItems(db, String(snap.data()?.calendarId), actor)
-  return duplicateCalendarItem(db, itemId, actor.uid)
+  const src = snap.data()!
+  await assertCalendarAcceptsItems(db, String(src.calendarId), actor)
+  const copy = await duplicateCalendarItem(db, itemId, actor.uid)
+
+  await notifyAssigneeChange(db, {
+    itemId: copy.id,
+    itemTitle: String(src.title ?? ""),
+    itemStartAtMs: (src.startAt as { toMillis: () => number }).toMillis(),
+    before: [],
+    after: Array.isArray(src.assigneeIds) ? (src.assigneeIds as string[]) : [],
+    actorUid: actor.uid,
+  })
+  await recomputeItemReminders(db, copy.id)
+
+  return copy
 }

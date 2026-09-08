@@ -18,6 +18,8 @@ on:
     - cron: "23 */2 * * *" # reporting-campaign-sync (every 2h; design.md Decision 4 ~1–3h/account)
     - cron: "43 */2 * * *" # reporting-ad-sync       (every 2h, offset)
     - cron: "31 2 * * *" # members-reconcile (daily; Team Activity Calendar — mirror users → members)
+    - cron: "*/5 * * * *" # calendar-reminders-send  (Mục C §5 wants 1 min; ~5 is the floor here)
+    - cron: "2,17,32,47 * * * *" # calendar-reminders-expand (recurring items, next 36h; every 15 min)
   workflow_dispatch:
     inputs:
       job:
@@ -31,6 +33,8 @@ on:
           - reporting-campaign-sync
           - reporting-ad-sync
           - members-reconcile
+          - calendar-reminders-send
+          - calendar-reminders-expand
 
 concurrency:
   group: scheduled-jobs
@@ -50,6 +54,8 @@ jobs:
             "23 */2 * * *")  job=reporting-campaign-sync ;;
             "43 */2 * * *")  job=reporting-ad-sync ;;
             "31 2 * * *")    job=members-reconcile ;;
+            "*/5 * * * *")   job=calendar-reminders-send ;;
+            "2,17,32,47 * * * *") job=calendar-reminders-expand ;;
             "")              job="${{ github.event.inputs.job }}" ;;
             *) echo "::error::unrecognised schedule '${{ github.event.schedule }}'"; exit 1 ;;
           esac

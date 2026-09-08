@@ -15,6 +15,11 @@ export const CALENDAR_COLLECTIONS = {
   members: "members",
   // dueReminders/{reminderId} — server-only queue (Mục C §5 / §6)
   dueReminders: "dueReminders",
+  // calendarNotifications/{uid}/items/{notifId} — in-app bell feed. Named apart
+  // from the CPT `notifications` collection so the two never collide and the
+  // calendar keeps its own rules / shape (Mục C §1 `notifications/{uid}/items`).
+  calendarNotifications: "calendarNotifications",
+  calendarNotificationItems: "items",
   // fcmTokens/{uid}/tokens/{tokenId} — model only; push deferred past v1
   fcmTokens: "fcmTokens",
 } as const
@@ -24,9 +29,9 @@ export type CalendarCollectionId =
 
 export const CALENDAR_SETTINGS_DOC_ID = "calendarSettings"
 
-// In-app reminder + assignment notifications: the store is still to be locked
-// with the manager in groups 9–10 (spec doc infra note — "`notifications`: chi
-// tiết chốt ở nhóm 9–10"). Candidates: reuse the flat CPT `notifications`
-// collection (src/lib/domain/notification.ts), a calendar-owned collection, or
-// the `notifications/{uid}/items` shape from Mục C §1. No new collection id here
-// until that decision is made.
+// In-app reminder + assignment notifications land in `calendarNotifications/
+// {uid}/items` (above), NOT the CPT `notifications` collection. The CPT store is
+// project/content-scoped and its type enum lives in the CPT domain, which this
+// feature must not modify; the spec's own §1 sketch is a per-uid subcollection
+// anyway. Reuse of `src/modules/notifications` is limited to mirroring its bell
+// UI patterns. Decision locked in group 9–10 (spec doc infra note).
