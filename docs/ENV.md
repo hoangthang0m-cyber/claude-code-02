@@ -10,6 +10,17 @@ what they are for; it is updated as each checklist group introduces new ones.
 |---|---|
 | `NEXT_PUBLIC_FIREBASE_API_KEY` … `NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID` | Firebase Web SDK config (reads via `onSnapshot`, Auth, Storage). |
 
+### Google login (no env var)
+
+The "Login with Google" button uses `signInWithPopup(auth, new GoogleAuthProvider())`
+— Firebase handles the OAuth client, so there is **no** `NEXT_PUBLIC_GOOGLE_CLIENT_ID`
+to set. Configure it in the Firebase console instead:
+
+- **Authentication → Sign-in method → Google → Enable** (set a support email).
+- **Authentication → Settings → Authorized domains** must list every domain the
+  app is served from: `localhost`, `claude-code-02-thang20.vercel.app`, and any
+  other Vercel alias in use.
+
 ## Firebase — Admin SDK (group 7.1)
 
 Server-side auth (`/api/me`, group 1.4) and every mutation from group 7.2 on go
