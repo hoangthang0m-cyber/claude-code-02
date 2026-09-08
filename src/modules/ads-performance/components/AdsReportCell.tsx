@@ -16,7 +16,11 @@ const money = (n: number) => `${vnd.format(Math.round(n))}₫`
 
 export function AdsReportCell({ metric }: { metric?: AdsMetricView | null }) {
   if (!metric) {
-    return <span className="text-xs text-muted-foreground">Chưa có dữ liệu</span>
+    return (
+      <span className="text-xs text-muted-foreground">
+        Chưa có dữ liệu — liên kết ad để lấy số liệu từ Meta
+      </span>
+    )
   }
 
   return (

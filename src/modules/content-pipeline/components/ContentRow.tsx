@@ -18,7 +18,8 @@ import {
 import { AdsReportCell } from "@/modules/ads-performance/components/AdsReportCell"
 import { ContentStatusBadge } from "@/modules/content-pipeline/components/ContentStatusBadge"
 import { OverdueBadge } from "@/modules/content-pipeline/components/OverdueBadge"
-import { Badge } from "@/components/ui/badge"
+import { ReferenceLinksCell } from "@/modules/reference-links/components/ReferenceLinksCell"
+import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
   Select,
@@ -27,7 +28,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import {
+  Sheet,
+  SheetContent,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet"
 import { TableCell, TableRow } from "@/components/ui/table"
+import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/utils/cn"
 
 type Member = { user_id: string; name: string }
@@ -120,14 +130,6 @@ export function ContentRow({
         <div className="flex flex-wrap items-center gap-1.5">
           <span>{item.code}</span>
           <OverdueBadge overdue={item.is_overdue} />
-          {item.sheet_unlinked_at && (
-            <Badge
-              variant="outline"
-              className="shrink-0 text-[10px] text-muted-foreground"
-            >
-              Mất liên kết sheet
-            </Badge>
-          )}
         </div>
       </TableCell>
 
@@ -232,28 +234,164 @@ export function ContentRow({
         onSave={(v) => patch("customer_research_url", v)}
       />
 
-      {/* Ads report — current AdsMetric, read-only (SPEC §5.4 R3, task 5.10) */}
+      {/* Ads report — Meta figure (read-only) + hand-typed note beside it
+          (campaign-page-reference-links task 6.1 / 6.3) */}
       <TableCell className="min-w-44 align-top">
-        <AdsReportCell metric={item.ads_metric} />
-        {canEvaluate && item.has_ads_binding === true && (
-          <button
-            type="button"
-            onClick={openComparison}
-            className="mt-1 inline-block text-xs text-primary hover:underline"
-          >
-            Xem hiệu quả
-          </button>
-        )}
+        <div className="flex flex-col gap-1">
+          <AdsReportCell metric={item.ads_metric} />
+          {canEvaluate && item.has_ads_binding === true && (
+            <button
+              type="button"
+              onClick={openComparison}
+              className="inline-block self-start text-xs text-primary hover:underline"
+            >
+              Xem hiệu quả
+            </button>
+          )}
+          <AdsNoteEditor
+            value={item.ads_report_note as string | undefined}
+            editable={canEvaluate}
+            onSave={(v) => patch("ads_report_note", v)}
+          />
+        </div>
       </TableCell>
 
-      {/* Evaluation — manager-only free-text note (SPEC §5.4 R5) */}
-      <TextCell
+      {/* Evaluation — manager-only free-text note (SPEC §5.4 R5). Opens a wide
+          scrollable panel so a long write-up is not cramped into one line. */}
+      <LongTextCell
         value={item.evaluation as string | undefined}
         editable={canEvaluate}
-        placeholder="Đánh giá / đề xuất"
+        title={`Đánh giá / đề xuất — ${item.code}`}
+        placeholder="Đánh giá / đề xuất cho hạng mục này…"
         onSave={saveEvaluation}
       />
+
+      {/* Tài liệu — reference links (campaign-page-reference-links task 4.4) */}
+      <TableCell className="align-top">
+        <ReferenceLinksCell
+          contentItemId={item.id}
+          code={item.code}
+          count={
+            typeof item.reference_link_count === "number"
+              ? item.reference_link_count
+              : 0
+          }
+        />
+      </TableCell>
     </TableRow>
+  )
+}
+
+// campaign-page-reference-links task 6.3: a free-text ads note, hand-typed,
+// shown next to (never merged into) the Meta figure.
+function AdsNoteEditor({
+  value,
+  editable,
+  onSave,
+}: {
+  value?: string
+  editable: boolean
+  onSave: (v: string | null) => void
+}) {
+  const [v, setV] = React.useState(value ?? "")
+  if (!editable && !value) return null
+  return (
+    <textarea
+      className="min-h-8 w-full resize-y rounded border bg-transparent px-1.5 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-70"
+      disabled={!editable}
+      placeholder="Ghi chú ads (nhập tay)"
+      rows={2}
+      value={v}
+      onChange={(e) => setV(e.target.value)}
+      onBlur={() => {
+        const t = v.trim()
+        if (t !== (value ?? "")) onSave(t || null)
+      }}
+    />
+  )
+}
+
+// A cell for a long free-text field (e.g. the evaluation). The cell itself shows
+// a clamped preview; clicking opens a wide side panel with a tall, scrollable
+// textarea so a multi-paragraph write-up has room. Read-only viewers can still
+// open it to read the full text when there is any.
+function LongTextCell({
+  value,
+  editable,
+  title,
+  placeholder,
+  onSave,
+}: {
+  value?: string
+  editable: boolean
+  title: string
+  placeholder?: string
+  onSave: (v: string | null) => void
+}) {
+  const [open, setOpen] = React.useState(false)
+  const [v, setV] = React.useState(value ?? "")
+
+  const canOpen = editable || !!value
+
+  return (
+    <TableCell className="min-w-44 max-w-64 align-top">
+      <Sheet
+        open={open}
+        onOpenChange={(next) => {
+          if (next) setV(value ?? "")
+          setOpen(next && canOpen)
+        }}
+      >
+        <SheetTrigger
+          render={
+            <button
+              type="button"
+              disabled={!canOpen}
+              className={cn(
+                "w-full rounded border bg-transparent px-1.5 py-1 text-left text-xs",
+                canOpen ? "hover:bg-muted" : "cursor-default opacity-70"
+              )}
+            >
+              {value ? (
+                <span className="line-clamp-4 whitespace-pre-wrap">{value}</span>
+              ) : (
+                <span className="text-muted-foreground">
+                  {editable ? (placeholder ?? "Bấm để nhập") : "—"}
+                </span>
+              )}
+            </button>
+          }
+        />
+        <SheetContent className="flex w-full flex-col sm:max-w-xl">
+          <SheetHeader>
+            <SheetTitle>{title}</SheetTitle>
+          </SheetHeader>
+          <div className="flex flex-1 flex-col overflow-y-auto px-4 pb-4">
+            <Textarea
+              autoFocus={editable}
+              readOnly={!editable}
+              className="min-h-[55vh] max-h-[70vh] w-full flex-1 resize-y text-sm"
+              placeholder={placeholder}
+              value={v}
+              onChange={(e) => setV(e.target.value)}
+            />
+          </div>
+          {editable && (
+            <SheetFooter>
+              <Button
+                onClick={() => {
+                  const trimmed = v.trim()
+                  if (trimmed !== (value ?? "")) onSave(trimmed || null)
+                  setOpen(false)
+                }}
+              >
+                Lưu
+              </Button>
+            </SheetFooter>
+          )}
+        </SheetContent>
+      </Sheet>
+    </TableCell>
   )
 }
 

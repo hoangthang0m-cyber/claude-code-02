@@ -1,12 +1,12 @@
 "use client"
 
 import * as React from "react"
+import Image from "next/image"
 import { useRouter } from "next/navigation"
-import Script from "next/script"
 import {
   GoogleAuthProvider,
-  signInWithCredential,
   signInWithEmailAndPassword,
+  signInWithPopup,
 } from "firebase/auth"
 
 import { auth } from "@/firebase/config"
@@ -14,7 +14,6 @@ import { getAuthErrorMessage } from "@/lib/firebaseErrors"
 import { cn } from "@/utils/cn"
 import { useAuth } from "@/context/AuthContext"
 import { POST_LOGIN_REDIRECT_KEY } from "@/components/common/AuthGuard"
-import { HemTarotMark } from "@/components/common/HemTarotMark"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import {
@@ -26,27 +25,6 @@ import {
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 
-const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ?? ""
-
-declare global {
-  interface Window {
-    google?: {
-      accounts: {
-        oauth2: {
-          initTokenClient(config: {
-            client_id: string
-            scope: string
-            callback: (response: {
-              access_token?: string
-              error?: string
-            }) => void
-          }): { requestAccessToken: () => void }
-        }
-      }
-    }
-  }
-}
-
 export function LoginForm({
   className,
   ...props
@@ -57,6 +35,7 @@ export function LoginForm({
   const [password, setPassword] = React.useState("")
   const [error, setError] = React.useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = React.useState(false)
+  const [googleBusy, setGoogleBusy] = React.useState(false)
 
   // Return to the deep link that bounced the user here, else the default route.
   const destinationAfterLogin = React.useCallback(() => {
@@ -92,35 +71,21 @@ export function LoginForm({
     }
   }
 
-  function handleGoogleLogin() {
+  async function handleGoogleLogin() {
     setError(null)
-    if (!window.google) {
-      setError("Google Sign-In chưa tải xong, thử lại sau vài giây.")
-      return
+    setGoogleBusy(true)
+    try {
+      await signInWithPopup(auth, new GoogleAuthProvider())
+      router.push(destinationAfterLogin())
+    } catch (err) {
+      setError(getAuthErrorMessage(err))
+    } finally {
+      setGoogleBusy(false)
     }
-    const client = window.google.accounts.oauth2.initTokenClient({
-      client_id: GOOGLE_CLIENT_ID,
-      scope: "openid email profile",
-      callback: async (response) => {
-        if (response.error || !response.access_token) {
-          setError("Đăng nhập Google thất bại.")
-          return
-        }
-        try {
-          const credential = GoogleAuthProvider.credential(null, response.access_token)
-          await signInWithCredential(auth, credential)
-          router.push(destinationAfterLogin())
-        } catch (err) {
-          setError(getAuthErrorMessage(err))
-        }
-      },
-    })
-    client.requestAccessToken()
   }
 
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
-      <Script src="https://accounts.google.com/gsi/client" strategy="afterInteractive" />
       <Card className="overflow-hidden p-0">
         <CardContent className="grid p-0 md:grid-cols-2">
           <form className="p-6 md:p-8" onSubmit={handleSubmit}>
@@ -181,7 +146,12 @@ export function LoginForm({
                   </svg>
                   <span className="sr-only">Login with Apple</span>
                 </Button>
-                <Button variant="outline" type="button" onClick={handleGoogleLogin}>
+                <Button
+                  variant="outline"
+                  type="button"
+                  onClick={handleGoogleLogin}
+                  disabled={googleBusy}
+                >
                   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
                     <path
                       d="M12.48 10.92v3.28h7.84c-.24 1.84-.853 3.187-1.787 4.133-1.147 1.147-2.933 2.4-6.053 2.4-4.827 0-8.6-3.893-8.6-8.72s3.773-8.72 8.6-8.72c2.6 0 4.507 1.027 5.907 2.347l2.307-2.307C18.747 1.44 16.133 0 12.48 0 5.867 0 .307 5.387.307 12s5.56 12 12.173 12c3.573 0 6.267-1.173 8.373-3.36 2.16-2.16 2.84-5.213 2.84-7.667 0-.76-.053-1.467-.173-2.053H12.48z"
@@ -205,8 +175,15 @@ export function LoginForm({
               </FieldDescription>
             </FieldGroup>
           </form>
-          <div className="relative hidden items-center justify-center bg-black md:flex">
-            <HemTarotMark />
+          <div className="relative hidden bg-black md:block">
+            <Image
+              src="/hem-tarot-logo.png"
+              alt="Hẻm Tarot"
+              fill
+              priority
+              sizes="(min-width: 768px) 50vw, 0px"
+              className="object-contain p-10"
+            />
           </div>
         </CardContent>
       </Card>

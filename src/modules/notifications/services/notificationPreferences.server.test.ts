@@ -35,7 +35,7 @@ beforeEach(() => {
 })
 
 describe("listNotificationPreferences (SPEC §5.7 R4, task 7.5)", () => {
-  it("lists all six groups, everything on by default (opt-out model)", async () => {
+  it("lists all groups, everything on by default (opt-out model)", async () => {
     const { preferences } = await listNotificationPreferences(me)
     expect(preferences.map((p) => p.group)).toEqual([
       "assignment",
@@ -43,7 +43,6 @@ describe("listNotificationPreferences (SPEC §5.7 R4, task 7.5)", () => {
       "overdue",
       "ads",
       "comment_mention",
-      "sync",
     ])
     expect(preferences.every((p) => p.enabled)).toBe(true)
     expect(preferences.find((p) => p.group === "comment_mention")?.label).toBe(

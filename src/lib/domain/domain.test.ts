@@ -126,12 +126,12 @@ describe("projectCreateSchema (SPEC §5.1 R1)", () => {
     ).toBe(false)
   })
 
-  it("keeps a non-Sheets progress_sheet_url (stored, flagged downstream)", () => {
+  it("accepts a progress_link_url on create (turned into a reference link)", () => {
     expect(
       projectCreateSchema.safeParse({
         name: "P",
         objective: "o",
-        progress_sheet_url: "not-a-real-url",
+        progress_link_url: "https://docs.google.com/spreadsheets/d/x/edit",
       }).success
     ).toBe(true)
   })
@@ -220,6 +220,16 @@ describe("contentFieldUpdateSchema (SPEC §5.2 R1)", () => {
   it("accepts a valid content_format", () => {
     expect(
       contentFieldUpdateSchema.safeParse({ content_format: "reels" }).success
+    ).toBe(true)
+  })
+
+  it("accepts a free-text ads_report_note, including clearing it to null", () => {
+    expect(
+      contentFieldUpdateSchema.safeParse({ ads_report_note: "ROAS tốt, giữ ngân sách" })
+        .success
+    ).toBe(true)
+    expect(
+      contentFieldUpdateSchema.safeParse({ ads_report_note: null }).success
     ).toBe(true)
   })
 

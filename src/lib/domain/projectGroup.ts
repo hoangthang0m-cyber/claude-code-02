@@ -11,35 +11,201 @@ import type { Project } from "@/lib/domain/project"
 //   ProjectGroup (id, name, description nullable,
 //     lifecycle: active | archived, created_by, created_at)
 //
-// A plain folder over Project — deliberately WITHOUT the Project form fields
-// (objective, scale, progress_sheet_url, retrospective) so a group can never be
-// mistaken for a project. `created_at` is set server-side; `created_by` comes
-// from the verified auth context, never the request body.
+// project-group-fields change (design.md Decision 1) adds basic steering info:
+//   - `objective` — required when creating a NEW group (legacy groups read it
+//     back absent and the roll-up shows a "bổ sung mục tiêu" reminder, task 2.3)
+//   - `description` — kept, now playing the "mô tả chi tiết" role
+//   - `time_scope_text` — free text, e.g. "3 tháng", "Quý 3/2026"
+//   - `target_end_date` — a "YYYY-MM-DD" date, used ONLY to compute the time
+//     status ("đang trong hạn / sắp hết hạn / quá hạn"); no start date
+//   - `budget_amount` + `budget_currency` — one planned-budget figure and its
+//     ISO-4217 currency, entered together or not at all
+//
+// A group is still NOT a Project: no synced progress link, no retrospective, no
+// production state machine, no content items. `created_at` is set server-side;
+// `created_by` comes from the verified auth context, never the request body.
 
 export interface ProjectGroup {
   id: string
   name: string
+  objective?: string
   description?: string
+  time_scope_text?: string
+  target_end_date?: string
+  budget_amount?: number
+  budget_currency?: string
   lifecycle: ProjectGroupLifecycle
   created_by: string
   created_at: Timestamp
 }
 
-// Create (spec: name required, description optional). lifecycle defaults to
-// "active" server-side; created_by comes from auth.
-export const projectGroupCreateSchema = z.object({
+const groupTargetEndDate = z
+  .string()
+  .trim()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, "Ngày kết thúc dự kiến phải là dạng YYYY-MM-DD")
+
+const budgetCurrency = z
+  .string()
+  .trim()
+  .toUpperCase()
+  .regex(/^[A-Z]{3}$/, "Đơn vị tiền tệ phải là mã ISO 3 chữ (vd VND, USD)")
+
+const budgetAmount = z.number().positive("Ngân sách dự kiến phải lớn hơn 0")
+
+// The caller-supplied fields of a group. `objective` is required here; the edit
+// schema relaxes it with `.partial()` so a manager can add it to a legacy group
+// without re-sending every field. `budget_amount` / `budget_currency` are a
+// pair — both or neither (a lone currency has nothing to measure).
+const projectGroupFields = z.object({
   name: z.string().trim().min(1),
+  objective: z.string().trim().min(1, "Cần nhập mục tiêu nhóm"),
   description: z.string().trim().optional(),
+  time_scope_text: z.string().trim().min(1).max(200).optional(),
+  target_end_date: groupTargetEndDate.optional(),
+  budget_amount: budgetAmount.optional(),
+  budget_currency: budgetCurrency.optional(),
 })
+
+const budgetFieldsPaired = (v: {
+  budget_amount?: number
+  budget_currency?: string
+}) => (v.budget_amount == null) === (v.budget_currency == null)
+
+const budgetPairMessage = {
+  message: "Ngân sách dự kiến cần cả số tiền và đơn vị tiền tệ",
+  path: ["budget_currency"],
+}
+
+// Create (project-group-fields task 1.2): name + objective required; everything
+// else optional. lifecycle defaults to "active" server-side; created_by comes
+// from auth.
+export const projectGroupCreateSchema = projectGroupFields.refine(
+  budgetFieldsPaired,
+  budgetPairMessage
+)
 
 export type ProjectGroupCreate = z.infer<typeof projectGroupCreateSchema>
 
-// Edit (spec: "chỉnh sửa hai trường này sau khi tạo") — name and description
-// only, both optional. Does NOT carry `lifecycle`: archive / restore has its
-// own validated path (task 2.3), mirroring Project.
-export const projectGroupUpdateSchema = projectGroupCreateSchema.partial()
+// Edit — every field optional (so a legacy group can gain just an objective).
+// Does NOT carry `lifecycle`: archive / restore has its own validated path
+// (task 2.3), mirroring Project.
+export const projectGroupUpdateSchema = projectGroupFields
+  .partial()
+  .refine(budgetFieldsPaired, budgetPairMessage)
 
 export type ProjectGroupUpdate = z.infer<typeof projectGroupUpdateSchema>
+
+// task 2.3 — a legacy group (created before this change) has no objective. The
+// roll-up nudges the manager to fill it in but never blocks anything.
+export function groupNeedsObjective(
+  group: Pick<ProjectGroup, "objective">
+): boolean {
+  return !group.objective || group.objective.trim().length === 0
+}
+
+// task 3.2 / 3.4 — the currency the roll-up's "actual cost" is in. The analytics
+// roll-up sums `AdsMetric.spend` straight (Meta returns it in the ad account's
+// currency); the codebase does not carry a per-metric currency, so this is
+// pinned to VND — the team's operating currency, matching
+// `DEFAULT_REPORTING_CURRENCY`. A group budget in any other currency is shown
+// side by side without conversion (design.md Non-Goals).
+export const ACTUAL_COST_CURRENCY = "VND"
+
+// task 3.6 — the group's time status, computed from `target_end_date` and today.
+// Pure (no clock, no storage): the caller passes `nowMs`. Day-granular — the
+// target's own day still counts as "in range" (days_left 0). `warnDays` is the
+// "sắp hết hạn" window, 7 by default (design.md Decision 3).
+//
+// The spec conditions "quá hạn" on the group not being finished. A group has no
+// "done" state (only active | archived), so an archived group is treated as
+// closed: `completed` suppresses the status entirely — a filed-away group needs
+// no countdown or alarm.
+export type GroupTimeStatus =
+  | { state: "on_track"; days_left: number }
+  | { state: "due_soon"; days_left: number }
+  | { state: "overdue"; days_over: number }
+
+const MS_PER_DAY = 86_400_000
+
+function utcDayNumber(ms: number): number {
+  return Math.floor(ms / MS_PER_DAY)
+}
+
+export function computeGroupTimeStatus(
+  targetEndDate: string | undefined | null,
+  nowMs: number,
+  warnDays = 7,
+  opts: { completed?: boolean } = {}
+): GroupTimeStatus | null {
+  if (opts.completed) return null
+  if (!targetEndDate || !/^\d{4}-\d{2}-\d{2}$/.test(targetEndDate)) return null
+  const endMs = Date.parse(`${targetEndDate}T00:00:00Z`)
+  if (Number.isNaN(endMs)) return null
+
+  const daysLeft = utcDayNumber(endMs) - utcDayNumber(nowMs)
+  if (daysLeft < 0) return { state: "overdue", days_over: -daysLeft }
+  if (daysLeft <= warnDays) return { state: "due_soon", days_left: daysLeft }
+  return { state: "on_track", days_left: daysLeft }
+}
+
+// task 3.3 / 3.4 — reconcile the group's planned budget against the actual cost
+// of the period currently on screen. Pure. `actualSpend` / `spendCurrency` come
+// from the roll-up report (spendCurrency is always ACTUAL_COST_CURRENCY today,
+// but it is a parameter so the mismatch branch is real and testable).
+export type GroupBudgetReconciliation =
+  | { state: "no_budget" }
+  | {
+      state: "currency_mismatch"
+      budget_amount: number
+      budget_currency: string
+      actual_spend: number
+      spend_currency: string
+    }
+  | {
+      state: "within" | "over"
+      budget_amount: number
+      budget_currency: string
+      actual_spend: number
+      spend_currency: string
+      /** actual_spend / budget_amount, as a ratio (0.6 = "đã dùng 60%") */
+      percent_used: number
+      /** how much actual_spend exceeds the budget; 0 when within */
+      over_amount: number
+    }
+
+export function computeGroupBudgetReconciliation(input: {
+  budgetAmount: number | undefined | null
+  budgetCurrency: string | undefined | null
+  actualSpend: number
+  spendCurrency?: string
+}): GroupBudgetReconciliation {
+  const { budgetAmount, budgetCurrency } = input
+  const spendCurrency = input.spendCurrency ?? ACTUAL_COST_CURRENCY
+  const actualSpend = Math.max(0, input.actualSpend)
+
+  if (budgetAmount == null || budgetAmount <= 0 || !budgetCurrency) {
+    return { state: "no_budget" }
+  }
+
+  const common = {
+    budget_amount: budgetAmount,
+    budget_currency: budgetCurrency,
+    actual_spend: actualSpend,
+    spend_currency: spendCurrency,
+  }
+
+  if (budgetCurrency !== spendCurrency) {
+    return { state: "currency_mismatch", ...common }
+  }
+
+  const over = actualSpend > budgetAmount
+  return {
+    ...common,
+    state: over ? "over" : "within",
+    percent_used: actualSpend / budgetAmount,
+    over_amount: over ? actualSpend - budgetAmount : 0,
+  }
+}
 
 // task 2.2 / 2.3 — an archived group is read-only (spec: "lưu trữ … chỉ đọc").
 // Mirrors `isProjectWritable`.

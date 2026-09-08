@@ -11,6 +11,11 @@ export function getAuthErrorMessage(err: unknown): string {
       "API key Firebase không đúng hoặc chưa được cấu hình.",
     "auth/popup-blocked": "Trình duyệt đã chặn popup đăng nhập Google.",
     "auth/popup-closed-by-user": "Bạn đã đóng popup đăng nhập trước khi hoàn tất.",
+    "auth/cancelled-popup-request": "Đã có một popup đăng nhập khác đang mở.",
+    "auth/operation-not-allowed":
+      "Đăng nhập Google chưa được bật trong Firebase (Authentication > Sign-in method > Google).",
+    "auth/account-exists-with-different-credential":
+      "Email này đã đăng ký bằng cách khác. Đăng nhập bằng phương thức ban đầu.",
     "auth/network-request-failed": "Lỗi kết nối mạng.",
   }
   if (messages[code]) return messages[code]

@@ -90,25 +90,26 @@ describe("createProject (SPEC §5.1 R1)", () => {
     ).rejects.toMatchObject({ status: 400 })
   })
 
-  it("creates the project and the creator's manager membership", async () => {
+  it("creates the project, the creator's manager membership, and a progress reference link", async () => {
     const result = await createProject(manager, {
       name: "Q3 Launch",
       objective: "Tăng Mess",
-      progress_sheet_url: "not-a-valid-url-yet",
+      progress_link_url: "https://docs.google.com/spreadsheets/d/abc/edit",
     })
 
     expect(result.id).toMatch(/^projects-/)
     expect(batchCommit).toHaveBeenCalledTimes(1)
-    expect(batchSet).toHaveBeenCalledTimes(2)
+    // project + membership + reference link
+    expect(batchSet).toHaveBeenCalledTimes(3)
 
     const [, projectData] = batchSet.mock.calls[0]
     expect(projectData).toMatchObject({
       name: "Q3 Launch",
       objective: "Tăng Mess",
-      progress_sheet_url: "not-a-valid-url-yet",
       lifecycle: "running",
       created_by: "u-manager",
     })
+    expect("progress_link_url" in projectData).toBe(false)
     expect(projectData.created_at).toBeDefined()
     expect(projectData.updated_at).toBeDefined()
 
@@ -119,13 +120,23 @@ describe("createProject (SPEC §5.1 R1)", () => {
       project_role: "manager",
       skill_tag: null,
     })
+
+    const [, linkData] = batchSet.mock.calls[2]
+    expect(linkData).toMatchObject({
+      owner_type: "project",
+      owner_id: result.id,
+      url: "https://docs.google.com/spreadsheets/d/abc/edit",
+      label: "Tiến độ dự án",
+      created_by: "u-manager",
+    })
   })
 
-  it("does not persist optional fields that were omitted", async () => {
+  it("does not persist optional fields that were omitted, and adds no link", async () => {
     await createProject(manager, { name: "P", objective: "o" })
+    expect(batchSet).toHaveBeenCalledTimes(2) // project + membership only
     const [, projectData] = batchSet.mock.calls[0]
     expect("description" in projectData).toBe(false)
-    expect("progress_sheet_url" in projectData).toBe(false)
+    expect("progress_link_url" in projectData).toBe(false)
   })
 
   // ── project-grouping task 3.3 ──────────────────────────────────────────────

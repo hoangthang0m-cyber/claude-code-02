@@ -91,10 +91,10 @@ beforeEach(() => {
   batchCommit.mockReset().mockResolvedValue(undefined)
 })
 
-describe("createProjectGroup (project-grouping task 2.1)", () => {
+describe("createProjectGroup (project-grouping task 2.1 / project-group-fields task 1.2)", () => {
   it("rejects a staff account with 403 and writes nothing", async () => {
     await expect(
-      createProjectGroup(staff, { name: "UGC ROAS 2.0" })
+      createProjectGroup(staff, { name: "UGC ROAS 2.0", objective: "o" })
     ).rejects.toMatchObject({ status: 403 })
     expect(docSet).not.toHaveBeenCalled()
   })
@@ -107,16 +107,31 @@ describe("createProjectGroup (project-grouping task 2.1)", () => {
     expect(docSet).not.toHaveBeenCalled()
   })
 
+  it("rejects a create with no objective with 400 (task 1.2)", async () => {
+    await expect(
+      createProjectGroup(manager, { name: "UGC ROAS 2.0" })
+    ).rejects.toMatchObject({ status: 400 })
+    await expect(
+      createProjectGroup(manager, { name: "UGC ROAS 2.0" })
+    ).rejects.toThrow(/objective/)
+    expect(docSet).not.toHaveBeenCalled()
+  })
+
   it("rejects a blank name with 400", async () => {
     await expect(
-      createProjectGroup(manager, { name: "   " })
+      createProjectGroup(manager, { name: "   ", objective: "o" })
     ).rejects.toMatchObject({ status: 400 })
   })
 
   it("creates the group: lifecycle active, created_by, created_at", async () => {
     const result = await createProjectGroup(manager, {
       name: "  UGC ROAS 2.0  ",
+      objective: "  Đẩy ROAS toàn nhóm lên 2.0  ",
       description: "Các đợt UGC cùng định hướng",
+      time_scope_text: "3 tháng",
+      target_end_date: "2026-12-31",
+      budget_amount: 100_000_000,
+      budget_currency: "vnd",
     })
 
     expect(result.id).toMatch(/^projectGroups-/)
@@ -125,17 +140,26 @@ describe("createProjectGroup (project-grouping task 2.1)", () => {
     const [data] = docSet.mock.calls[0]
     expect(data).toMatchObject({
       name: "UGC ROAS 2.0", // trimmed
+      objective: "Đẩy ROAS toàn nhóm lên 2.0", // trimmed
       description: "Các đợt UGC cùng định hướng",
+      time_scope_text: "3 tháng",
+      target_end_date: "2026-12-31",
+      budget_amount: 100_000_000,
+      budget_currency: "VND", // upper-cased
       lifecycle: "active",
       created_by: "u-manager",
     })
     expect(data.created_at).toBeDefined()
   })
 
-  it("does not persist an omitted description", async () => {
-    await createProjectGroup(manager, { name: "Nhóm A" })
+  it("does not persist omitted optional fields", async () => {
+    await createProjectGroup(manager, { name: "Nhóm A", objective: "o" })
     const [data] = docSet.mock.calls[0]
     expect("description" in data).toBe(false)
+    expect("time_scope_text" in data).toBe(false)
+    expect("target_end_date" in data).toBe(false)
+    expect("budget_amount" in data).toBe(false)
+    expect("budget_currency" in data).toBe(false)
   })
 })
 
@@ -192,6 +216,37 @@ describe("updateProjectGroup (project-grouping task 2.2)", () => {
     })
     const [patch] = docUpdate.mock.calls[0]
     expect(patch).toEqual({ name: "Chỉ tên" })
+  })
+
+  // project-group-fields task 2.1 — the new fields flow through the edit path.
+  it("persists the new group fields (objective / time scope / target date / budget)", async () => {
+    await updateProjectGroup(manager, "g1", {
+      objective: "  Đẩy ROAS lên 2.0  ",
+      time_scope_text: "Quý 4/2026",
+      target_end_date: "2026-12-31",
+      budget_amount: 80_000_000,
+      budget_currency: "vnd",
+    })
+    expect(docUpdate).toHaveBeenCalledWith({
+      objective: "Đẩy ROAS lên 2.0",
+      time_scope_text: "Quý 4/2026",
+      target_end_date: "2026-12-31",
+      budget_amount: 80_000_000,
+      budget_currency: "VND",
+    })
+  })
+
+  it("rejects a budget amount without a currency on edit (400)", async () => {
+    await expect(
+      updateProjectGroup(manager, "g1", { budget_amount: 5_000_000 })
+    ).rejects.toMatchObject({ status: 400 })
+    expect(docUpdate).not.toHaveBeenCalled()
+  })
+
+  it("lets a manager add an objective to a legacy group", async () => {
+    fx.groups = { legacy: { name: "Nhóm cũ", lifecycle: "active" } }
+    await updateProjectGroup(manager, "legacy", { objective: "Mục tiêu bổ sung" })
+    expect(docUpdate).toHaveBeenCalledWith({ objective: "Mục tiêu bổ sung" })
   })
 })
 

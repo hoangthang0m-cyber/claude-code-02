@@ -15,6 +15,7 @@
     "seed:manager": "node scripts/seed-manager.mjs",
     "backfill:sort-index": "node scripts/backfill-project-sort-index.mjs",
     "seed:ads-reporting": "node scripts/seed-ads-reporting.mjs",
+    "migrate:progress-links": "node scripts/migrate-progress-sheet-to-reference-link.mjs",
     "seed:calendar-settings": "node scripts/seed-calendar-settings.mjs",
     "seed:calendars": "node scripts/seed-calendars.mjs",
     "backfill:members": "node scripts/backfill-members.mjs",

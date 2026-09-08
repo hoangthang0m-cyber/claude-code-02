@@ -2,6 +2,8 @@ import { FieldValue } from "firebase-admin/firestore"
 
 import {
   COLLECTIONS,
+  PROGRESS_LINK_LABEL,
+  REFERENCE_LINK_SORT_STEP,
   canChangeLifecycle,
   isBackgroundSyncActive,
   isProjectWritable,
@@ -44,10 +46,13 @@ export async function createProject(
 ): Promise<CreateProjectResult> {
   requireSystemManager(actor)
 
-  const input = parseOrThrow(projectCreateSchema, body)
+  const { progress_link_url, ...fields } = parseOrThrow(
+    projectCreateSchema,
+    body
+  )
   const db = getAdminDb()
 
-  const bucket = input.group_id ?? null
+  const bucket = fields.group_id ?? null
   if (bucket !== null) {
     await assertAssignableGroup(db, bucket)
   }
@@ -60,7 +65,7 @@ export async function createProject(
 
   const batch = db.batch()
   batch.set(projectRef, {
-    ...input,
+    ...fields,
     lifecycle: "running",
     sort_index,
     created_by: actor.uid,
@@ -74,6 +79,20 @@ export async function createProject(
     project_role: "manager",
     skill_tag: null,
   })
+  // campaign-page-reference-links: the "tiến độ dự án" field becomes a plain
+  // reference link on the project (no sync).
+  if (progress_link_url) {
+    batch.set(db.collection(COLLECTIONS.referenceLinks).doc(), {
+      owner_type: "project",
+      owner_id: projectRef.id,
+      url: progress_link_url,
+      label: PROGRESS_LINK_LABEL,
+      note: null,
+      created_by: actor.uid,
+      created_at: FieldValue.serverTimestamp(),
+      sort_index: REFERENCE_LINK_SORT_STEP,
+    })
+  }
   await batch.commit()
 
   return { id: projectRef.id }
@@ -81,13 +100,10 @@ export async function createProject(
 
 export interface UpdateProjectResult {
   id: string
-  /** true when progress_sheet_url changed and the old sheet mapping was reset */
-  sheet_mapping_reset: boolean
 }
 
 // SPEC §5.1 R2: the project's manager edits any form field after creation. Saves
-// with updated_at + updated_by. Changing progress_sheet_url detaches the old
-// Google Sheet mapping (the new mapping is set up in group 7.6).
+// with updated_at + updated_by.
 export async function updateProject(
   actor: AuthedUser,
   projectId: string,
@@ -114,27 +130,12 @@ export async function updateProject(
     throw new HttpError(409, "Dự án đã lưu trữ — chỉ đọc")
   }
 
-  const sheetUrlChanged =
-    input.progress_sheet_url !== undefined &&
-    input.progress_sheet_url !== current.progress_sheet_url
-
-  const batch = db.batch()
-  batch.update(ref, {
+  await ref.update({
     ...input,
     updated_at: FieldValue.serverTimestamp(),
     updated_by: actor.uid,
   })
-
-  if (sheetUrlChanged) {
-    const mappings = await db
-      .collection(COLLECTIONS.sheetSyncMappings)
-      .where("project_id", "==", projectId)
-      .get()
-    mappings.forEach((m) => batch.delete(m.ref))
-  }
-
-  await batch.commit()
-  return { id: projectId, sheet_mapping_reset: sheetUrlChanged }
+  return { id: projectId }
 }
 
 export interface ChangeLifecycleResult {
@@ -252,9 +253,6 @@ export async function deleteProject(
   add(itemsSnap.docs.map((d) => d.ref as AnyRef))
 
   add(await byField(COLLECTIONS.projectMembers, "project_id", projectId))
-  add(await byField(COLLECTIONS.sheetSyncMappings, "project_id", projectId))
-  add(await byField(COLLECTIONS.syncRuns, "project_id", projectId))
-  add(await byField(COLLECTIONS.syncConflicts, "project_id", projectId))
   add(await byField(COLLECTIONS.notifications, "project_id", projectId))
 
   if (itemIds.length > 0) {
@@ -263,7 +261,6 @@ export async function deleteProject(
       COLLECTIONS.comments,
       COLLECTIONS.adsBindings,
       COLLECTIONS.adsMetrics,
-      COLLECTIONS.syncConflicts,
       COLLECTIONS.notifications,
     ]) {
       add(await byFieldIn(col, "content_item_id", itemIds))

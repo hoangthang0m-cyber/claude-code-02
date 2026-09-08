@@ -30,17 +30,6 @@ vi.mock("@/lib/server/firebaseAdmin", () => {
       if (name === "projects") {
         return { exists: true, data: () => ({ lifecycle: "running" }) }
       }
-      if (name === "sheetSyncMappings") {
-        return {
-          exists: true,
-          data: () => ({
-            spreadsheet_id: "s",
-            sheet_tab: "t",
-            header_row: 1,
-            column_map: { code: "Mã" },
-          }),
-        }
-      }
       if (name === "adsBindings") {
         return { exists: true, data: () => ({ content_item_id: "ci", active: true }) }
       }
@@ -97,16 +86,6 @@ import {
   executeTransition,
   listStatusHistory,
 } from "@/modules/production-workflow/services/workflow.server"
-import {
-  getSheetMapping,
-  previewSheet,
-  saveSheetMapping,
-  setSheetSyncEnabled,
-} from "@/modules/sheets-sync/services/sheetMapping.server"
-import {
-  getProjectSheetSyncLog,
-  syncProjectSheetNow,
-} from "@/modules/sheets-sync/services/sheetSync.server"
 
 const outsider: AuthedUser = {
   uid: "u-outsider",
@@ -136,12 +115,6 @@ const CASES: Array<[string, () => Promise<unknown>]> = [
   ["members: add", () => addProjectMember(outsider, "P", { user_id: "u2", project_role: "staff" })],
   ["members: update", () => updateProjectMember(outsider, "P", "m1", { project_role: "manager" })],
   ["members: remove", () => removeProjectMember(outsider, "P", "m1")],
-  ["sheet: get mapping", () => getSheetMapping(outsider, "P")],
-  ["sheet: preview", () => previewSheet(outsider, "P", "https://docs.google.com/spreadsheets/d/1/edit", 1)],
-  ["sheet: save mapping", () => saveSheetMapping(outsider, "P", { url: "https://docs.google.com/spreadsheets/d/1/edit", header_row: 1, column_map: { code: "Mã" }, conflict_rule: "system_wins" })],
-  ["sheet: toggle sync", () => setSheetSyncEnabled(outsider, "P", false)],
-  ["sheet: sync now", () => syncProjectSheetNow(outsider, "P")],
-  ["sheet: sync log", () => getProjectSheetSyncLog(outsider, "P")],
 ]
 
 describe("cross-project scope: an outsider is rejected everywhere (SPEC §5.1 R4, task 9.1)", () => {

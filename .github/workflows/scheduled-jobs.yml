@@ -2,9 +2,9 @@ name: scheduled-jobs
 
 # Background jobs for the Content Performance Tracker. The Vercel account is on
 # the Hobby plan, where a cron in vercel.json can only run once per day (a more
-# frequent expression fails the deployment). So the sheets / ads sync are driven
-# from here instead, hitting the /api/jobs/** route handlers with the same
-# Authorization: Bearer <CRON_SECRET> header Vercel Cron would send.
+# frequent expression fails the deployment). So the ads / reporting syncs are
+# driven from here instead, hitting the /api/jobs/** route handlers with the
+# same Authorization: Bearer <CRON_SECRET> header Vercel Cron would send.
 #
 # Repo secrets required (Settings → Secrets and variables → Actions):
 #   APP_URL      https://claude-code-02-thang20.vercel.app   (no trailing slash)
@@ -12,7 +12,6 @@ name: scheduled-jobs
 
 on:
   schedule:
-    - cron: "*/15 * * * *" # sheets-sync   (SPEC §5.5 wants ≤5 min; ~15 is the practical floor here)
     - cron: "7 * * * *" # ads-sync      (hourly; the job itself decides per-item due-ness / cadence)
     - cron: "13 3 * * *" # meta-token-refresh (daily)
     - cron: "23 */2 * * *" # reporting-campaign-sync (every 2h; design.md Decision 4 ~1–3h/account)
@@ -28,7 +27,6 @@ on:
         required: true
         type: choice
         options:
-          - sheets-sync
           - ads-sync
           - meta-token-refresh
           - reporting-campaign-sync
@@ -50,7 +48,6 @@ jobs:
         id: pick
         run: |
           case "${{ github.event.schedule }}" in
-            "*/15 * * * *") job=sheets-sync ;;
             "7 * * * *")     job=ads-sync ;;
             "13 3 * * *")    job=meta-token-refresh ;;
             "23 */2 * * *")  job=reporting-campaign-sync ;;
