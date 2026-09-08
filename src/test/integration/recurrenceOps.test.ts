@@ -27,7 +27,7 @@ afterAll(async () => {
 
 let calId: string
 beforeEach(async () => {
-  for (const c of ["calendars", "calendarItems"]) {
+  for (const c of ["calendars", "calendarItems", "members", "dueReminders"]) {
     const snap = await db.collection(c).get()
     await Promise.all(
       snap.docs.map(async (d) => {
@@ -37,6 +37,10 @@ beforeEach(async () => {
       })
     )
   }
+  await db
+    .collection("members")
+    .doc("mgr")
+    .set({ uid: "mgr", displayName: "mgr", photoURL: null, role: "manager", active: true })
   calId = (
     await createCalendar(db, {
       name: "Chuỗi",

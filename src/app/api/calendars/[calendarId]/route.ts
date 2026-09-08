@@ -2,8 +2,8 @@ import {
   calendarDeleteSchema,
   calendarUpdateSchema,
 } from "@/lib/domain/calendar"
-import { requireSystemManager } from "@/lib/permissions/projectScope"
 import { getAuthedUser } from "@/lib/server/auth"
+import { requireCalendarManager } from "@/lib/server/calendar/access"
 import {
   deleteCalendar,
   updateCalendar,
@@ -23,9 +23,10 @@ export async function PATCH(
   try {
     const { calendarId } = await params
     const actor = await getAuthedUser(request)
-    requireSystemManager(actor, "Chỉ Trưởng phòng được sửa lịch con")
+    const db = getAdminDb()
+    await requireCalendarManager(db, actor.uid, "Chỉ Trưởng phòng được sửa lịch con")
     const patch = parseOrThrow(calendarUpdateSchema, await readJsonBody(request))
-    await updateCalendar(getAdminDb(), calendarId, patch)
+    await updateCalendar(db, calendarId, patch)
     return Response.json({ id: calendarId })
   } catch (error) {
     return errorResponse(error)
@@ -42,17 +43,13 @@ export async function DELETE(
   try {
     const { calendarId } = await params
     const actor = await getAuthedUser(request)
-    requireSystemManager(actor, "Chỉ Trưởng phòng được xoá lịch con")
+    const db = getAdminDb()
+    await requireCalendarManager(db, actor.uid, "Chỉ Trưởng phòng được xoá lịch con")
     const { mode, targetCalendarId } = parseOrThrow(
       calendarDeleteSchema,
       await readJsonBody(request)
     )
-    const result = await deleteCalendar(
-      getAdminDb(),
-      calendarId,
-      mode,
-      targetCalendarId
-    )
+    const result = await deleteCalendar(db, calendarId, mode, targetCalendarId)
     return Response.json(result)
   } catch (error) {
     return errorResponse(error)

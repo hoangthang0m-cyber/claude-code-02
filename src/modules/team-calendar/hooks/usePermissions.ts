@@ -1,17 +1,26 @@
 "use client"
 
 import { useAuth } from "@/context/AuthContext"
+import { useMembers } from "@/modules/team-calendar/context/CalendarDataProvider"
 
-// The calendar's two-role check (Mục D task 11.3 formalises this). Role comes
-// from the `users` doc `system_role`, which the members sync mirrors into
-// `members/{uid}.role` — same value either way.
+// The calendar's two-role check (Mục D task 11.3). Role comes from
+// `members/{uid}.role` — the mirror the calendar owns and its Security Rules
+// read — NOT the caller's global `users.system_role`. The two hold the same
+// value (the member sync copies it), but reading `members` ties "has a role" to
+// "is a member": a non-member resolves to no permissions.
 export function usePermissions() {
-  const { profile, loading } = useAuth()
-  const isManager = profile?.system_role === "manager"
+  const { user, loading: authLoading } = useAuth()
+  const { byUid, loading: membersLoading } = useMembers()
+
+  const uid = user?.uid ?? null
+  const member = uid ? byUid.get(uid) : undefined
+  const isManager = member?.role === "manager"
+
   return {
-    uid: profile?.id ?? null,
+    uid,
     isManager,
-    isStaff: !!profile && !isManager,
-    loading,
+    isStaff: !!member && !isManager,
+    isMember: !!member,
+    loading: authLoading || membersLoading,
   }
 }

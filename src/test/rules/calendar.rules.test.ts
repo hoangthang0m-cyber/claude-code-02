@@ -437,6 +437,40 @@ describe("calendars — manager only", () => {
       updateDoc(doc(asStaff1(), "calendars/calEveryone"), { name: "Đổi tên" })
     )
   })
+
+  it("staff cannot change default reminders, colour, write scope, or archive", async () => {
+    await assertFails(
+      updateDoc(doc(asStaff1(), "calendars/calEveryone"), {
+        defaultReminders: [{ offsetMinutes: 30, channel: "inapp" }],
+      })
+    )
+    await assertFails(
+      updateDoc(doc(asStaff1(), "calendars/calEveryone"), { color: "tomato" })
+    )
+    await assertFails(
+      updateDoc(doc(asStaff1(), "calendars/calEveryone"), {
+        writeScope: "managerOnly",
+      })
+    )
+    await assertFails(
+      updateDoc(doc(asStaff1(), "calendars/calEveryone"), { archived: true })
+    )
+  })
+
+  it("staff cannot delete a sub-calendar", async () => {
+    await assertFails(deleteDoc(doc(asStaff1(), "calendars/calEveryone")))
+  })
+
+  it("manager can change default reminders and archive", async () => {
+    await assertSucceeds(
+      updateDoc(doc(asManager(), "calendars/calEveryone"), {
+        defaultReminders: [{ offsetMinutes: 60, channel: "inapp" }],
+      })
+    )
+    await assertSucceeds(
+      updateDoc(doc(asManager(), "calendars/calEveryone"), { archived: true })
+    )
+  })
 })
 
 describe("config / members — server-owned", () => {

@@ -9,6 +9,7 @@ import {
   type Reminder,
 } from "@/lib/domain/calendar"
 import type { AuthedUser } from "@/lib/server/auth"
+import { requireCalendarMember } from "@/lib/server/calendar/access"
 import { assertCalendarAcceptsItems } from "@/lib/server/calendar/calendarsRepo"
 import {
   createCalendarItem,
@@ -93,6 +94,7 @@ export async function createItem(
 ): Promise<{ id: string }> {
   const input = parseOrThrow(calendarItemCreateSchema, body)
 
+  await requireCalendarMember(db, actor.uid)
   await assertCalendarAcceptsItems(db, input.calendarId, actor)
   await assertAssigneesInDirectory(db, input.assigneeIds)
 
@@ -144,6 +146,7 @@ export async function updateItem(
   itemId: string,
   body: unknown
 ): Promise<{ id: string }> {
+  await requireCalendarMember(db, actor.uid)
   // recurring-series edit (Mục D task 8.4) — the body carries a scope
   const b = (body ?? {}) as Record<string, unknown>
   if (b.scope) {
@@ -247,6 +250,7 @@ export async function deleteItem(
   itemId: string,
   body?: unknown
 ): Promise<{ id: string }> {
+  await requireCalendarMember(db, actor.uid)
   const b = (body ?? {}) as Record<string, unknown>
   if (b.scope) {
     const { scope, occurrenceKey } = parseOrThrow(recurrenceScopeSchema, body)
@@ -285,6 +289,7 @@ export async function restoreItem(
   actor: Actor,
   itemId: string
 ): Promise<{ id: string }> {
+  await requireCalendarMember(db, actor.uid)
   await assertCanEditItem(db, itemId, actor)
   await restoreCalendarItem(db, itemId, actor.uid)
   // a restored item queues its still-future reminders again (task 10.3)
@@ -299,6 +304,7 @@ export async function duplicateItem(
   actor: Actor,
   itemId: string
 ): Promise<{ id: string }> {
+  await requireCalendarMember(db, actor.uid)
   const snap = await db
     .collection(CALENDAR_COLLECTIONS.calendarItems)
     .doc(itemId)

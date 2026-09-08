@@ -149,6 +149,30 @@ describe("validation (task 5.3)", () => {
   })
 })
 
+describe("membership gate (task 11.2 / §Ràng buộc quyền ở tầng dữ liệu)", () => {
+  const STRANGER = { uid: "stranger", system_role: "staff" as const }
+  const EX_MEMBER = { uid: "left", system_role: "manager" as const }
+
+  it("a uid with no members doc cannot create", async () => {
+    await expect(createItem(db, STRANGER, timed())).rejects.toThrow(/danh bạ đội/)
+  })
+
+  it("an inactive member cannot create even with a manager role", async () => {
+    await db
+      .collection("members")
+      .doc("left")
+      .set({ uid: "left", displayName: "Cũ", photoURL: null, role: "manager", active: false })
+    await expect(createItem(db, EX_MEMBER, timed())).rejects.toThrow(/danh bạ đội/)
+  })
+
+  it("a non-member cannot update an existing item", async () => {
+    const { id } = await createItem(db, MANAGER, timed())
+    await expect(
+      updateItem(db, STRANGER, id, { title: "x" })
+    ).rejects.toThrow(/danh bạ đội/)
+  })
+})
+
 describe("calendar acceptability", () => {
   it("staff cannot create in a managerOnly calendar", async () => {
     await expect(

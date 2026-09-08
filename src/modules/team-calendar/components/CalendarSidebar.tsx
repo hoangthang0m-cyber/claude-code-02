@@ -4,6 +4,7 @@ import * as React from "react"
 import {
   ArchiveIcon,
   ArchiveRestoreIcon,
+  LockIcon,
   MoreVerticalIcon,
   PencilIcon,
   PlusIcon,
@@ -64,12 +65,22 @@ export function CalendarSidebar({ itemCounts }: { itemCounts?: Record<string, nu
       />
       <span
         className={cn(
-          "flex-1 truncate text-sm",
+          "flex flex-1 items-center gap-1 truncate text-sm",
           vc.calendar.archived && "text-muted-foreground italic"
         )}
       >
-        {vc.calendar.name}
-        {vc.calendar.archived && " (đã lưu trữ)"}
+        <span className="truncate">
+          {vc.calendar.name}
+          {vc.calendar.archived && " (đã lưu trữ)"}
+        </span>
+        {/* task 11.4 — staff see a lock on a "chỉ Trưởng phòng ghi" calendar;
+            they can view it but not add / edit items in it */}
+        {!isManager && vc.calendar.writeScope === "managerOnly" && (
+          <LockIcon
+            className="size-3 shrink-0 text-muted-foreground"
+            aria-label="Chỉ Trưởng phòng ghi — bạn xem ở chế độ chỉ đọc"
+          />
+        )}
       </span>
 
       {isManager && vc.calendar.kind === "shared" && (
