@@ -69,7 +69,7 @@ export function ReferenceLinksPanel({ ownerType, ownerId, title, compact }: Prop
 
   return (
     <section className="flex flex-col gap-2">
-      {title && <h3 className="text-sm font-semibold">{title}</h3>}
+      {title && <h3 className="text-base font-semibold">{title}</h3>}
 
       {error && <p className="text-sm text-destructive">{error}</p>}
       {overWarnLimit && (

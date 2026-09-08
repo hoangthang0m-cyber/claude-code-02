@@ -1,12 +1,15 @@
 "use client"
 
+import type { ReactNode } from "react"
 import Link from "next/link"
 import { ArrowLeftIcon, PencilIcon } from "lucide-react"
 
 import {
   PROJECT_LIFECYCLE_LABELS,
+  PROJECT_LIFECYCLE_TRANSITIONS,
   isProjectWritable,
 } from "@/lib/domain"
+import { cn } from "@/utils/cn"
 import { useMyProjectRole } from "@/modules/project-workspace/hooks/useMyProjectRole"
 import { useProject } from "@/modules/project-workspace/hooks/useProject"
 import { ContentTable } from "@/modules/content-pipeline/components/ContentTable"
@@ -39,20 +42,28 @@ export function ProjectWorkspace({ projectId }: { projectId: string }) {
   }
 
   const canEdit = isManager && isProjectWritable(project.lifecycle)
+  const hasLifecycleActions =
+    isManager && PROJECT_LIFECYCLE_TRANSITIONS[project.lifecycle].length > 0
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-3">
-        <Link
-          href="/campaigns"
-          className="flex w-fit items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-        >
-          <ArrowLeftIcon className="size-4" /> Danh sách dự án
-        </Link>
+    <div className="flex flex-col gap-5 md:gap-6">
+      <Link
+        href="/campaigns"
+        className="flex w-fit items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
+      >
+        <ArrowLeftIcon className="size-4" /> Danh sách dự án
+      </Link>
+
+      {/* Tiêu đề + trạng thái dự án */}
+      <Panel className="gap-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <h1 className="text-xl font-semibold">{project.name}</h1>
-            <Badge variant={project.lifecycle === "running" ? "default" : "secondary"}>
+          <div className="flex flex-wrap items-center gap-2.5">
+            <h1 className="text-2xl font-semibold tracking-tight">
+              {project.name}
+            </h1>
+            <Badge
+              variant={project.lifecycle === "running" ? "default" : "secondary"}
+            >
               {PROJECT_LIFECYCLE_LABELS[project.lifecycle]}
             </Badge>
           </div>
@@ -68,47 +79,123 @@ export function ProjectWorkspace({ projectId }: { projectId: string }) {
             />
           )}
         </div>
-      </div>
 
-      <dl className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
-        <Info label="Mục tiêu" value={project.objective} />
-        {project.description && (
-          <Info label="Mô tả" value={project.description} />
+        {hasLifecycleActions && (
+          <div className="border-t pt-4">
+            <LifecycleControl
+              project={project}
+              canManage={Boolean(isManager)}
+            />
+          </div>
         )}
-        {project.scale && <Info label="Quy mô" value={project.scale} />}
-        {project.retrospective && (
-          <Info label="Đúc kết" value={project.retrospective} />
-        )}
-      </dl>
+      </Panel>
 
-      <LifecycleControl project={project} canManage={Boolean(isManager)} />
+      {/* Tổng quan — mỗi trường là một ô riêng */}
+      <Panel>
+        <PanelHeading>Tổng quan dự án</PanelHeading>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field label="Mục tiêu" value={project.objective} />
+          {project.scale && <Field label="Quy mô" value={project.scale} />}
+          {project.description && (
+            <Field
+              label="Mô tả"
+              value={project.description}
+              className="sm:col-span-2"
+            />
+          )}
+          {project.retrospective && (
+            <Field
+              label="Đúc kết sau dự án"
+              value={project.retrospective}
+              className="sm:col-span-2"
+            />
+          )}
+        </div>
+      </Panel>
 
-      <ReferenceLinksPanel
-        ownerType="project"
-        ownerId={projectId}
-        title="CHI TIẾT DỰ ÁN"
-      />
+      <Panel>
+        <ReferenceLinksPanel
+          ownerType="project"
+          ownerId={projectId}
+          title="Chi tiết dự án"
+        />
+      </Panel>
 
-      <ContentTable
-        projectId={projectId}
-        editable={isProjectWritable(project.lifecycle)}
-        canEvaluate={canEdit}
-      />
+      <Panel>
+        <ContentTable
+          projectId={projectId}
+          editable={isProjectWritable(project.lifecycle)}
+          canEvaluate={canEdit}
+        />
+      </Panel>
 
-      <ProjectMembersPanel projectId={projectId} canManage={canEdit} />
+      <Panel>
+        <ProjectMembersPanel projectId={projectId} canManage={canEdit} />
+      </Panel>
 
       {isManager && (
-        <DeleteProjectControl projectId={projectId} projectName={project.name} />
+        <DeleteProjectControl
+          projectId={projectId}
+          projectName={project.name}
+        />
       )}
     </div>
   )
 }
 
-function Info({ label, value }: { label: string; value: string }) {
+/** A raised, clearly-bounded section card — the building block that makes each
+ * part of the page read as its own "floating" panel rather than one flat sheet. */
+function Panel({
+  className,
+  children,
+}: {
+  className?: string
+  children: ReactNode
+}) {
   return (
-    <div className="flex flex-col gap-0.5">
-      <dt className="text-xs text-muted-foreground">{label}</dt>
-      <dd className="whitespace-pre-wrap">{value}</dd>
+    <div
+      className={cn(
+        "flex flex-col gap-3 rounded-xl bg-card p-4 text-card-foreground",
+        "ring-1 ring-foreground/10 md:p-5",
+        "shadow-[0_2px_12px_-4px_rgba(0,0,0,0.22),inset_0_1px_0_0_rgba(255,255,255,0.04)]",
+        className
+      )}
+    >
+      {children}
+    </div>
+  )
+}
+
+function PanelHeading({ children }: { children: ReactNode }) {
+  return <h2 className="text-base font-semibold">{children}</h2>
+}
+
+/** One labelled fact about the project, boxed so it stands apart from its
+ * neighbours. */
+function Field({
+  label,
+  value,
+  className,
+}: {
+  label: string
+  value: string
+  className?: string
+}) {
+  return (
+    <div
+      className={cn(
+        "flex flex-col gap-1 rounded-lg bg-muted/40 p-3.5",
+        "ring-1 ring-foreground/10",
+        "shadow-[0_1px_5px_-2px_rgba(0,0,0,0.15)]",
+        className
+      )}
+    >
+      <span className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
+        {label}
+      </span>
+      <span className="text-sm leading-relaxed whitespace-pre-wrap">
+        {value}
+      </span>
     </div>
   )
 }

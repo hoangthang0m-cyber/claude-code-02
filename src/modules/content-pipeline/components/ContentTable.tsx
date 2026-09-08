@@ -111,7 +111,7 @@ export function ContentTable({
     <section className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          <h2 className="text-sm font-semibold">Hạng mục nội dung</h2>
+          <h2 className="text-base font-semibold">Hạng mục nội dung</h2>
           {realtimeStatus === "offline" && (
             <span
               className="text-xs text-muted-foreground"

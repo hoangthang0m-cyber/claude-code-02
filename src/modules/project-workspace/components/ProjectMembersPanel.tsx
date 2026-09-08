@@ -47,7 +47,7 @@ export function ProjectMembersPanel({
 
   return (
     <section className="flex flex-col gap-3">
-      <h2 className="text-sm font-semibold">Thành viên dự án</h2>
+      <h2 className="text-base font-semibold">Thành viên dự án</h2>
       {error && <p className="text-sm text-destructive">{error}</p>}
 
       <ul className="flex flex-col divide-y rounded-lg border">
