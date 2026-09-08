@@ -118,6 +118,14 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // orgDocuments/ (document-library) — kho link cấp tổ chức: biên bản họp +
+    // tài liệu tổ chức. Mọi thành viên đã đăng nhập đọc; thêm/sửa/xoá qua route
+    // handler (không phân quyền theo vai — design.md Decision 3).
+    match /orgDocuments/{docId} {
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
+
     // Chứa token_encrypted — client KHÔNG được đọc (SPEC §1.5). Toàn bộ qua server.
     match /adAccountConnections/{connectionId} {
       allow read, write: if false;
