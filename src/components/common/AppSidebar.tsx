@@ -21,6 +21,7 @@ import {
   FolderKanbanIcon,
   CalendarDaysIcon,
   FilesIcon,
+  LightbulbIcon,
   ChartColumnBigIcon,
   Settings2Icon,
   CommandIcon,
@@ -57,6 +58,7 @@ const data = {
     { title: "Lịch đội", url: "/calendar", icon: <NavIcon icon={CalendarDaysIcon} /> },
     { title: "Báo cáo", url: "/reports", icon: <NavIcon icon={ChartColumnBigIcon} /> },
     { title: "Tài liệu", url: "/documents", icon: <NavIcon icon={FilesIcon} /> },
+    { title: "Tri thức", url: "/knowledge", icon: <NavIcon icon={LightbulbIcon} /> },
   ],
   navSecondary: [
     { title: "Cài đặt", url: "/ad-accounts", icon: <NavIcon icon={Settings2Icon} /> },

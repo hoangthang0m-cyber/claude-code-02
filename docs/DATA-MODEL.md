@@ -230,6 +230,23 @@ anyone else → `mode: "staff"` over their own assigned items (§5.6 R1 bullet 3
 
 All chunked `in` queries + in-memory counting — no composite index.
 
+## Collections — later OpenSpec changes
+
+Added after the §6.1 set, same rules (client read, all writes via `/api`):
+
+| Collection | Change | Key links |
+|---|---|---|
+| `projectGroups` | project-grouping | folder over `projects` (`group_id`) |
+| `referenceLinks` | campaign-page-reference-links | `owner_type` + `owner_id` (project / content item) |
+| `orgDocuments` | document-library | `category: meeting_minutes \| org_document` |
+| `knowledgeEntries` | knowledge-base | 1 doc / tri thức; `lifecycle: active \| archived` |
+| `knowledgeLinks` | knowledge-base | `entry_id`, `section: detail \| process \| conclusion`, `sort_index` |
+| `knowledgeProjectRefs` | knowledge-base | `entry_id`, `ref_type: project \| project_group`, `ref_id`, `ref_name` (snapshot) |
+
+`knowledge*` are org-level (any signed-in member writes — no project scope);
+`knowledgeProjectRefs.ref_name` is a name snapshot taken server-side at attach
+time and is never re-synced when the project/group is renamed.
+
 ## Transitional note
 
 The pre-existing `/campaigns` feature stores content in the

@@ -22,6 +22,10 @@ export const COLLECTIONS = {
   referenceLinks: "referenceLinks",
   // document-library — org-level link libraries (biên bản họp + tài liệu tổ chức)
   orgDocuments: "orgDocuments",
+  // knowledge-base — org knowledge entries + their section links + project refs
+  knowledgeEntries: "knowledgeEntries",
+  knowledgeLinks: "knowledgeLinks",
+  knowledgeProjectRefs: "knowledgeProjectRefs",
   // ads-overview-reporting change — product-organised Meta Ads reporting.
   // group 1 tasks 1.1–1.5. All server-written; client read-only.
   products: "products",
