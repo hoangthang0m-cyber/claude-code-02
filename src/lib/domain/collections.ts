@@ -20,6 +20,8 @@ export const COLLECTIONS = {
   projectGroups: "projectGroups",
   // campaign-page-reference-links — labelled links on a project / content item
   referenceLinks: "referenceLinks",
+  // document-library — org-level link libraries (biên bản họp + tài liệu tổ chức)
+  orgDocuments: "orgDocuments",
   // ads-overview-reporting change — product-organised Meta Ads reporting.
   // group 1 tasks 1.1–1.5. All server-written; client read-only.
   products: "products",
