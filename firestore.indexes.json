@@ -1,4 +1,66 @@
 {
-  "indexes": [],
+  "indexes": [
+    {
+      "collectionGroup": "calendarItems",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "deletedAt", "order": "ASCENDING" },
+        { "fieldPath": "calendarId", "order": "ASCENDING" },
+        { "fieldPath": "startDay", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "calendarItems",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "deletedAt", "order": "ASCENDING" },
+        { "fieldPath": "dayKeys", "arrayConfig": "CONTAINS" },
+        { "fieldPath": "calendarId", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "calendarItems",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "deletedAt", "order": "ASCENDING" },
+        { "fieldPath": "assigneeIds", "arrayConfig": "CONTAINS" },
+        { "fieldPath": "startAt", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "calendarItems",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "deletedAt", "order": "ASCENDING" },
+        { "fieldPath": "isLongSpan", "order": "ASCENDING" },
+        { "fieldPath": "endDay", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "calendarItems",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "deletedAt", "order": "ASCENDING" },
+        { "fieldPath": "isRecurring", "order": "ASCENDING" },
+        { "fieldPath": "startDay", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "dueReminders",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "sendAt", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "calendars",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "kind", "order": "ASCENDING" },
+        { "fieldPath": "ownerUid", "order": "ASCENDING" }
+      ]
+    }
+  ],
   "fieldOverrides": []
 }

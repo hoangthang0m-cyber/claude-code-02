@@ -17,6 +17,7 @@ on:
     - cron: "13 3 * * *" # meta-token-refresh (daily)
     - cron: "23 */2 * * *" # reporting-campaign-sync (every 2h; design.md Decision 4 ~1–3h/account)
     - cron: "43 */2 * * *" # reporting-ad-sync       (every 2h, offset)
+    - cron: "31 2 * * *" # members-reconcile (daily; Team Activity Calendar — mirror users → members)
   workflow_dispatch:
     inputs:
       job:
@@ -29,6 +30,7 @@ on:
           - meta-token-refresh
           - reporting-campaign-sync
           - reporting-ad-sync
+          - members-reconcile
 
 concurrency:
   group: scheduled-jobs
@@ -47,6 +49,7 @@ jobs:
             "13 3 * * *")    job=meta-token-refresh ;;
             "23 */2 * * *")  job=reporting-campaign-sync ;;
             "43 */2 * * *")  job=reporting-ad-sync ;;
+            "31 2 * * *")    job=members-reconcile ;;
             "")              job="${{ github.event.inputs.job }}" ;;
             *) echo "::error::unrecognised schedule '${{ github.event.schedule }}'"; exit 1 ;;
           esac
