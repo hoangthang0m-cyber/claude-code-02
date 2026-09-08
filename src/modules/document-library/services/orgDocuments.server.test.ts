@@ -57,6 +57,11 @@ const staff: AuthedUser = {
   email: "s@hemtarot.vn",
   system_role: "staff",
 }
+const manager: AuthedUser = {
+  uid: "u-mgr",
+  email: "m@hemtarot.vn",
+  system_role: "manager",
+}
 
 const base = {
   category: "meeting_minutes" as const,
@@ -265,5 +270,63 @@ describe("listOrgDocuments (document-library task 1.4)", () => {
     await expect(
       listOrgDocuments({ category: "nope" })
     ).rejects.toMatchObject({ status: 400 })
+  })
+})
+
+// ── task 3.2 — no role gate ───────────────────────────────────────────────
+// Auth (a signed-in user) is enforced by `getAuthedUser` in the route handlers
+// — a caller that reaches these functions is authenticated; an unauthenticated
+// request never gets here (401). Below the auth line there is NO role check:
+// staff and manager do exactly the same thing.
+describe("every signed-in member can CRUD (document-library task 3.2)", () => {
+  beforeEach(() => {
+    fx.docs = {
+      d1: {
+        category: "org_document",
+        title: "Quy chế",
+        url: "https://x/q",
+        created_by: "someone-else",
+        created_at: ts(1),
+        updated_at: ts(1),
+      },
+    }
+  })
+
+  it("a staff member can add, edit and delete", async () => {
+    const { id } = await createOrgDocument(staff, {
+      category: "org_document",
+      title: "Của nhân sự",
+      url: "https://x/s",
+    })
+    expect(id).toBeTruthy()
+    await expect(
+      updateOrgDocument(staff, "d1", { title: "Sửa bởi nhân sự" })
+    ).resolves.toEqual({ id: "d1" })
+    await expect(deleteOrgDocument("d1")).resolves.toEqual({
+      id: "d1",
+      deleted: true,
+    })
+  })
+
+  it("a manager does exactly the same — no extra privilege, no restriction", async () => {
+    await expect(
+      createOrgDocument(manager, {
+        category: "meeting_minutes",
+        title: "Của trưởng phòng",
+        url: "https://x/m",
+      })
+    ).resolves.toMatchObject({ id: expect.any(String) })
+    await expect(
+      updateOrgDocument(manager, "d1", { note: "ghi chú" })
+    ).resolves.toEqual({ id: "d1" })
+  })
+
+  it("a member can edit / delete an item someone else created", async () => {
+    // d1.created_by = "someone-else"; staff still edits and deletes it
+    await updateOrgDocument(staff, "d1", { title: "x" })
+    expect(docUpdate.mock.calls[0][0]).toMatchObject({ updated_by: "u-staff" })
+    await expect(deleteOrgDocument("d1")).resolves.toMatchObject({
+      deleted: true,
+    })
   })
 })

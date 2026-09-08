@@ -15,7 +15,7 @@
 
 ## 3. Kiểm thử
 
-- [ ] 3.1 Test API: thiếu title/url bị từ chối, URL không hợp lệ bị từ chối, thêm/sửa/xoá thành công, liệt kê đúng category
-- [ ] 3.2 Test quyền: người chưa đăng nhập không mở được; mọi thành viên (staff và manager) thêm/sửa/xoá được
-- [ ] 3.3 Test tìm & sắp xếp: khớp một phần tiêu đề; sắp theo ngày (mục không ngày xếp cuối) và theo cập nhật gần nhất
+- [x] 3.1 Test API: thiếu title/url bị từ chối, URL không hợp lệ bị từ chối, thêm/sửa/xoá thành công, liệt kê đúng category
+- [x] 3.2 Test quyền: người chưa đăng nhập không mở được; mọi thành viên (staff và manager) thêm/sửa/xoá được
+- [x] 3.3 Test tìm & sắp xếp: khớp một phần tiêu đề; sắp theo ngày (mục không ngày xếp cuối) và theo cập nhật gần nhất
 - [ ] 3.4 Kiểm tra thủ công end-to-end: thêm 1 biên bản họp (link Docs) + 1 tài liệu tổ chức (link Sheets) → mở link ra tab mới → sửa tiêu đề → xoá → tìm theo tiêu đề
