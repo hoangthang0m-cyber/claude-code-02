@@ -160,5 +160,113 @@ service cloud.firestore {
     match /adAccountReportSyncStates/{stateId} { allow read, write: if false; }
     match /reportingSettings/{settingsId} { allow read, write: if false; }
     match /currencyRates/{rateId} { allow read, write: if false; }
+
+    // === Team Activity Calendar (docs/team-activity-calendar-spec.md Mục C §6) ===
+    // Hai vai trò đọc lại từ `members/{uid}` (bản sao đọc-nhanh của `users`).
+    // `members` / `config` / `dueReminders` do server ghi (firebase-admin) —
+    // client bị chặn ghi. `calendars` / `calendarItems` mã hoá đầy đủ ma trận
+    // quyền ở đây (để test `@firebase/rules-unit-testing` phủ được, task 1.3 /
+    // 11.5); app vẫn định tuyến ghi qua `/api/**` để chạy side-effect
+    // (tính trường ngày, hàng đợi `dueReminders`, thông báo).
+
+    function calendarMember() {
+      return get(/databases/$(database)/documents/members/$(request.auth.uid)).data;
+    }
+    function isCalendarMember() {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/members/$(request.auth.uid))
+        && calendarMember().active == true;
+    }
+    function isCalendarManager() {
+      return isCalendarMember() && calendarMember().role == "manager";
+    }
+    function calendarDoc(calId) {
+      return get(/databases/$(database)/documents/calendars/$(calId)).data;
+    }
+    // A lịch con còn nhận mục khi CHƯA lưu trữ (task 4.5 — "mục thành chỉ đọc")
+    // và người ghi được phép: Trưởng phòng với mọi lịch, nhân sự chỉ lịch
+    // `writeScope == "everyone"` (Mục B — lịch "chỉ Trưởng phòng ghi").
+    function canWriteCalendar(calId) {
+      return calendarDoc(calId).archived != true
+        && (isCalendarManager() || calendarDoc(calId).writeScope == "everyone");
+    }
+    function isItemEditor(item) {
+      return request.auth.uid == item.createdBy
+        || request.auth.uid in item.assigneeIds;
+    }
+    function itemEditableById(itemId) {
+      let item = get(/databases/$(database)/documents/calendarItems/$(itemId)).data;
+      return canWriteCalendar(item.calendarId)
+        && (isCalendarManager() || isItemEditor(item));
+    }
+
+    // config/calendarSettings — seed script / admin ghi; mọi thành viên đọc.
+    match /config/calendarSettings {
+      allow read: if isCalendarMember();
+      allow write: if false;
+    }
+
+    // members/{uid} — đồng bộ từ `users` lúc đăng nhập + job đối soát, qua server.
+    match /members/{uid} {
+      allow read: if isCalendarMember();
+      allow write: if false;
+    }
+
+    // calendars/{calendarId} — đọc: mọi thành viên; tạo/sửa/xoá: chỉ Trưởng phòng.
+    match /calendars/{calendarId} {
+      allow read: if isCalendarMember();
+      allow create, update, delete: if isCalendarManager();
+    }
+
+    // calendarItems/{itemId} — đọc: mọi thành viên (ẩn/hiện lịch con là lựa chọn
+    // hiển thị, không phải ranh giới bảo mật — Mục B `calendar-access-control`).
+    match /calendarItems/{itemId} {
+      allow read: if isCalendarMember();
+
+      allow create: if isCalendarMember()
+        && request.resource.data.createdBy == request.auth.uid
+        && canWriteCalendar(request.resource.data.calendarId);
+
+      // Lịch đích phải nhận mục (chưa lưu trữ + đúng quyền ghi), rồi Trưởng phòng
+      // sửa mọi mục / nhân sự chỉ mục mình tạo hoặc mình đảm nhận. Chặn nhân sự
+      // chuyển mục sang lịch "chỉ Trưởng phòng ghi" và chặn sửa mục ở lịch đã
+      // lưu trữ (kể cả Trưởng phòng).
+      allow update: if canWriteCalendar(request.resource.data.calendarId)
+        && (isCalendarManager() || isItemEditor(resource.data));
+
+      // Xoá cứng: Trưởng phòng, và lịch chưa lưu trữ. Nhân sự chỉ xoá mềm
+      // (update đặt `deletedAt`).
+      allow delete: if isCalendarManager()
+        && calendarDoc(resource.data.calendarId).archived != true;
+
+      // exceptions/{originalDateKey} — ghi đè một lần hiện của chuỗi lặp; quyền
+      // gắn với mục gốc.
+      match /exceptions/{originalDateKey} {
+        allow read: if isCalendarMember();
+        allow write: if itemEditableById(itemId);
+      }
+    }
+
+    // userCalendarPrefs/{uid} — ẩn/hiện + màu ghi đè, chỉ chính chủ.
+    match /userCalendarPrefs/{uid} {
+      allow read, write: if isOwner(uid);
+    }
+
+    // fcmTokens/{uid}/tokens/{tokenId} — chỉ chính chủ (push hoãn sau v1).
+    match /fcmTokens/{uid}/tokens/{tokenId} {
+      allow read, write: if isOwner(uid);
+    }
+
+    // dueReminders/{reminderId} — hàng đợi nhắc, chỉ server (firebase-admin).
+    match /dueReminders/{reminderId} {
+      allow read, write: if false;
+    }
+
+    // calendarNotifications/{uid}/items/{notifId} — chuông in-app. Chính chủ đọc
+    // feed của mình (realtime); ghi chỉ qua server (/api/calendar-notifications).
+    match /calendarNotifications/{uid}/items/{notifId} {
+      allow read: if isOwner(uid);
+      allow write: if false;
+    }
   }
 }

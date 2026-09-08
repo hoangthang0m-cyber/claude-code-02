@@ -16,7 +16,13 @@
     "backfill:sort-index": "node scripts/backfill-project-sort-index.mjs",
     "seed:ads-reporting": "node scripts/seed-ads-reporting.mjs",
     "migrate:progress-links": "node scripts/migrate-progress-sheet-to-reference-link.mjs",
-    "rules:deploy": "npx --yes firebase-tools deploy --only firestore:rules --project hem-manager --non-interactive"
+    "seed:calendar-settings": "node scripts/seed-calendar-settings.mjs",
+    "seed:calendars": "node scripts/seed-calendars.mjs",
+    "backfill:members": "node scripts/backfill-members.mjs",
+    "rules:deploy": "npx --yes firebase-tools deploy --only firestore:rules --project hem-manager --non-interactive",
+    "indexes:deploy": "npx --yes firebase-tools deploy --only firestore:indexes --project hem-manager --non-interactive",
+    "emulators": "npx --yes firebase-tools emulators:start --only auth,firestore --project hem-manager",
+    "test:emulator": "npx --yes firebase-tools emulators:exec --only firestore --project demo-team-calendar \"vitest run --config vitest.emulator.config.ts\""
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",
@@ -36,6 +42,7 @@
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "recharts": "^3.8.0",
+    "rrule": "^2.8.1",
     "shadcn": "^4.18.0",
     "sonner": "^2.0.8",
     "tailwind-merge": "^3.6.0",
@@ -44,6 +51,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@firebase/rules-unit-testing": "^5.0.2",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",

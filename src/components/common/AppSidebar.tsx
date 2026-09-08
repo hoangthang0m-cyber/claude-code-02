@@ -23,6 +23,7 @@ import {
   WalletIcon,
   FileTextIcon,
   CalendarIcon,
+  CalendarDaysIcon,
   FileChartColumnIcon,
   Settings2Icon,
   CircleHelpIcon,
@@ -33,6 +34,7 @@ import {
 const data = {
   navMain: [
     { title: "Dự án", url: "/campaigns", icon: <MegaphoneIcon /> },
+    { title: "Lịch đội", url: "/calendar", icon: <CalendarDaysIcon /> },
     { title: "Rủi ro", url: "/risks", icon: <ShieldAlertIcon /> },
     { title: "Nhân sự", url: "/team", icon: <UsersIcon /> },
     { title: "Ngân sách", url: "/budget", icon: <WalletIcon /> },

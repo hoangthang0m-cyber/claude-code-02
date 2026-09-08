@@ -1,6 +1,11 @@
 import { type FirebaseApp, getApps, initializeApp } from "firebase/app"
-import { type Auth, getAuth } from "firebase/auth"
-import { type Firestore, getFirestore, initializeFirestore } from "firebase/firestore"
+import { type Auth, connectAuthEmulator, getAuth } from "firebase/auth"
+import {
+  type Firestore,
+  connectFirestoreEmulator,
+  getFirestore,
+  initializeFirestore,
+} from "firebase/firestore"
 import { type FirebaseStorage, getStorage } from "firebase/storage"
 
 const firebaseConfig = {
@@ -30,3 +35,25 @@ export const db: Firestore = (() => {
 })()
 
 export const storage: FirebaseStorage = getStorage(firebaseApp)
+
+// Local development against the Firebase Emulator Suite
+// (docs/team-activity-calendar-spec.md — Mục D task 1.5). Opt in with
+// NEXT_PUBLIC_FIREBASE_USE_EMULATOR=true in .env.local; `npm run emulators`
+// starts Auth (9099) + Firestore (8080). Guarded so `getApps()` reuse across
+// Fast Refresh does not re-connect (connect* throws if already connected).
+declare global {
+  var __calendarEmulatorsConnected: boolean | undefined
+}
+
+if (
+  process.env.NEXT_PUBLIC_FIREBASE_USE_EMULATOR === "true" &&
+  !globalThis.__calendarEmulatorsConnected
+) {
+  try {
+    connectAuthEmulator(auth, "http://127.0.0.1:9099", { disableWarnings: true })
+    connectFirestoreEmulator(db, "127.0.0.1", 8080)
+    globalThis.__calendarEmulatorsConnected = true
+  } catch {
+    // already connected on a previous module evaluation — safe to ignore
+  }
+}

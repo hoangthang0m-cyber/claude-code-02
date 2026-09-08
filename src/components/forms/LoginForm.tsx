@@ -13,6 +13,7 @@ import { auth } from "@/firebase/config"
 import { getAuthErrorMessage } from "@/lib/firebaseErrors"
 import { cn } from "@/utils/cn"
 import { useAuth } from "@/context/AuthContext"
+import { POST_LOGIN_REDIRECT_KEY } from "@/components/common/AuthGuard"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import {
@@ -36,11 +37,25 @@ export function LoginForm({
   const [isSubmitting, setIsSubmitting] = React.useState(false)
   const [googleBusy, setGoogleBusy] = React.useState(false)
 
+  // Return to the deep link that bounced the user here, else the default route.
+  const destinationAfterLogin = React.useCallback(() => {
+    try {
+      const target = sessionStorage.getItem(POST_LOGIN_REDIRECT_KEY)
+      sessionStorage.removeItem(POST_LOGIN_REDIRECT_KEY)
+      if (target && target.startsWith("/") && !target.startsWith("//")) {
+        return target
+      }
+    } catch {
+      /* private mode */
+    }
+    return "/campaigns"
+  }, [])
+
   React.useEffect(() => {
     if (!loading && user) {
-      router.replace("/campaigns")
+      router.replace(destinationAfterLogin())
     }
-  }, [loading, user, router])
+  }, [loading, user, router, destinationAfterLogin])
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -48,7 +63,7 @@ export function LoginForm({
     setIsSubmitting(true)
     try {
       await signInWithEmailAndPassword(auth, email, password)
-      router.push("/campaigns")
+      router.push(destinationAfterLogin())
     } catch (err) {
       setError(getAuthErrorMessage(err))
     } finally {
@@ -61,7 +76,7 @@ export function LoginForm({
     setGoogleBusy(true)
     try {
       await signInWithPopup(auth, new GoogleAuthProvider())
-      router.push("/campaigns")
+      router.push(destinationAfterLogin())
     } catch (err) {
       setError(getAuthErrorMessage(err))
     } finally {
