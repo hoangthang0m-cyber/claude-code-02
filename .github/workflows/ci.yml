@@ -1,0 +1,40 @@
+name: ci
+
+# Typecheck + lint + both test suites. Runs on every push and PR. The emulator
+# suite (src/test/**) needs the Firestore emulator, which firebase-tools starts
+# via `emulators:exec`; ubuntu-latest ships a JDK.
+#
+# The production build is left to Vercel (it builds every push). Task 13.2's
+# Playwright end-to-end suite is separate and not wired here yet.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Unit / integration tests
+        run: npm test
+
+      - name: Firestore rules + emulator integration tests
+        run: npm run test:emulator

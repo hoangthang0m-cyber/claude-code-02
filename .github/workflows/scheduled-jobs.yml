@@ -20,6 +20,7 @@ on:
     - cron: "31 2 * * *" # members-reconcile (daily; Team Activity Calendar — mirror users → members)
     - cron: "*/5 * * * *" # calendar-reminders-send  (Mục C §5 wants 1 min; ~5 is the floor here)
     - cron: "2,17,32,47 * * * *" # calendar-reminders-expand (recurring items, next 36h; every 15 min)
+    - cron: "17 3 * * *" # calendar-cleanup (daily; purge 30-day soft-deletes + spent reminders)
   workflow_dispatch:
     inputs:
       job:
@@ -35,6 +36,7 @@ on:
           - members-reconcile
           - calendar-reminders-send
           - calendar-reminders-expand
+          - calendar-cleanup
 
 concurrency:
   group: scheduled-jobs
@@ -56,6 +58,7 @@ jobs:
             "31 2 * * *")    job=members-reconcile ;;
             "*/5 * * * *")   job=calendar-reminders-send ;;
             "2,17,32,47 * * * *") job=calendar-reminders-expand ;;
+            "17 3 * * *")    job=calendar-cleanup ;;
             "")              job="${{ github.event.inputs.job }}" ;;
             *) echo "::error::unrecognised schedule '${{ github.event.schedule }}'"; exit 1 ;;
           esac

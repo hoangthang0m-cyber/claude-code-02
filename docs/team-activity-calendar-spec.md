@@ -1168,10 +1168,23 @@ Tính năng mới, không có dữ liệu lịch cũ.
 
 ## Open Questions
 
-- Đường dẫn và schema chính xác của collection người dùng gốc trong hệ thống marketing hiện tại (để viết function đồng bộ `members`) — xác nhận khi apply.
-- Có cần bật kênh **push (FCM)** ngay ở v1 hay chỉ chuông in-app trước, thêm push sau? (Không đổi spec — `channel: "push"` đã có sẵn, chỉ là bật/tắt bước cấu hình FCM.)
-- Ngưỡng `spanDays` để chuyển sang `isLongSpan`: giữ 45 hay đặt 31? Chốt sau khi đo kích thước document thực tế.
-- Khung Năm: dùng truy vấn trực tiếp `startDay`/`endDay` hay bảng `dayCounts` — quyết định sau khi đo hiệu năng với dữ liệu thật.
+> **Đã chốt hết với Trưởng phòng 2026-09-07** (task 13.5). Chi tiết + cấu hình
+> tương ứng ở phần **"CÂU TRẢ LỜI OPEN QUESTIONS"** đầu tài liệu này. Tóm tắt:
+
+- ~~Đường dẫn / schema collection người dùng gốc~~ → **`users`** (doc id = Firebase
+  Auth uid; `name`, `email`, `system_role: "manager"|"staff"`, `avatar?`). `users`
+  chính là danh bạ; KHÔNG có collection tách riêng, KHÔNG có trường `active` ở
+  `users` (bản sao `members/{uid}` mới có `active`, do sync tính). Không dùng
+  Cloud Function — sync qua `POST /api/members/self` (lúc đăng nhập) +
+  `POST /api/jobs/members-reconcile` (cron hằng đêm).
+- ~~Bật push (FCM) ở v1?~~ → **Không.** v1 chỉ chuông in-app. `channel: "push"`
+  giữ trong model; job gửi bỏ qua nhánh push; không dựng service worker / luồng
+  xin quyền / `fcmTokens` ở v1 (task 10.7 dời sang PR sau).
+- ~~Ngưỡng `spanDays` → `isLongSpan`~~ → **45** (`LONG_SPAN_THRESHOLD_DAYS` trong
+  `src/lib/domain/calendar/enums.ts`; cấu hình được nếu đo thấy document phình).
+- ~~Khung Năm: `startDay`/`endDay` hay `dayCounts`?~~ → **truy vấn trực tiếp**
+  `startDay`/`endDay`, gộp tập ngày ở client. KHÔNG dựng collection `dayCounts`,
+  KHÔNG job cập nhật nó ở v1.
 
 ---
 
@@ -1294,8 +1307,10 @@ Tính năng mới, không có dữ liệu lịch cũ.
 
 ## 13. Tích hợp, kiểm thử & triển khai
 
-- [ ] 13.1 Cloud Function dọn `deletedAt` quá 30 ngày (scheduled hằng ngày) + Function cập nhật `dayCounts/{YYYY-MM-DD}` nếu chọn phương án đó cho khung Năm; verify mục xoá mềm biến mất sau ngưỡng, `dayCounts` khớp số ngày có mục.
-- [ ] 13.2 Test E2E (Playwright) kịch bản chính: tạo mục kéo–thả, gán người đảm nhận, đặt lặp + sửa "chỉ mục này", nhận nhắc in-app (emulator giả thời gian), lọc "Việc của tôi", tìm kiếm; verify suite xanh trên CI.
-- [ ] 13.3 Chạy các bước Migration Plan `design.md` trên môi trường staging (deploy rules + indexes + functions, backfill `members`, seed lịch, bật FCM); verify Trưởng phòng đăng nhập thấy 4 lịch dùng chung + lịch cá nhân và tạo được mục.
-- [ ] 13.4 Rà chi phí đọc Firestore của một phiên xem 1 tháng và của rules `get()`; xác nhận trong ngưỡng chấp nhận hoặc chuyển `role` sang custom claims; ghi kết quả đo vào PR.
-- [ ] 13.5 Chốt các Open Questions còn lại với Trưởng phòng (đường dẫn collection người dùng gốc, bật push v1, ngưỡng `spanDays`, phương án khung Năm) và cập nhật cấu hình tương ứng; verify không còn Open Question mở trong `design.md`.
+- [x] 13.1 Dọn `deletedAt` quá 30 ngày (hằng ngày). — ✅ Không Cloud Function → `POST /api/jobs/calendar-cleanup` (cron `17 3 * * *`) → `runCalendarCleanup`: `purgeSoftDeletedItems` (query `deletedAt < now-30d` — range filter không bao giờ khớp `null` nên chỉ thấy mục xoá mềm; xoá luôn subcollection `exceptions`) + `purgeSpentReminders` (xoá `dueReminders` `sent`/`cancelled` cũ hơn 30 ngày, không đụng `pending`). **KHÔNG có `dayCounts`** (answer #5 — khung Năm truy vấn trực tiếp). Test emulator `calendarCleanup.test.ts` (3 ca): xoá mục 40 ngày + giữ mục 10 ngày/`null` + xoá exceptions; no-op khi không có gì cũ; reminder `sent`/`cancelled` cũ bị xoá, `pending` + gần đây giữ.
+- [ ] 13.2 Test E2E (Playwright). — 🟡 **CI cho suite hiện có xong** (`.github/workflows/ci.yml`: typecheck + lint + `vitest` + `test:emulator` mỗi push/PR). **Playwright chưa dựng** — repo chưa có `@playwright/test`, dev-server + emulator + seed auth orchestration là một PR riêng đáng kể. Các luồng 13.2 đã có phủ ở tầng khác: kéo-thả (`dragMath.test.ts`), gán người (`calendarItemsService.test.ts`), lặp + "chỉ mục này" (`recurrenceOps.test.ts`), nhắc in-app giả thời gian (`calendarReminders.test.ts` truyền `nowMs`), "Việc của tôi" + tìm kiếm (`filters.test.ts` / `search.test.ts`). **Cần Trưởng phòng chốt**: dựng Playwright hay chấp nhận phủ nhiều tầng này.
+- [ ] 13.3 Chạy Migration Plan trên staging. — 🟡 **Runbook đầy đủ ở `docs/team-activity-calendar-deploy.md`**. Bị chặn: `firebase-tools` chưa đăng nhập trong workspace này (deploy rules/indexes cần `firebase login` hoặc `FIREBASE_TOKEN`); deploy vào production `hem-manager` là thao tác ra ngoài cần Trưởng phòng bật đèn xanh. Các bước script (`backfill:members`, `seed:calendars`, `seed:calendar-settings`) chạy được khi có admin creds. **FCM bỏ qua v1** (answer #3).
+- [x] 13.4 Rà chi phí đọc Firestore. — ✅ `docs/team-activity-calendar-cost-analysis.md`: phiên xem 1 tháng ≈ **~130 doc reads + ~12 lookup** (rule đọc chỉ 1 `exists(members/{uid})` mỗi query, không đụng `resource`); ngưỡng 2-`get()` ở Mục C §6 là cho luồng **ghi** (mà app ghi qua `/api/**` + admin, bỏ qua rules). Trong ngưỡng free tier cho đội ~20. **Không cần custom claims.** Điểm cần theo dõi: search (§12) `getDocs` toàn bộ mục sống mỗi lần gõ — xem lại khi vượt ~3.000 mục.
+- [x] 13.5 Chốt Open Questions + cập nhật cấu hình. — ✅ Cả 4 (+Q nhóm 8) đã chốt 2026-09-07, ghi ở phần "CÂU TRẢ LỜI OPEN QUESTIONS" đầu tài liệu; block "Open Questions" ở Mục C cập nhật trỏ tới câu trả lời + cấu hình tương ứng (`users` là danh bạ / push hoãn / `spanDays`=45 / khung Năm truy vấn trực tiếp). Không còn Open Question mở.
+
+**Trạng thái nhóm 13:** 13.1 / 13.4 / 13.5 xong. 13.2 (Playwright) và 13.3 (deploy production) chờ Trưởng phòng quyết. `firestore.indexes.json` deploy (task 1.2, 🟡) gộp vào bước 1 của runbook.
