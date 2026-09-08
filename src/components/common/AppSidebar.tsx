@@ -16,36 +16,62 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
+import { cn } from "@/utils/cn"
 import {
-  MegaphoneIcon,
-  ShieldAlertIcon,
-  UsersIcon,
-  WalletIcon,
-  FileTextIcon,
-  CalendarIcon,
+  FolderKanbanIcon,
   CalendarDaysIcon,
-  FileChartColumnIcon,
+  TriangleAlertIcon,
+  UsersRoundIcon,
+  PiggyBankIcon,
+  FilesIcon,
+  PresentationIcon,
+  ChartColumnBigIcon,
   Settings2Icon,
   CircleHelpIcon,
   SearchIcon,
   CommandIcon,
 } from "lucide-react"
 
+// Each nav icon sits in a small raised tile — a soft drop shadow lifts it off
+// the sidebar surface ("nổi lên / bồng bềnh"), a bolder stroke + a touch more
+// size makes it read clearly, and it floats up a little on hover.
+type IconComponent = React.ComponentType<{
+  className?: string
+  strokeWidth?: number
+}>
+
+function NavIcon({ icon: Icon }: { icon: IconComponent }) {
+  return (
+    <span
+      className={cn(
+        "pointer-events-none flex size-7 shrink-0 items-center justify-center rounded-lg",
+        "bg-sidebar-accent text-sidebar-foreground ring-1 ring-border/60",
+        "shadow-[0_2px_8px_-2px_rgba(0,0,0,0.45),inset_0_1px_0_0_rgba(255,255,255,0.08)]",
+        "transition-all duration-200 ease-out",
+        "group-hover/nav-item:-translate-y-0.5 group-hover/nav-item:ring-primary/40",
+        "group-hover/nav-item:shadow-[0_9px_18px_-5px_rgba(0,0,0,0.6),inset_0_1px_0_0_rgba(255,255,255,0.12)]"
+      )}
+    >
+      <Icon className="!size-[18px]" strokeWidth={2.1} />
+    </span>
+  )
+}
+
 const data = {
   navMain: [
-    { title: "Dự án", url: "/campaigns", icon: <MegaphoneIcon /> },
-    { title: "Lịch đội", url: "/calendar", icon: <CalendarDaysIcon /> },
-    { title: "Rủi ro", url: "/risks", icon: <ShieldAlertIcon /> },
-    { title: "Nhân sự", url: "/team", icon: <UsersIcon /> },
-    { title: "Ngân sách", url: "/budget", icon: <WalletIcon /> },
-    { title: "Tài liệu", url: "/documents", icon: <FileTextIcon /> },
-    { title: "Cuộc họp", url: "/meetings", icon: <CalendarIcon /> },
-    { title: "Báo cáo", url: "/reports", icon: <FileChartColumnIcon /> },
+    { title: "Dự án", url: "/campaigns", icon: <NavIcon icon={FolderKanbanIcon} /> },
+    { title: "Lịch đội", url: "/calendar", icon: <NavIcon icon={CalendarDaysIcon} /> },
+    { title: "Rủi ro", url: "/risks", icon: <NavIcon icon={TriangleAlertIcon} /> },
+    { title: "Nhân sự", url: "/team", icon: <NavIcon icon={UsersRoundIcon} /> },
+    { title: "Ngân sách", url: "/budget", icon: <NavIcon icon={PiggyBankIcon} /> },
+    { title: "Tài liệu", url: "/documents", icon: <NavIcon icon={FilesIcon} /> },
+    { title: "Cuộc họp", url: "/meetings", icon: <NavIcon icon={PresentationIcon} /> },
+    { title: "Báo cáo", url: "/reports", icon: <NavIcon icon={ChartColumnBigIcon} /> },
   ],
   navSecondary: [
-    { title: "Cài đặt", url: "/ad-accounts", icon: <Settings2Icon /> },
-    { title: "Trợ giúp", url: "#", icon: <CircleHelpIcon /> },
-    { title: "Tìm kiếm", url: "#", icon: <SearchIcon /> },
+    { title: "Cài đặt", url: "/ad-accounts", icon: <NavIcon icon={Settings2Icon} /> },
+    { title: "Trợ giúp", url: "#", icon: <NavIcon icon={CircleHelpIcon} /> },
+    { title: "Tìm kiếm", url: "#", icon: <NavIcon icon={SearchIcon} /> },
   ],
 }
 
