@@ -208,6 +208,10 @@ export async function expandRecurringReminders(
 }
 
 // ── task 10.5 — the send job ────────────────────────────────────────────────
+// Batches cap at 500 writes; one due row is 1 status update + (parent + item)
+// per recipient, so ~15 rows per batch stays well clear even for large teams.
+const SEND_BATCH_ROWS = 15
+
 export async function sendDueReminders(
   db: Firestore,
   nowMs: number = Date.now()
@@ -221,29 +225,34 @@ export async function sendDueReminders(
   if (due.empty) return { sent: 0, notifications: 0 }
 
   let notifications = 0
-  const batch = db.batch()
-  for (const d of due.docs) {
-    const r = d.data()
-    notifications += queueNotifications(
-      db,
-      batch,
-      Array.isArray(r.recipientUids) ? (r.recipientUids as string[]) : [],
-      {
-        kind: "reminder",
-        itemId: String(r.itemId ?? ""),
-        occurrenceKey:
-          r.occurrenceKey === SINGLE_OCCURRENCE_KEY
-            ? null
-            : String(r.occurrenceKey ?? ""),
-        itemTitle: String(r.title ?? ""),
-        itemStartAtMs: ts(r.startAt),
-      }
-    )
-    // push (channel === "push") is deferred past v1 (spec doc answer #3) — the
-    // in-app row above is always written; the send job just skips the FCM call.
-    batch.update(d.ref, { status: "sent", sentAt: FieldValue.serverTimestamp() })
+  for (let i = 0; i < due.docs.length; i += SEND_BATCH_ROWS) {
+    const batch = db.batch()
+    for (const d of due.docs.slice(i, i + SEND_BATCH_ROWS)) {
+      const r = d.data()
+      notifications += queueNotifications(
+        db,
+        batch,
+        Array.isArray(r.recipientUids) ? (r.recipientUids as string[]) : [],
+        {
+          kind: "reminder",
+          itemId: String(r.itemId ?? ""),
+          occurrenceKey:
+            r.occurrenceKey === SINGLE_OCCURRENCE_KEY
+              ? null
+              : String(r.occurrenceKey ?? ""),
+          itemTitle: String(r.title ?? ""),
+          itemStartAtMs: ts(r.startAt),
+        }
+      )
+      // push (channel === "push") is deferred past v1 (spec doc answer #3) — the
+      // in-app row is always written; the send job just skips the FCM call.
+      batch.update(d.ref, {
+        status: "sent",
+        sentAt: FieldValue.serverTimestamp(),
+      })
+    }
+    await batch.commit()
   }
-  await batch.commit()
   return { sent: due.docs.length, notifications }
 }
 
