@@ -4,8 +4,11 @@ import {
   COLLECTIONS,
   ORG_DOCUMENT_CATEGORIES,
   ORG_DOCUMENT_CATEGORY_LABELS,
+  filterAndSortOrgDocuments,
   orgDocumentCreateSchema,
+  orgDocumentListQuerySchema,
   orgDocumentUpdateSchema,
+  type OrgDocumentView,
 } from "@/lib/domain"
 
 // document-library task 1.1 — Firestore is schemaless, so these Zod schemas +
@@ -135,5 +138,83 @@ describe("orgDocumentUpdateSchema", () => {
     expect(
       orgDocumentUpdateSchema.safeParse({ url: "not-a-url" }).success
     ).toBe(false)
+  })
+})
+
+// document-library task 1.4 — list query + pure filter/sort.
+const view = (
+  id: string,
+  over: Partial<OrgDocumentView> = {}
+): OrgDocumentView => ({
+  id,
+  category: "meeting_minutes",
+  title: id,
+  url: `https://x/${id}`,
+  doc_date: null,
+  note: null,
+  created_by: "u",
+  created_at: 0,
+  updated_by: null,
+  updated_at: 0,
+  ...over,
+})
+
+describe("orgDocumentListQuerySchema", () => {
+  it("requires a category", () => {
+    expect(orgDocumentListQuerySchema.safeParse({}).success).toBe(false)
+  })
+
+  it("defaults sort to doc_date and coerces an unknown sort", () => {
+    const a = orgDocumentListQuerySchema.parse({ category: "org_document" })
+    expect(a.sort).toBe("doc_date")
+    const b = orgDocumentListQuerySchema.parse({
+      category: "org_document",
+      sort: "banana",
+    })
+    expect(b.sort).toBe("doc_date")
+  })
+})
+
+describe("filterAndSortOrgDocuments", () => {
+  const rows = [
+    view("a", { title: "Họp tháng 9", doc_date: "2026-09-10", updated_at: 50 }),
+    view("b", { title: "Họp tháng 8", doc_date: "2026-08-05", updated_at: 90 }),
+    view("c", { title: "Ghi chú rời", doc_date: null, updated_at: 70 }),
+  ]
+
+  it("doc_date desc, undated last", () => {
+    expect(
+      filterAndSortOrgDocuments(rows, { sort: "doc_date" }).map((d) => d.id)
+    ).toEqual(["a", "b", "c"])
+  })
+
+  it("updated_at desc", () => {
+    expect(
+      filterAndSortOrgDocuments(rows, { sort: "updated_at" }).map((d) => d.id)
+    ).toEqual(["b", "c", "a"])
+  })
+
+  it("partial, case-insensitive title match", () => {
+    expect(
+      filterAndSortOrgDocuments(rows, { q: "THÁNG 9", sort: "doc_date" }).map(
+        (d) => d.id
+      )
+    ).toEqual(["a"])
+  })
+
+  it("does not mutate the input array", () => {
+    const input = [...rows]
+    filterAndSortOrgDocuments(input, { sort: "updated_at" })
+    expect(input.map((d) => d.id)).toEqual(["a", "b", "c"])
+  })
+
+  it("ties on doc_date break by most-recently-updated", () => {
+    const tied = [
+      view("x", { doc_date: "2026-09-01", updated_at: 10 }),
+      view("y", { doc_date: "2026-09-01", updated_at: 99 }),
+    ]
+    expect(
+      filterAndSortOrgDocuments(tied, { sort: "doc_date" }).map((d) => d.id)
+    ).toEqual(["y", "x"])
   })
 })

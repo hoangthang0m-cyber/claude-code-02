@@ -85,3 +85,47 @@ export const orgDocumentUpdateSchema = z.object({
   note: noteString.nullable().optional(),
 })
 export type OrgDocumentUpdate = z.infer<typeof orgDocumentUpdateSchema>
+
+// ── task 1.4: list / search / sort ─────────────────────────────────────────
+
+export const ORG_DOCUMENT_SORTS = ["doc_date", "updated_at"] as const
+export type OrgDocumentSort = (typeof ORG_DOCUMENT_SORTS)[number]
+
+// The list query: one library (required), optional partial-title search, sort.
+// An unknown / missing `sort` falls back to "doc_date" (a filter, not a
+// mutation — never a 400).
+export const orgDocumentListQuerySchema = z.object({
+  category: z.enum(ORG_DOCUMENT_CATEGORIES),
+  q: z.string().trim().min(1).optional(),
+  sort: z.enum(ORG_DOCUMENT_SORTS).catch("doc_date"),
+})
+export type OrgDocumentListQuery = z.infer<typeof orgDocumentListQuerySchema>
+
+// Pure: filter by a case-insensitive partial title match, then sort.
+//   "doc_date"   — newest date first; items with no `doc_date` go last;
+//                  ties break by most-recently-updated.
+//   "updated_at" — most recently updated first.
+export function filterAndSortOrgDocuments(
+  items: readonly OrgDocumentView[],
+  opts: { q?: string; sort: OrgDocumentSort }
+): OrgDocumentView[] {
+  const needle = opts.q?.trim().toLowerCase()
+  const rows = needle
+    ? items.filter((d) => d.title.toLowerCase().includes(needle))
+    : [...items]
+
+  const byUpdated = (a: OrgDocumentView, b: OrgDocumentView) =>
+    (b.updated_at ?? 0) - (a.updated_at ?? 0)
+
+  if (opts.sort === "updated_at") return rows.sort(byUpdated)
+
+  return rows.sort((a, b) => {
+    if (a.doc_date && b.doc_date) {
+      if (a.doc_date !== b.doc_date) return a.doc_date < b.doc_date ? 1 : -1
+      return byUpdated(a, b)
+    }
+    if (a.doc_date) return -1
+    if (b.doc_date) return 1
+    return byUpdated(a, b)
+  })
+}

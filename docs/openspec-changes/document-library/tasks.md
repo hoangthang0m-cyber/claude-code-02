@@ -2,8 +2,8 @@
 
 - [x] 1.1 Migration tạo `OrgDocument` (category, title, url, doc_date nullable, note nullable, created_by/at, updated_by/at); verify migration lên/xuống sạch
 - [x] 1.2 API tạo mục (category + title + url bắt buộc; doc_date, note tuỳ chọn); từ chối khi thiếu title/url; kiểm tra URL có scheme http/https; verify
-- [ ] 1.3 API sửa mục (title, url, doc_date, note) và xoá mục; ghi `updated_by`/`updated_at`; verify mọi thành viên đã đăng nhập làm được, người chưa đăng nhập bị chặn
-- [ ] 1.4 API liệt kê theo `category` + tìm theo tiêu đề (khớp một phần) + sắp xếp (doc_date giảm dần mặc định, hoặc updated_at); mục không có doc_date xếp cuối khi sắp theo ngày; verify
+- [x] 1.3 API sửa mục (title, url, doc_date, note) và xoá mục; ghi `updated_by`/`updated_at`; verify mọi thành viên đã đăng nhập làm được, người chưa đăng nhập bị chặn
+- [x] 1.4 API liệt kê theo `category` + tìm theo tiêu đề (khớp một phần) + sắp xếp (doc_date giảm dần mặc định, hoặc updated_at); mục không có doc_date xếp cuối khi sắp theo ngày; verify
 
 ## 2. Trang Tài liệu
 
