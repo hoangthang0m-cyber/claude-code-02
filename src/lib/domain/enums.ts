@@ -35,6 +35,44 @@ export const PROJECT_GROUP_LIFECYCLE_LABELS: Record<
   archived: "Lưu trữ",
 }
 
+// knowledge-base change (design.md Decision 1) — a knowledge entry is active or
+// archived; archived = hidden from the default list + read-only (no "done").
+export const KNOWLEDGE_LIFECYCLES = ["active", "archived"] as const
+export type KnowledgeLifecycle = (typeof KNOWLEDGE_LIFECYCLES)[number]
+
+export const KNOWLEDGE_LIFECYCLE_LABELS: Record<KnowledgeLifecycle, string> = {
+  active: "Hoạt động",
+  archived: "Lưu trữ",
+}
+
+// The three body sections that can carry external links — đầu mục 3 / 4 / 5.
+export const KNOWLEDGE_LINK_SECTIONS = [
+  "detail",
+  "process",
+  "conclusion",
+] as const
+export type KnowledgeLinkSection = (typeof KNOWLEDGE_LINK_SECTIONS)[number]
+
+export const KNOWLEDGE_LINK_SECTION_LABELS: Record<KnowledgeLinkSection, string> =
+  {
+    detail: "Mô tả chi tiết",
+    process: "Quá trình đúc kết",
+    conclusion: "Đúc kết",
+  }
+
+// A "Quá trình đúc kết" reference points at a Project or a ProjectGroup.
+export const KNOWLEDGE_PROJECT_REF_TYPES = ["project", "project_group"] as const
+export type KnowledgeProjectRefType =
+  (typeof KNOWLEDGE_PROJECT_REF_TYPES)[number]
+
+export const KNOWLEDGE_PROJECT_REF_TYPE_LABELS: Record<
+  KnowledgeProjectRefType,
+  string
+> = {
+  project: "Dự án",
+  project_group: "Nhóm dự án",
+}
+
 export const SKILL_TAG_LABELS: Record<SkillTag, string> = {
   content: "Content",
   ads: "Ads",

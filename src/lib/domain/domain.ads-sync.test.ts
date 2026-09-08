@@ -34,6 +34,10 @@ describe("collection registry", () => {
       "referenceLinks",
       // document-library change
       "orgDocuments",
+      // knowledge-base change
+      "knowledgeEntries",
+      "knowledgeLinks",
+      "knowledgeProjectRefs",
       // ads-overview-reporting change (group 1)
       "products",
       "productAccountRules",
