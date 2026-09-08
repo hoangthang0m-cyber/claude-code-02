@@ -6,6 +6,7 @@ import { PlusIcon } from "lucide-react"
 import { useIsMobile } from "@/hooks/useMobile"
 import {
   AGENDA_PAGE_DAYS,
+  itemMatchesFilters,
   viewWindow,
   vnDateKey,
   vnDayStartMs,
@@ -15,6 +16,7 @@ import { useAuth } from "@/context/AuthContext"
 import { useVisibleCalendars } from "@/modules/team-calendar/hooks/useVisibleCalendars"
 import { useExpandedRecurring } from "@/modules/team-calendar/hooks/useExpandedRecurring"
 import { useCalendarItems } from "@/modules/team-calendar/hooks/useCalendarItems"
+import { useCalendarFilters } from "@/modules/team-calendar/hooks/useCalendarFilters"
 import { useCalendarView } from "@/modules/team-calendar/hooks/useCalendarView"
 import { useHotkeys } from "@/modules/team-calendar/hooks/useHotkeys"
 import { setShowWeekNumbers } from "@/modules/team-calendar/services/userCalendarPrefs.client"
@@ -40,6 +42,7 @@ export function CalendarPage() {
   const { user } = useAuth()
   const isMobile = useIsMobile()
   const { view, setView, anchor, setAnchor, goToday, step } = useCalendarView()
+  const { filters, setAssignees, toggleMine } = useCalendarFilters()
   const { calendars, visibleIds, prefs } = useVisibleCalendars()
   const searchRef = React.useRef<HTMLInputElement>(null)
   const [sidebarOpen, setSidebarOpen] = React.useState(false)
@@ -91,6 +94,16 @@ export function CalendarPage() {
   const allItems = React.useMemo(
     () => [...items, ...occurrences],
     [items, occurrences]
+  )
+  // Persistent assignee / type / project filters, applied client-side on the
+  // time-narrowed set (Mục D tasks 9.4 / 9.5). "Việc của tôi" resolves against
+  // the signed-in uid.
+  const filteredItems = React.useMemo(
+    () =>
+      allItems.filter((it) =>
+        itemMatchesFilters(it, filters, user?.uid ?? null)
+      ),
+    [allItems, filters, user]
   )
 
   const calendarById = React.useMemo(
@@ -158,6 +171,13 @@ export function CalendarPage() {
         onToggleWeekNumbers={(next) => {
           if (user) setShowWeekNumbers(user.uid, next).catch(() => undefined)
         }}
+        filters={filters}
+        onFilterAssignees={setAssignees}
+        onToggleMine={toggleMine}
+        onClearAssigneeFilter={() => {
+          if (filters.mine) toggleMine()
+          setAssignees([])
+        }}
       />
 
       <div className="flex min-h-0 flex-1">
@@ -167,7 +187,7 @@ export function CalendarPage() {
             <DayWeekGrid
               view={view}
               anchor={anchor}
-              items={allItems}
+              items={filteredItems}
               calendarById={calendarById}
               showWeekNumbers={showWeekNumbers}
               onEditItem={editItem}
@@ -177,7 +197,7 @@ export function CalendarPage() {
           {view === "month" && (
             <MonthGrid
               anchor={anchor}
-              items={allItems}
+              items={filteredItems}
               calendarById={calendarById}
               showWeekNumbers={showWeekNumbers}
               onEditItem={editItem}
@@ -186,13 +206,13 @@ export function CalendarPage() {
             />
           )}
           {view === "year" && (
-            <YearGrid anchor={anchor} items={allItems} onOpenDay={openDay} />
+            <YearGrid anchor={anchor} items={filteredItems} onOpenDay={openDay} />
           )}
           {view === "agenda" && (
             <AgendaList
               windowStartDay={window.startDay}
               windowEndDay={window.endDay}
-              items={allItems}
+              items={filteredItems}
               calendarById={calendarById}
               onEditItem={editItem}
               onLoadMore={() => setAgendaPages((p) => p + 1)}

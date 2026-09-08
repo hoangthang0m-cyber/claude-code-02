@@ -54,7 +54,7 @@ export function ItemChip({
         </span>
       )}
       <span className="truncate">{calendarItemDisplayTitle(item.title)}</span>
-      {!compact && item.assigneeIds.length > 0 && (
+      {item.assigneeIds.length > 0 && (
         <span className="ml-auto shrink-0">
           <AssigneeChips
             assigneeIds={item.assigneeIds}

@@ -9,9 +9,11 @@ import {
   calendarItemDisplayTitle,
   CALENDAR_ITEM_UNTITLED,
   isValidItemRange,
+  orderAssigneesByPrimary,
   resolvePrimaryAssignee,
 } from "@/lib/domain/calendar/calendarItem"
 import { CALENDAR_COLOR_KEYS } from "@/lib/domain/calendar/enums"
+import { canEditCalendarItem } from "@/lib/domain/calendar/permissions"
 import { memberInitials } from "@/lib/domain/calendar/member"
 import { dueReminderId, SINGLE_OCCURRENCE_KEY } from "@/lib/domain/calendar/dueReminder"
 import {
@@ -56,6 +58,55 @@ describe("resolvePrimaryAssignee", () => {
   it("keeps a valid requested primary, ignores an invalid one", () => {
     expect(resolvePrimaryAssignee(["u1", "u2"], "u2")).toBe("u2")
     expect(resolvePrimaryAssignee(["u1", "u2"], "u3")).toBe("u1")
+  })
+})
+
+describe("orderAssigneesByPrimary", () => {
+  it("moves the primary to the front, keeps the rest in order", () => {
+    expect(orderAssigneesByPrimary(["an", "binh", "cuong"], "binh")).toEqual([
+      "binh",
+      "an",
+      "cuong",
+    ])
+  })
+
+  it("is a no-op when there is no primary or it is not in the list", () => {
+    expect(orderAssigneesByPrimary(["an", "binh"], null)).toEqual(["an", "binh"])
+    expect(orderAssigneesByPrimary(["an", "binh"], "khach")).toEqual(["an", "binh"])
+  })
+
+  it("does not mutate the input", () => {
+    const input = ["an", "binh", "cuong"]
+    orderAssigneesByPrimary(input, "cuong")
+    expect(input).toEqual(["an", "binh", "cuong"])
+  })
+})
+
+describe("canEditCalendarItem (Mục B item-assignees §Quyền chỉnh sửa)", () => {
+  const item = { createdBy: "manager1", assigneeIds: ["an", "binh"] }
+
+  it("a manager edits any item", () => {
+    expect(
+      canEditCalendarItem(item, { uid: "someone", role: "manager" })
+    ).toBe(true)
+  })
+
+  it("a staff member edits an item they created", () => {
+    expect(
+      canEditCalendarItem(
+        { createdBy: "cuong", assigneeIds: [] },
+        { uid: "cuong", role: "staff" }
+      )
+    ).toBe(true)
+  })
+
+  it("a staff assignee (primary or secondary) edits an item created by someone else", () => {
+    expect(canEditCalendarItem(item, { uid: "an", role: "staff" })).toBe(true)
+    expect(canEditCalendarItem(item, { uid: "binh", role: "staff" })).toBe(true)
+  })
+
+  it("a staff member who is neither creator nor assignee cannot edit", () => {
+    expect(canEditCalendarItem(item, { uid: "dung", role: "staff" })).toBe(false)
   })
 })
 

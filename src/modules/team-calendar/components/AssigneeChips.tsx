@@ -1,6 +1,10 @@
 "use client"
 
-import { memberInitials, type Member } from "@/lib/domain/calendar"
+import {
+  memberInitials,
+  orderAssigneesByPrimary,
+  type Member,
+} from "@/lib/domain/calendar"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { cn } from "@/utils/cn"
 
@@ -21,9 +25,7 @@ export function AssigneeChips({
 }) {
   if (assigneeIds.length === 0) return null
 
-  const ordered = [...assigneeIds].sort((a, b) =>
-    a === primaryAssigneeId ? -1 : b === primaryAssigneeId ? 1 : 0
-  )
+  const ordered = orderAssigneesByPrimary(assigneeIds, primaryAssigneeId)
 
   if (!expanded) {
     const primary = byUid.get(ordered[0])

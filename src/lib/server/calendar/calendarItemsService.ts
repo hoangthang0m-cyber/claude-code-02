@@ -57,6 +57,29 @@ function assertRange(startMs: number, endMs: number, allDay: boolean): void {
   }
 }
 
+// Mục B `item-assignees` — Scenario "Chọn người ngoài danh bạ": a "người đảm
+// nhận" must be a member of the directory. The picker only offers active members
+// (no free-text entry), and the server re-checks so a crafted request cannot
+// slip a stranger in. Only the *newly added* ids are validated, so editing an
+// older item whose assignee has since left the team still saves; a departed
+// member's doc keeps `active: false` rather than being deleted.
+async function assertAssigneesInDirectory(
+  db: Firestore,
+  candidateIds: string[]
+): Promise<void> {
+  const ids = [...new Set(candidateIds)]
+  if (ids.length === 0) return
+  const snaps = await db.getAll(
+    ...ids.map((uid) => db.collection(CALENDAR_COLLECTIONS.members).doc(uid))
+  )
+  if (snaps.some((s) => !s.exists)) {
+    throw new HttpError(
+      400,
+      "Người đảm nhận phải là thành viên trong danh bạ đội"
+    )
+  }
+}
+
 // task 5.2 — create from the full form or the quick-create popover.
 export async function createItem(
   db: Firestore,
@@ -66,6 +89,7 @@ export async function createItem(
   const input = parseOrThrow(calendarItemCreateSchema, body)
 
   await assertCalendarAcceptsItems(db, input.calendarId, actor)
+  await assertAssigneesInDirectory(db, input.assigneeIds)
 
   const startMs = Date.parse(input.startAt)
   const endMs = Date.parse(input.endAt)
@@ -113,6 +137,9 @@ export async function updateItem(
       body
     )
     const patch = parseOrThrow(calendarItemUpdateSchema, body)
+    if (patch.assigneeIds) {
+      await assertAssigneesInDirectory(db, patch.assigneeIds)
+    }
     return editSeries(
       db,
       actor,
@@ -126,6 +153,14 @@ export async function updateItem(
 
   const patch = parseOrThrow(calendarItemUpdateSchema, body)
   const current = await assertCanEditItem(db, itemId, actor)
+
+  if (patch.assigneeIds) {
+    const currentAssignees = Array.isArray(current.assigneeIds)
+      ? (current.assigneeIds as string[])
+      : []
+    const added = patch.assigneeIds.filter((id) => !currentAssignees.includes(id))
+    await assertAssigneesInDirectory(db, added)
+  }
 
   // can't edit an item while its calendar is archived / not writable
   await assertCalendarAcceptsItems(db, String(current.calendarId), actor)

@@ -24,7 +24,9 @@ export type CalendarCollectionId =
 
 export const CALENDAR_SETTINGS_DOC_ID = "calendarSettings"
 
-// In-app reminder + assignment notifications reuse the existing flat
-// `notifications` collection (src/lib/domain/notification.ts) rather than the
-// `notifications/{uid}/items` shape sketched in Mục C §1 — decision recorded in
-// the spec doc's answers section. No new collection id here.
+// In-app reminder + assignment notifications: the store is still to be locked
+// with the manager in groups 9–10 (spec doc infra note — "`notifications`: chi
+// tiết chốt ở nhóm 9–10"). Candidates: reuse the flat CPT `notifications`
+// collection (src/lib/domain/notification.ts), a calendar-owned collection, or
+// the `notifications/{uid}/items` shape from Mục C §1. No new collection id here
+// until that decision is made.

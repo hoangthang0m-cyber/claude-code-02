@@ -7,8 +7,10 @@ import {
   CALENDAR_VIEWS,
   CALENDAR_VIEW_LABELS,
   rangeLabel,
+  type CalendarFilters,
   type CalendarView,
 } from "@/lib/domain/calendar"
+import { AssigneeFilter } from "@/modules/team-calendar/components/AssigneeFilter"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -27,6 +29,10 @@ export function CalendarToolbar({
   searchRef,
   showWeekNumbers,
   onToggleWeekNumbers,
+  filters,
+  onFilterAssignees,
+  onToggleMine,
+  onClearAssigneeFilter,
 }: {
   view: CalendarView
   onView: (v: CalendarView) => void
@@ -36,6 +42,10 @@ export function CalendarToolbar({
   searchRef?: React.Ref<HTMLInputElement>
   showWeekNumbers: boolean
   onToggleWeekNumbers: (next: boolean) => void
+  filters: CalendarFilters
+  onFilterAssignees: (ids: string[]) => void
+  onToggleMine: () => void
+  onClearAssigneeFilter: () => void
 }) {
   return (
     <div className="flex flex-wrap items-center gap-2 border-b p-2">
@@ -55,6 +65,13 @@ export function CalendarToolbar({
       <span className="min-w-40 text-sm font-medium">
         {rangeLabel(view, anchor)}
       </span>
+
+      <AssigneeFilter
+        filters={filters}
+        onAssignees={onFilterAssignees}
+        onToggleMine={onToggleMine}
+        onClear={onClearAssigneeFilter}
+      />
 
       <div className="ml-auto flex items-center gap-2">
         {(view === "week" || view === "month") && (

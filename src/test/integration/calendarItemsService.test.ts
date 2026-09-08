@@ -35,10 +35,22 @@ let everyoneCal: string
 let managerCal: string
 
 beforeEach(async () => {
-  for (const c of ["calendars", "calendarItems"]) {
+  for (const c of ["calendars", "calendarItems", "members"]) {
     const snap = await db.collection(c).get()
     await Promise.all(snap.docs.map((d) => d.ref.delete()))
   }
+  // the assignee directory (Mục B item-assignees — assignees must be members)
+  await Promise.all(
+    ["mgr", "an", "binh", "cuong"].map((uid) =>
+      db.collection("members").doc(uid).set({
+        uid,
+        displayName: uid,
+        photoURL: null,
+        role: uid === "mgr" ? "manager" : "staff",
+        active: true,
+      })
+    )
+  )
   everyoneCal = (
     await createCalendar(db, {
       name: "Nội dung",
@@ -209,5 +221,90 @@ describe("duplicateItem", () => {
   it("staff cannot duplicate an item that lives in a managerOnly calendar", async () => {
     const { id } = await createItem(db, MANAGER, timed({ calendarId: managerCal }))
     await expect(duplicateItem(db, STAFF, id)).rejects.toThrow()
+  })
+})
+
+describe("assignees (tasks 9.1 / 9.2)", () => {
+  const read = async (id: string) =>
+    (await db.collection("calendarItems").doc(id).get()).data()!
+
+  it("stores every assignee; the first added is primary by default", async () => {
+    const { id } = await createItem(
+      db,
+      MANAGER,
+      timed({ assigneeIds: ["an", "binh", "cuong"] })
+    )
+    const d = await read(id)
+    expect(d.assigneeIds).toEqual(["an", "binh", "cuong"])
+    expect(d.primaryAssigneeId).toBe("an")
+  })
+
+  it("an out-of-list primary request falls back to the first assignee", async () => {
+    const { id } = await createItem(
+      db,
+      MANAGER,
+      timed({ assigneeIds: ["an", "binh"], primaryAssigneeId: "khach" })
+    )
+    expect((await read(id)).primaryAssigneeId).toBe("an")
+  })
+
+  it("changing the primary keeps the others as assignees", async () => {
+    const { id } = await createItem(
+      db,
+      MANAGER,
+      timed({ assigneeIds: ["an", "binh", "cuong"] })
+    )
+    await updateItem(db, MANAGER, id, {
+      assigneeIds: ["an", "binh", "cuong"],
+      primaryAssigneeId: "binh",
+    })
+    const d = await read(id)
+    expect(d.primaryAssigneeId).toBe("binh")
+    expect(d.assigneeIds).toEqual(["an", "binh", "cuong"])
+  })
+
+  it("removing every assignee clears the primary", async () => {
+    const { id } = await createItem(
+      db,
+      MANAGER,
+      timed({ assigneeIds: ["an", "binh"], primaryAssigneeId: "binh" })
+    )
+    await updateItem(db, MANAGER, id, { assigneeIds: [], primaryAssigneeId: null })
+    const d = await read(id)
+    expect(d.assigneeIds).toEqual([])
+    expect(d.primaryAssigneeId).toBeNull()
+  })
+
+  it("dropping the current primary from the list re-picks the first remaining", async () => {
+    const { id } = await createItem(
+      db,
+      MANAGER,
+      timed({ assigneeIds: ["an", "binh", "cuong"], primaryAssigneeId: "an" })
+    )
+    await updateItem(db, MANAGER, id, { assigneeIds: ["binh", "cuong"] })
+    expect((await read(id)).primaryAssigneeId).toBe("binh")
+  })
+
+  it("rejects an assignee that is not in the directory (Scenario: ngoài danh bạ)", async () => {
+    await expect(
+      createItem(db, MANAGER, timed({ assigneeIds: ["an", "nguoi-la"] }))
+    ).rejects.toThrow(/danh bạ/)
+  })
+
+  it("lets an existing off-directory assignee stay when editing other fields", async () => {
+    // seed directly so the item already carries a since-departed assignee
+    const { id } = await createItem(db, MANAGER, timed({ assigneeIds: ["an"] }))
+    await db
+      .collection("calendarItems")
+      .doc(id)
+      .update({ assigneeIds: ["an", "cuu-nhan-vien"], primaryAssigneeId: "an" })
+    await expect(
+      updateItem(db, MANAGER, id, { title: "Đổi tên, giữ người" })
+    ).resolves.toBeTruthy()
+    await expect(
+      updateItem(db, MANAGER, id, {
+        assigneeIds: ["an", "cuu-nhan-vien", "binh"],
+      })
+    ).resolves.toBeTruthy()
   })
 })

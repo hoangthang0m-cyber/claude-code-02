@@ -161,3 +161,19 @@ export function resolvePrimaryAssignee(
   }
   return assigneeIds[0]
 }
+
+// Display order for assignees (Mục B `item-assignees` — "người phụ trách chính
+// đứng đầu"): the primary first, the rest keeping their original order. Pure so
+// the chip row, the detail popover and the editor all order the same way.
+export function orderAssigneesByPrimary(
+  assigneeIds: readonly string[],
+  primaryAssigneeId: string | null
+): string[] {
+  if (!primaryAssigneeId || !assigneeIds.includes(primaryAssigneeId)) {
+    return [...assigneeIds]
+  }
+  return [
+    primaryAssigneeId,
+    ...assigneeIds.filter((id) => id !== primaryAssigneeId),
+  ]
+}

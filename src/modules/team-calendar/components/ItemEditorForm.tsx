@@ -9,7 +9,6 @@ import {
   CALENDAR_ITEM_TYPES,
   CALENDAR_ITEM_TYPE_LABELS,
   calendarItemDisplayTitle,
-  resolvePrimaryAssignee,
   toVnInputDate,
   toVnInputDateTime,
   vnDateInputToMs,
@@ -20,7 +19,6 @@ import {
   type Reminder,
   type RenderableItem,
 } from "@/lib/domain/calendar"
-import { useMembers } from "@/modules/team-calendar/context/CalendarDataProvider"
 import { usePermissions } from "@/modules/team-calendar/hooks/usePermissions"
 import { useVisibleCalendars } from "@/modules/team-calendar/hooks/useVisibleCalendars"
 import { useMyProjects } from "@/modules/project-workspace/hooks/useMyProjects"
@@ -28,6 +26,7 @@ import {
   createCalendarItem,
   updateCalendarItem,
 } from "@/modules/team-calendar/services/calendarItems.client"
+import { AssigneePicker } from "@/modules/team-calendar/components/AssigneePicker"
 import { RemindersField } from "@/modules/team-calendar/components/RemindersField"
 import { RecurrenceEditor } from "@/modules/team-calendar/components/RecurrenceEditor"
 import { RecurrenceScopeDialog } from "@/modules/team-calendar/components/RecurrenceScopeDialog"
@@ -143,7 +142,6 @@ export function ItemEditorForm({
   const isMobile = useIsMobile()
   const { user } = useAuth()
   const { isManager } = usePermissions()
-  const { members } = useMembers()
   const { calendars } = useVisibleCalendars()
   const { projects: myProjects } = useMyProjects()
   const projects = myProjects ?? []
@@ -182,20 +180,6 @@ export function ItemEditorForm({
 
   const set = <K extends keyof Draft>(key: K, value: Draft[K]) =>
     setDraft((d) => (d ? { ...d, [key]: value } : d))
-
-  function toggleAssignee(uid: string) {
-    setDraft((d) => {
-      if (!d) return d
-      const next = d.assigneeIds.includes(uid)
-        ? d.assigneeIds.filter((x) => x !== uid)
-        : [...d.assigneeIds, uid]
-      return {
-        ...d,
-        assigneeIds: next,
-        primaryAssigneeId: resolvePrimaryAssignee(next, d.primaryAssigneeId),
-      }
-    })
-  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -374,28 +358,15 @@ export function ItemEditorForm({
 
         <Field>
           <FieldLabel>Người đảm nhận</FieldLabel>
-          <div className="flex max-h-40 flex-col gap-1 overflow-y-auto rounded border p-2">
-            {members.map((m) => (
-              <label key={m.uid} className="flex items-center gap-2 text-sm">
-                <Checkbox
-                  checked={draft.assigneeIds.includes(m.uid)}
-                  onCheckedChange={() => toggleAssignee(m.uid)}
-                />
-                <span className="flex-1">{m.displayName}</span>
-                {draft.assigneeIds.includes(m.uid) && (
-                  <button
-                    type="button"
-                    className="text-xs text-muted-foreground"
-                    onClick={() => set("primaryAssigneeId", m.uid)}
-                  >
-                    {draft.primaryAssigneeId === m.uid
-                      ? "● chính"
-                      : "đặt chính"}
-                  </button>
-                )}
-              </label>
-            ))}
-          </div>
+          <AssigneePicker
+            value={draft.assigneeIds}
+            primaryId={draft.primaryAssigneeId}
+            onChange={(assigneeIds, primaryAssigneeId) =>
+              setDraft((d) =>
+                d ? { ...d, assigneeIds, primaryAssigneeId } : d
+              )
+            }
+          />
         </Field>
 
         <Field>
