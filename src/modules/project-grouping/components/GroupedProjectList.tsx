@@ -17,11 +17,16 @@ import {
 import { CSS } from "@dnd-kit/utilities"
 import { toast } from "sonner"
 import {
+  ArchiveIcon,
+  ArchiveRestoreIcon,
   ChevronDownIcon,
+  FolderInputIcon,
   FolderPlusIcon,
   GripVerticalIcon,
   MoreVerticalIcon,
+  PencilIcon,
   PlusIcon,
+  Trash2Icon,
 } from "lucide-react"
 
 import { useAuth } from "@/context/AuthContext"
@@ -49,6 +54,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuSub,
   DropdownMenuSubContent,
@@ -59,6 +65,15 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/utils/cn"
 
 const UNGROUPED_KEY = "__ungrouped__"
+
+// A ⋮ / handle button that reads clearly at rest (not a faint ghost) and lifts
+// on hover / when its menu is open.
+const ICON_BTN = cn(
+  "flex size-7 shrink-0 items-center justify-center rounded-md",
+  "text-muted-foreground ring-1 ring-transparent transition-colors",
+  "hover:bg-accent hover:text-foreground hover:ring-border",
+  "data-popup-open:bg-accent data-popup-open:text-foreground data-popup-open:ring-border"
+)
 
 export function GroupedProjectList() {
   const { profile } = useAuth()
@@ -332,11 +347,8 @@ function Block({
             mode="edit"
             group={group}
             trigger={
-              <Button
-                variant="ghost"
-                size="xs"
-                className="text-xs text-muted-foreground"
-              >
+              <Button variant="ghost" size="xs" className="gap-1 text-xs">
+                <PencilIcon className="size-3.5" />
                 Sửa nhóm
               </Button>
             }
@@ -347,17 +359,20 @@ function Block({
           <DropdownMenu>
             <DropdownMenuTrigger
               render={
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="ml-auto size-7 text-muted-foreground"
+                <button
+                  type="button"
+                  className={cn(ICON_BTN, "ml-auto")}
                   aria-label="Quản lý nhóm"
                 />
               }
             >
               <MoreVerticalIcon className="size-4" />
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
+            <DropdownMenuContent align="end" className="w-52">
+              <DropdownMenuLabel className="truncate text-foreground">
+                {title}
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
               <DropdownMenuItem
                 onClick={async () => {
                   try {
@@ -371,7 +386,15 @@ function Block({
                   }
                 }}
               >
-                {archived ? "Bỏ lưu trữ" : "Lưu trữ"}
+                {archived ? (
+                  <>
+                    <ArchiveRestoreIcon /> Bỏ lưu trữ
+                  </>
+                ) : (
+                  <>
+                    <ArchiveIcon /> Lưu trữ
+                  </>
+                )}
               </DropdownMenuItem>
               <DropdownMenuItem
                 variant="destructive"
@@ -392,7 +415,7 @@ function Block({
                   }
                 }}
               >
-                Xoá nhóm
+                <Trash2Icon /> Xoá nhóm
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -480,63 +503,74 @@ function Row({
     <div
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition }}
-      className={cn("relative", isDragging && "z-10 opacity-70")}
+      className={cn(isDragging && "z-10 opacity-80")}
     >
-      <div className="absolute top-1.5 right-1.5 z-10 flex items-center gap-0.5">
-        {draggable && (
-          <button
-            type="button"
-            className="cursor-grab rounded p-1 text-muted-foreground hover:bg-muted active:cursor-grabbing"
-            aria-label="Kéo để sắp thứ tự"
-            {...attributes}
-            {...listeners}
-          >
-            <GripVerticalIcon className="size-4" />
-          </button>
-        )}
-        {isManager && (
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              render={
+      <ProjectCard
+        project={project}
+        actions={
+          isManager ? (
+            <>
+              {draggable && (
                 <button
                   type="button"
-                  className="rounded p-1 text-muted-foreground hover:bg-muted"
-                  aria-label="Tuỳ chọn dự án"
-                />
-              }
-            >
-              <MoreVerticalIcon className="size-4" />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuSub>
-                <DropdownMenuSubTrigger>Chuyển nhóm</DropdownMenuSubTrigger>
-                <DropdownMenuSubContent className="max-h-72 overflow-y-auto">
-                  <DropdownMenuItem
-                    disabled={currentGroup === null}
-                    onClick={() => move(null)}
-                  >
-                    Chưa phân nhóm
+                  aria-label="Kéo để sắp thứ tự"
+                  className={cn(ICON_BTN, "cursor-grab active:cursor-grabbing")}
+                  {...attributes}
+                  {...listeners}
+                >
+                  <GripVerticalIcon className="size-4" />
+                </button>
+              )}
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  render={
+                    <button
+                      type="button"
+                      className={ICON_BTN}
+                      aria-label="Tuỳ chọn dự án"
+                    />
+                  }
+                >
+                  <MoreVerticalIcon className="size-4" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuLabel className="truncate text-foreground">
+                    {project.name}
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuSub>
+                    <DropdownMenuSubTrigger>
+                      <FolderInputIcon /> Chuyển nhóm
+                    </DropdownMenuSubTrigger>
+                    <DropdownMenuSubContent className="max-h-72 w-48 overflow-y-auto">
+                      <DropdownMenuItem
+                        disabled={currentGroup === null}
+                        onClick={() => move(null)}
+                      >
+                        Chưa phân nhóm
+                      </DropdownMenuItem>
+                      {groupOptions.length > 0 && <DropdownMenuSeparator />}
+                      {groupOptions.map((g) => (
+                        <DropdownMenuItem
+                          key={g.id}
+                          disabled={currentGroup === g.id}
+                          onClick={() => move(g.id)}
+                        >
+                          {g.name}
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuSubContent>
+                  </DropdownMenuSub>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem variant="destructive" onClick={remove}>
+                    <Trash2Icon /> Xoá dự án vĩnh viễn
                   </DropdownMenuItem>
-                  {groupOptions.map((g) => (
-                    <DropdownMenuItem
-                      key={g.id}
-                      disabled={currentGroup === g.id}
-                      onClick={() => move(g.id)}
-                    >
-                      {g.name}
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuSubContent>
-              </DropdownMenuSub>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem variant="destructive" onClick={remove}>
-                Xoá dự án vĩnh viễn
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        )}
-      </div>
-      <ProjectCard project={project} />
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </>
+          ) : undefined
+        }
+      />
     </div>
   )
 }
