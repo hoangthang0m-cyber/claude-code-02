@@ -7,13 +7,11 @@ import { Separator } from "@/components/ui/separator"
 import { SidebarTrigger } from "@/components/ui/sidebar"
 
 const PAGE_TITLES: Record<string, string> = {
-  "/campaigns": "Chiến dịch",
-  "/risks": "Risks",
-  "/team": "Team",
-  "/budget": "Budget",
-  "/documents": "Documents",
-  "/meetings": "Meetings",
-  "/reports": "Dashboard & báo cáo",
+  "/campaigns": "Dự án",
+  "/calendar": "Lịch đội",
+  "/documents": "Tài liệu",
+  "/reports": "Báo cáo",
+  "/ad-accounts": "Cài đặt",
 }
 
 export function SiteHeader() {

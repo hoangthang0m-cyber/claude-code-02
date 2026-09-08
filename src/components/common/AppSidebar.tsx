@@ -20,15 +20,9 @@ import { cn } from "@/utils/cn"
 import {
   FolderKanbanIcon,
   CalendarDaysIcon,
-  TriangleAlertIcon,
-  UsersRoundIcon,
-  PiggyBankIcon,
   FilesIcon,
-  PresentationIcon,
   ChartColumnBigIcon,
   Settings2Icon,
-  CircleHelpIcon,
-  SearchIcon,
   CommandIcon,
 } from "lucide-react"
 
@@ -61,17 +55,11 @@ const data = {
   navMain: [
     { title: "Dự án", url: "/campaigns", icon: <NavIcon icon={FolderKanbanIcon} /> },
     { title: "Lịch đội", url: "/calendar", icon: <NavIcon icon={CalendarDaysIcon} /> },
-    { title: "Rủi ro", url: "/risks", icon: <NavIcon icon={TriangleAlertIcon} /> },
-    { title: "Nhân sự", url: "/team", icon: <NavIcon icon={UsersRoundIcon} /> },
-    { title: "Ngân sách", url: "/budget", icon: <NavIcon icon={PiggyBankIcon} /> },
-    { title: "Tài liệu", url: "/documents", icon: <NavIcon icon={FilesIcon} /> },
-    { title: "Cuộc họp", url: "/meetings", icon: <NavIcon icon={PresentationIcon} /> },
     { title: "Báo cáo", url: "/reports", icon: <NavIcon icon={ChartColumnBigIcon} /> },
+    { title: "Tài liệu", url: "/documents", icon: <NavIcon icon={FilesIcon} /> },
   ],
   navSecondary: [
     { title: "Cài đặt", url: "/ad-accounts", icon: <NavIcon icon={Settings2Icon} /> },
-    { title: "Trợ giúp", url: "#", icon: <NavIcon icon={CircleHelpIcon} /> },
-    { title: "Tìm kiếm", url: "#", icon: <NavIcon icon={SearchIcon} /> },
   ],
 }
 
