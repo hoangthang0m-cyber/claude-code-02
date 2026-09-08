@@ -1,25 +1,29 @@
 "use client"
 
 import * as React from "react"
-import { ChevronLeftIcon, ChevronRightIcon, SearchIcon } from "lucide-react"
+import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react"
 
 import {
   CALENDAR_VIEWS,
   CALENDAR_VIEW_LABELS,
   rangeLabel,
   type CalendarFilters,
+  type CalendarItemType,
   type CalendarView,
 } from "@/lib/domain/calendar"
-import { AssigneeFilter } from "@/modules/team-calendar/components/AssigneeFilter"
+import { CalendarFilterMenu } from "@/modules/team-calendar/components/CalendarFilterMenu"
+import {
+  CalendarSearchPanel,
+} from "@/modules/team-calendar/components/CalendarSearchPanel"
+import type { SearchRow } from "@/modules/team-calendar/hooks/useCalendarSearch"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import {
   ToggleGroup,
   ToggleGroupItem,
 } from "@/components/ui/toggle-group"
 
-// Top bar (Mục D task 6.1 / 6.8): view switcher · Hôm nay · ‹ › · range label ·
-// search box. The search box wiring is group 12.
+// Top bar (Mục D tasks 6.1 / 6.8 / 12.x): view switcher · Hôm nay · ‹ › · range
+// label · filter menu · search box · bell.
 export function CalendarToolbar({
   view,
   onView,
@@ -30,9 +34,13 @@ export function CalendarToolbar({
   showWeekNumbers,
   onToggleWeekNumbers,
   filters,
+  currentUid,
+  onFilterTypes,
   onFilterAssignees,
+  onFilterProjectId,
   onToggleMine,
-  onClearAssigneeFilter,
+  onClearAllFilters,
+  onOpenSearchResult,
   notificationBell,
 }: {
   view: CalendarView
@@ -44,9 +52,13 @@ export function CalendarToolbar({
   showWeekNumbers: boolean
   onToggleWeekNumbers: (next: boolean) => void
   filters: CalendarFilters
+  currentUid: string | null
+  onFilterTypes: (types: CalendarItemType[]) => void
   onFilterAssignees: (ids: string[]) => void
+  onFilterProjectId: (projectId: string | null) => void
   onToggleMine: () => void
-  onClearAssigneeFilter: () => void
+  onClearAllFilters: () => void
+  onOpenSearchResult: (row: SearchRow, hiddenByFilter: boolean) => void
   notificationBell?: React.ReactNode
 }) {
   return (
@@ -68,11 +80,13 @@ export function CalendarToolbar({
         {rangeLabel(view, anchor)}
       </span>
 
-      <AssigneeFilter
+      <CalendarFilterMenu
         filters={filters}
+        onTypes={onFilterTypes}
         onAssignees={onFilterAssignees}
+        onProjectId={onFilterProjectId}
         onToggleMine={onToggleMine}
-        onClear={onClearAssigneeFilter}
+        onClearAll={onClearAllFilters}
       />
 
       <div className="ml-auto flex items-center gap-2">
@@ -87,14 +101,12 @@ export function CalendarToolbar({
             Số tuần
           </label>
         )}
-        <div className="relative hidden sm:block">
-          <SearchIcon className="absolute top-1/2 left-2 size-3.5 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            ref={searchRef}
-            placeholder="Tìm mục lịch…"
-            className="h-8 w-48 pl-7"
-          />
-        </div>
+        <CalendarSearchPanel
+          searchRef={searchRef}
+          filters={filters}
+          currentUid={currentUid}
+          onOpenResult={onOpenSearchResult}
+        />
         <ToggleGroup
           value={[view]}
           onValueChange={(v) => v[0] && onView(v[0] as CalendarView)}

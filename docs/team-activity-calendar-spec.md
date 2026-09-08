@@ -1284,11 +1284,13 @@ Tính năng mới, không có dữ liệu lịch cũ.
 
 ## 12. Tìm kiếm & bộ lọc (capability `calendar-search-and-filter`)
 
-- [ ] 12.1 Ô tìm kiếm: khớp tiêu đề/mô tả/địa điểm/tên người đảm nhận, kết quả danh sách theo thời gian (gần hiện tại trước) kèm ngày giờ/lịch/người đảm nhận; verify tìm theo từ khoá và theo tên thành viên.
-- [ ] 12.2 Bấm kết quả: chuyển khung nhìn tới ngày của mục và mở popover; trạng thái rỗng có thông báo "không tìm thấy"; verify với kết quả ở tháng khác.
-- [ ] 12.3 Bộ lọc bền vững: theo loại, lịch con, người đảm nhận, dự án liên kết; kết hợp AND; áp ở client trên tập đã thu hẹp theo thời gian; verify lọc `Nhiệm vụ` + người "An".
-- [ ] 12.4 Chỉ báo số bộ lọc đang áp dụng + nút "xoá tất cả bộ lọc"; verify đưa lịch về hiển thị theo lịch con đang bật.
-- [ ] 12.5 Tìm kiếm bỏ qua ẩn/hiện và bộ lọc, nhưng ghi chú khi kết quả đang bị bộ lọc ẩn khỏi khung nhìn; verify lọc `Mục tiêu` rồi tìm một `Nhiệm vụ` khớp — vẫn ra kết quả kèm ghi chú.
+- [x] 12.1 Ô tìm kiếm toàn lịch. — ✅ `search.ts` (thuần, unit-test 9 ca): `normalizeSearchText` bỏ dấu + `đ→d` (khớp "ra mat" ↔ "Ra mắt"), `matchesSearchQuery` khớp AND từng token trên tiêu đề + mô tả + địa điểm + **tên người đảm nhận** (resolve qua `members`), `searchCalendarItems` xếp theo khoảng cách tới hiện tại (tương lai trước khi bằng khoảng cách). `useCalendarSearch`: một `getDocs(where deletedAt==null)` (không realtime), debounce 250ms. `CalendarSearchPanel` (dropdown dưới ô nhập): mỗi dòng có `TypeBadge` + tiêu đề + `AssigneeChips` + `formatItemTimeRange` + tên lịch con.
+- [x] 12.2 Bấm kết quả + trạng thái rỗng. — ✅ `openSearchResult` (trong `CalendarPage`): `getDoc` → `setAnchor(startDay)` + `setView("day")` + mở **form chi tiết** mục (`ItemEditorForm`). ⚠️ **Lệch**: mở form chi tiết chứ không phải popover chỉ-đọc (popover `ItemPopover` gắn cứng với trigger; form hiện đủ mọi trường và là "form đầy đủ" popover dẫn tới). Rỗng → "Không tìm thấy mục nào". Kết quả tháng khác vẫn nhảy đúng (dùng `startDay` từ doc).
+- [x] 12.3 Bộ lọc bền vững theo loại / người đảm nhận / dự án liên kết, kết hợp AND. — ✅ `CalendarFilterMenu` (Popover "Bộ lọc" + nút "Việc của tôi"): Loại (3 checkbox), Người đảm nhận (`MemberMultiSelect`), Dự án liên kết (`Select` từ `useMyProjects`). `itemMatchesFilters` AND các chiều. Bền vững qua `useCalendarFilters` (sessionStorage). Áp ở client trên `allItems` đã thu hẹp theo cửa sổ (`filteredItems` trong `CalendarPage`). `filters.test.ts` phủ "AND loại + assignee". **"Lọc theo lịch con" = cơ chế ẩn/hiện ở sidebar** (đã có, bền vững qua `userCalendarPrefs`) — không lặp lại thành chiều lọc riêng.
+- [x] 12.4 Chỉ báo số bộ lọc + "xoá tất cả bộ lọc". — ✅ Badge số trên nút "Bộ lọc" (`activeFilterCount`); nút "Xoá tất cả bộ lọc" (`clearAll`) reset loại/assignee/dự án/mine — **KHÔNG** đụng ẩn/hiện lịch ở sidebar (khớp Scenario "về hiển thị đầy đủ theo các lịch con đang bật").
+- [x] 12.5 Tìm kiếm bỏ qua ẩn/hiện + bộ lọc, ghi chú khi kết quả bị lọc ẩn. — ✅ Search query toàn bộ `deletedAt==null` (không đụng `visibleCalendars` hay `filters`). `searchCalendarItems` nhận `isHiddenByFilter = !itemMatchesFilters(row, filters, uid)` → hit bị lọc ẩn có nhãn hổ phách "Đang bị bộ lọc ẩn khỏi khung nhìn"; mở nó → toast "xoá bộ lọc để thấy nó trên khung nhìn". `search.test.ts` phủ cờ này.
+
+**Lưu ý nhóm 12:** (a) ô tìm kiếm chỉ hiện trên desktop (`hidden sm:block`) — như ô cũ; (b) mỗi lần gõ = một `getDocs` toàn bộ mục chưa xoá (debounce 250ms) — chấp nhận ở quy mô một phòng; (c) `AssigneeFilter.tsx` (nhóm 9) đã xoá, `CalendarFilterMenu` thay thế.
 
 ## 13. Tích hợp, kiểm thử & triển khai
 

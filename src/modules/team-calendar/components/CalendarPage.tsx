@@ -47,7 +47,8 @@ export function CalendarPage() {
   const { user } = useAuth()
   const isMobile = useIsMobile()
   const { view, setView, anchor, setAnchor, goToday, step } = useCalendarView()
-  const { filters, setAssignees, toggleMine } = useCalendarFilters()
+  const { filters, setAssignees, setTypes, setProjectId, toggleMine, clearAll } =
+    useCalendarFilters()
   const { calendars, visibleIds, prefs } = useVisibleCalendars()
   const searchRef = React.useRef<HTMLInputElement>(null)
   const [sidebarOpen, setSidebarOpen] = React.useState(false)
@@ -158,6 +159,35 @@ export function CalendarPage() {
     setView("day")
   }
 
+  // task 12.2 — open a search result: jump the calendar to its day and open its
+  // detail form. task 12.5 — if the active filters would hide it, say so.
+  async function openSearchResult(
+    row: { id: string; startDay: string },
+    hiddenByFilter: boolean
+  ) {
+    try {
+      const snap = await getDoc(
+        doc(db, CALENDAR_COLLECTIONS.calendarItems, row.id)
+      )
+      if (!snap.exists() || snap.data().deletedAt != null) {
+        toast.error("Mục lịch không còn tồn tại")
+        return
+      }
+      const data = snap.data()
+      setAnchor(String(data.startDay ?? row.startDay))
+      setView("day")
+      setEditor({
+        open: true,
+        item: { id: snap.id, ...data } as unknown as RenderableItem,
+      })
+      if (hiddenByFilter) {
+        toast("Mục này đang bị bộ lọc ẩn — xoá bộ lọc để thấy nó trên khung nhìn")
+      }
+    } catch {
+      toast.error("Không mở được mục")
+    }
+  }
+
   const sidebar = (
     <div className="flex w-64 shrink-0 flex-col gap-4 overflow-y-auto border-r p-3">
       <Button
@@ -202,12 +232,13 @@ export function CalendarPage() {
           if (user) setShowWeekNumbers(user.uid, next).catch(() => undefined)
         }}
         filters={filters}
+        currentUid={user?.uid ?? null}
+        onFilterTypes={setTypes}
         onFilterAssignees={setAssignees}
+        onFilterProjectId={setProjectId}
         onToggleMine={toggleMine}
-        onClearAssigneeFilter={() => {
-          if (filters.mine) toggleMine()
-          setAssignees([])
-        }}
+        onClearAllFilters={clearAll}
+        onOpenSearchResult={openSearchResult}
         notificationBell={
           <CalendarNotificationBell onOpenItem={openItemFromNotification} />
         }
