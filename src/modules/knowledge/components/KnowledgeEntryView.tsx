@@ -241,7 +241,7 @@ function Panel({
   return (
     <div
       className={
-        "flex flex-col gap-3 rounded-xl bg-card p-4 text-card-foreground ring-1 ring-foreground/10 shadow-[0_2px_12px_-4px_rgba(0,0,0,0.22)] md:p-5 " +
+        "mystic-panel flex flex-col gap-3 rounded-2xl bg-card p-4 text-card-foreground ring-1 ring-foreground/10 md:p-5 " +
         (className ?? "")
       }
     >
@@ -258,9 +258,12 @@ function SectionHeading({
   children: React.ReactNode
 }) {
   return (
-    <h2 className="flex items-center gap-2 text-base font-semibold">
-      <span className="flex size-5 items-center justify-center rounded-md bg-muted text-xs text-muted-foreground">
-        {n}
+    <h2 className="flex items-center gap-2.5 font-heading text-[1.0625rem] font-semibold tracking-[-0.01em]">
+      {/* số thứ tự trong viên đá xoay 45° — nhịp thị giác của trang tri thức */}
+      <span className="flex size-6 rotate-45 items-center justify-center rounded-[0.4rem] bg-[linear-gradient(140deg,color-mix(in_oklch,var(--primary),white_12%),var(--primary))] text-primary-foreground shadow-[0_1px_0_0_var(--sheen)_inset,0_4px_12px_-4px_color-mix(in_oklch,var(--primary),transparent_40%)]">
+        <span className="-rotate-45 font-sans text-[0.6875rem] font-bold">
+          {n}
+        </span>
       </span>
       {children}
     </h2>

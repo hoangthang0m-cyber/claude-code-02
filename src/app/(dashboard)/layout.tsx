@@ -12,7 +12,8 @@ export default function AppLayout({
   return (
     <AuthGuard>
       <SidebarProvider
-        className="bg-transparent"
+        // gỡ nền đục mặc định của biến thể "inset" để lớp khí quyển ánh qua
+        className="bg-transparent has-data-[variant=inset]:bg-transparent"
         style={
           {
             "--sidebar-width": "calc(var(--spacing) * 72)",

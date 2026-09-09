@@ -203,13 +203,15 @@ export function LoginForm({
               className="absolute top-1/2 left-1/2 size-[62%] -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary/25 blur-3xl"
               style={{ animation: "glow-pulse 7s ease-in-out infinite" }}
             />
+            {/* Logo là nét trắng trên nền đen đặc — blend "screen" khử nền đen
+                để dấu ấn nổi thẳng trên vầng hào quang, không thành ô vuông đen */}
             <Image
               src="/hem-tarot-logo.png"
               alt="Hẻm Tarot"
               fill
               priority
               sizes="(min-width: 768px) 45vw, 0px"
-              className="relative object-contain p-14 drop-shadow-[0_10px_36px_color-mix(in_oklch,var(--primary),transparent_45%)]"
+              className="relative object-contain p-12 mix-blend-screen"
             />
             <div
               aria-hidden

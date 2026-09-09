@@ -48,7 +48,7 @@ export function DeleteProjectControl({
   }
 
   return (
-    <section className="flex flex-col gap-2 rounded-xl bg-card p-4 shadow-[0_2px_12px_-4px_rgba(0,0,0,0.22),inset_0_1px_0_0_rgba(255,255,255,0.04)] ring-1 ring-destructive/30 md:p-5">
+    <section className="mystic-panel flex flex-col gap-2 rounded-2xl bg-card p-4 ring-1 ring-destructive/30 md:p-5">
       <h2 className="text-base font-semibold text-destructive">Vùng nguy hiểm</h2>
       <p className="text-xs text-muted-foreground">
         Xoá dự án là vĩnh viễn và xoá kèm mọi dữ liệu con. Nếu chỉ muốn ẩn đi, hãy

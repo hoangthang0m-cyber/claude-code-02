@@ -26,7 +26,7 @@ export function MysticBackground() {
     >
       {/* Quầng cực quang — ba khối màu lớn, nhoè mạnh, trôi lệch pha nhau */}
       <div
-        className="absolute -top-[28%] -left-[18%] size-[78vmax] rounded-full opacity-90 blur-[110px]"
+        className="absolute -top-[22%] -left-[10%] size-[82vmax] rounded-full opacity-90 blur-[110px]"
         style={{
           background:
             "radial-gradient(circle at 50% 50%, var(--aurora-a), transparent 68%)",
@@ -34,7 +34,7 @@ export function MysticBackground() {
         }}
       />
       <div
-        className="absolute -top-[12%] -right-[22%] size-[66vmax] rounded-full opacity-80 blur-[120px]"
+        className="absolute -top-[10%] -right-[12%] size-[70vmax] rounded-full opacity-80 blur-[120px]"
         style={{
           background:
             "radial-gradient(circle at 50% 50%, var(--aurora-c), transparent 66%)",
@@ -42,7 +42,7 @@ export function MysticBackground() {
         }}
       />
       <div
-        className="absolute -bottom-[32%] left-[26%] size-[72vmax] rounded-full opacity-70 blur-[130px]"
+        className="absolute -bottom-[26%] left-[18%] size-[76vmax] rounded-full opacity-75 blur-[130px]"
         style={{
           background:
             "radial-gradient(circle at 50% 50%, var(--aurora-b), transparent 68%)",

@@ -111,12 +111,12 @@
 .dark {
     --background: oklch(0.158 0.028 285);
     --foreground: oklch(0.945 0.012 300);
-    --card: oklch(0.218 0.033 288);
+    --card: oklch(0.238 0.036 288);
     --card-foreground: oklch(0.945 0.012 300);
-    --popover: oklch(0.232 0.036 288);
+    --popover: oklch(0.248 0.038 288);
     --popover-foreground: oklch(0.945 0.012 300);
-    --primary: oklch(0.735 0.152 300);
-    --primary-foreground: oklch(0.165 0.035 292);
+    --primary: oklch(0.705 0.168 299);
+    --primary-foreground: oklch(0.155 0.035 292);
     --secondary: oklch(0.288 0.038 290);
     --secondary-foreground: oklch(0.955 0.012 300);
     --muted: oklch(0.272 0.032 290);
@@ -198,8 +198,8 @@
     );
     box-shadow:
       0 1px 0 0 var(--sheen) inset,
-      0 2px 6px -2px var(--halo),
-      0 14px 34px -20px var(--halo);
+      0 3px 8px -3px var(--halo),
+      0 20px 44px -22px var(--halo);
   }
 
   .mystic-lift {
