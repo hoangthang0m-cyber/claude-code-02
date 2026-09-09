@@ -28,16 +28,11 @@ export function ProjectCard({
   actions?: ReactNode
 }) {
   return (
-    <Card className="mystic-lift relative h-full hover:ring-primary/40">
+    <Card className="relative h-full transition-shadow hover:ring-primary/40 hover:shadow-[0_10px_28px_-10px_rgba(0,0,0,0.4)]">
       <Link
         href={`/campaigns/${project.id}`}
         aria-label={project.name}
-        className="absolute inset-0 z-0 rounded-2xl focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-      />
-      {/* nét sáng chạy dọc mép trên khi rê chuột */}
-      <span
-        aria-hidden
-        className="pointer-events-none absolute inset-x-6 top-0 h-px bg-[linear-gradient(90deg,transparent,var(--gold),transparent)] opacity-0 transition-opacity duration-300 group-hover/card:opacity-70"
+        className="absolute inset-0 z-0 rounded-xl focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
       />
       <CardHeader>
         <div className="flex items-start justify-between gap-2">
@@ -54,8 +49,8 @@ export function ProjectCard({
         <p className="line-clamp-2 text-sm text-muted-foreground">
           {project.objective}
         </p>
-        <span className="label-rune text-[0.625rem]">
-          Vai trò · {PROJECT_ROLE_LABELS[project.my_role]}
+        <span className="text-xs text-muted-foreground">
+          Vai trò của bạn: {PROJECT_ROLE_LABELS[project.my_role]}
         </span>
       </CardContent>
     </Card>

@@ -155,8 +155,9 @@ function Panel({
   return (
     <div
       className={cn(
-        "mystic-panel flex flex-col gap-3 rounded-2xl bg-card p-4 text-card-foreground",
+        "flex flex-col gap-3 rounded-xl bg-card p-4 text-card-foreground",
         "ring-1 ring-foreground/10 md:p-5",
+        "shadow-[0_2px_12px_-4px_rgba(0,0,0,0.22),inset_0_1px_0_0_rgba(255,255,255,0.04)]",
         className
       )}
     >
@@ -166,11 +167,7 @@ function Panel({
 }
 
 function PanelHeading({ children }: { children: ReactNode }) {
-  return (
-    <h2 className="font-heading text-[1.0625rem] font-semibold tracking-[-0.01em]">
-      {children}
-    </h2>
-  )
+  return <h2 className="text-base font-semibold">{children}</h2>
 }
 
 /** One labelled fact about the project, boxed so it stands apart from its
