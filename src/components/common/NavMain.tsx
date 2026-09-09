@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import Link from "next/link"
+import { usePathname } from "next/navigation"
 import {
   closestCenter,
   DndContext,
@@ -38,7 +39,7 @@ interface NavItem {
   icon?: React.ReactNode
 }
 
-function SortableNavItem({ item }: { item: NavItem }) {
+function SortableNavItem({ item, active }: { item: NavItem; active: boolean }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: item.url,
   })
@@ -46,10 +47,30 @@ function SortableNavItem({ item }: { item: NavItem }) {
   return (
     <SidebarMenuItem
       ref={setNodeRef}
+      data-active={active || undefined}
       style={{ transform: CSS.Transform.toString(transform), transition }}
-      className={cn("group/nav-item", isDragging && "z-10 opacity-80")}
+      className={cn("group/nav-item relative", isDragging && "z-10 opacity-80")}
     >
-      <SidebarMenuButton tooltip={item.title} render={<Link href={item.url} />}>
+      {/* Thanh sáng bên trái đánh dấu trang đang mở */}
+      <span
+        aria-hidden
+        className={cn(
+          "pointer-events-none absolute top-1/2 -left-2 h-5 w-[3px] -translate-y-1/2 rounded-full",
+          "bg-[linear-gradient(180deg,var(--gold),var(--primary))] transition-all duration-300 ease-out",
+          active
+            ? "opacity-100 shadow-[0_0_12px_1px_color-mix(in_oklch,var(--primary),transparent_35%)]"
+            : "scale-y-50 opacity-0"
+        )}
+      />
+      <SidebarMenuButton
+        tooltip={item.title}
+        render={<Link href={item.url} />}
+        className={cn(
+          "gap-2.5 transition-colors duration-200",
+          active &&
+            "bg-sidebar-accent/70 font-medium text-sidebar-accent-foreground"
+        )}
+      >
         {item.icon}
         <span>{item.title}</span>
       </SidebarMenuButton>
@@ -67,6 +88,7 @@ function SortableNavItem({ item }: { item: NavItem }) {
 }
 
 export function NavMain({ items }: { items: NavItem[] }) {
+  const pathname = usePathname()
   const defaultOrder = React.useMemo(() => items.map((item) => item.url), [items])
   const { order, setOrder } = useSidebarNavOrder(defaultOrder)
   const sensors = useSensors(useSensor(PointerSensor), useSensor(KeyboardSensor))
@@ -91,7 +113,7 @@ export function NavMain({ items }: { items: NavItem[] }) {
           <SidebarMenuItem className="flex items-center gap-2">
             <SidebarMenuButton
               tooltip="Tạo nhanh"
-              className="min-w-8 bg-primary text-primary-foreground duration-200 ease-linear hover:bg-primary/90 hover:text-primary-foreground active:bg-primary/90 active:text-primary-foreground"
+              className="sheen-sweep min-w-8 bg-[linear-gradient(140deg,color-mix(in_oklch,var(--primary),white_16%),var(--primary)_55%,color-mix(in_oklch,var(--primary),black_18%))] font-medium text-primary-foreground shadow-[0_1px_0_0_var(--sheen)_inset,0_6px_18px_-8px_color-mix(in_oklch,var(--primary),transparent_40%)] duration-200 ease-out hover:brightness-110 hover:text-primary-foreground active:text-primary-foreground"
             >
               <CirclePlusIcon />
               <span>Tạo nhanh</span>
@@ -111,7 +133,13 @@ export function NavMain({ items }: { items: NavItem[] }) {
           <SortableContext items={order} strategy={verticalListSortingStrategy}>
             <SidebarMenu>
               {orderedItems.map((item) => (
-                <SortableNavItem key={item.url} item={item} />
+                <SortableNavItem
+                  key={item.url}
+                  item={item}
+                  active={
+                    pathname === item.url || pathname.startsWith(`${item.url}/`)
+                  }
+                />
               ))}
             </SidebarMenu>
           </SortableContext>

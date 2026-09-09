@@ -8,10 +8,12 @@ function ThemeProvider({
   ...props
 }: React.ComponentProps<typeof NextThemesProvider>) {
   return (
+    // Mặc định là bản tối — bảng màu "Đêm Hẻm" được thiết kế cho nền tối.
+    // Bản sáng vẫn đầy đủ và bật được bằng phím tắt "d".
     <NextThemesProvider
       attribute="class"
-      defaultTheme="system"
-      enableSystem
+      defaultTheme="dark"
+      enableSystem={false}
       disableTransitionOnChange
       {...props}
     >
