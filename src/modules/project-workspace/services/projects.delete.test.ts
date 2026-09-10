@@ -83,6 +83,13 @@ beforeEach(() => {
     adsBindings: [["ab1", {}]],
     adsMetrics: [["am1", {}], ["am2", {}]],
     notifications: [["n1", {}]],
+    // 1 link của chính dự án + 1 link của hạng mục con. Fake db này bỏ qua
+    // mệnh đề where nên cả hai lượt quét đều trả về cùng 2 dòng — Map theo
+    // path khử trùng, nên tổng vẫn đúng 2.
+    referenceLinks: [
+      ["rl-project", { owner_type: "project", owner_id: "p1" }],
+      ["rl-item", { owner_type: "content_item", owner_id: "c1" }],
+    ],
   }
   batchDelete.mockReset()
   batchCommit.mockReset().mockResolvedValue(undefined)
@@ -128,13 +135,16 @@ describe("deleteProject", () => {
     const paths = deletedPaths()
 
     // project doc + 2 items + 2 members + 3 history + 1 comment + 1 binding +
-    // 2 metrics + 1 notification = 13
-    expect(r.docs_deleted).toBe(13)
+    // 2 metrics + 1 notification + 2 reference links = 15
+    expect(r.docs_deleted).toBe(15)
     expect(paths).toContain("projects/p1")
     expect(paths).toContain("contentItems/c1")
     expect(paths).toContain("projectMembers/p1__u2")
     expect(paths).toContain("statusHistory/h2")
     expect(paths).toContain("adsMetrics/am1")
+    // không còn bỏ sót tài liệu đính kèm — của dự án lẫn của hạng mục con
+    expect(paths).toContain("referenceLinks/rl-project")
+    expect(paths).toContain("referenceLinks/rl-item")
 
     // the project doc is deleted LAST (retryable on partial failure)
     expect(paths[paths.length - 1]).toBe("projects/p1")

@@ -203,7 +203,8 @@ type AnyRef = { path: string; delete: () => unknown }
 
 // Delete a project and cascade every child doc: its members, its content items
 // and each item's status history / comments / ads bindings / ads metrics, plus
-// the project's sheet mappings / sync runs / sync conflicts / notifications.
+// the project's notifications and every reference link owned by the project or
+// by one of its content items.
 // Per-manager stores (adAccountConnections, googleConnections) are NOT touched.
 // Project-manager only; the caller must echo the project name.
 export async function deleteProject(
@@ -265,6 +266,32 @@ export async function deleteProject(
     ]) {
       add(await byFieldIn(col, "content_item_id", itemIds))
     }
+  }
+
+  // referenceLinks dùng chung một collection cho cả dự án lẫn hạng mục, phân
+  // biệt bằng owner_type + owner_id. Chỉ lọc theo owner_id — một điều kiện,
+  // dùng index đơn trường Firestore tự tạo — rồi đối chiếu owner_type trong bộ
+  // nhớ, nên không phải khai báo thêm composite index nào.
+  const itemIdSet = new Set(itemIds)
+  const linkOwners = [projectId, ...itemIds]
+  for (let i = 0; i < linkOwners.length; i += 30) {
+    const snap = await db
+      .collection(COLLECTIONS.referenceLinks)
+      .where("owner_id", "in", linkOwners.slice(i, i + 30))
+      .get()
+    add(
+      snap.docs
+        .filter((d) => {
+          const { owner_type, owner_id } = d.data() as {
+            owner_type?: string
+            owner_id?: string
+          }
+          return owner_type === "project"
+            ? owner_id === projectId
+            : owner_type === "content_item" && itemIdSet.has(owner_id ?? "")
+        })
+        .map((d) => d.ref as AnyRef)
+    )
   }
 
   // the project doc itself goes last, so a partway failure leaves it retryable
