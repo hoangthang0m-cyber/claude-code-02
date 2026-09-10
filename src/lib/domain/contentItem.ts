@@ -48,6 +48,16 @@ export const contentItemCreateSchema = z.object({
 
 export type ContentItemCreate = z.infer<typeof contentItemCreateSchema>
 
+// Xoá vĩnh viễn một hạng mục. Ngoài phạm vi docs/SPEC.md — bổ sung theo yêu
+// cầu người dùng (2026-09-09). Body phải lặp lại `code` của hạng mục, cùng cơ
+// chế với `projectDeleteSchema.confirm_name`: id gõ nhầm sẽ không khớp code
+// nên không xoá nhầm sang hạng mục khác.
+export const contentItemDeleteSchema = z.object({
+  confirm_code: z.string().trim().min(1),
+})
+
+export type ContentItemDelete = z.infer<typeof contentItemDeleteSchema>
+
 // Field-by-field update (SPEC §5.2 R1): each field independent, none forced.
 // Excluded and handled elsewhere: `status` (workflow only, §5.3 / §6.2),
 // `assignee_id` (assignment endpoint, §5.2 R2 / task 3.3), `evaluation`

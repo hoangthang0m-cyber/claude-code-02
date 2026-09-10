@@ -126,6 +126,7 @@ export function ProjectWorkspace({ projectId }: { projectId: string }) {
           projectId={projectId}
           editable={isProjectWritable(project.lifecycle)}
           canEvaluate={canEdit}
+          canDelete={canEdit}
         />
       </Panel>
 

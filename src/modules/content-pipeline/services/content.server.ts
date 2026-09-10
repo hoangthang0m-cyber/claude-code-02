@@ -6,6 +6,7 @@ import {
   assigneeUpdateSchema,
   contentFieldUpdateSchema,
   contentItemCreateSchema,
+  contentItemDeleteSchema,
   contentListFiltersSchema,
   evaluationUpdateSchema,
   isOverdue,
@@ -103,6 +104,66 @@ export async function updateContentItemFields(
 
   await ref.update(patch)
   return { id: contentItemId }
+}
+
+// Xoá vĩnh viễn một hạng mục và mọi dữ liệu treo vào nó. Ngoài phạm vi
+// docs/SPEC.md — bổ sung theo yêu cầu người dùng (2026-09-09).
+//
+// Chỉ manager của dự án, và chỉ khi dự án còn ghi được. Cascade theo đúng mẫu
+// của `deleteProject`: gom hết ref rồi xoá theo lô, doc hạng mục để cuối cùng
+// nên nếu hỏng giữa chừng thì vẫn gọi lại được để dọn nốt.
+export async function deleteContentItem(
+  actor: AuthedUser,
+  contentItemId: string,
+  body: unknown
+): Promise<{ id: string; docs_deleted: number }> {
+  const { ref, data } = await loadContentItem(contentItemId)
+  const scope = await requireProjectScope(actor.uid, data.project_id)
+  requireProjectManager(scope)
+  await assertProjectWritable(data.project_id)
+
+  const { confirm_code } = parseOrThrow(contentItemDeleteSchema, body)
+  if (confirm_code.trim() !== String(data.code ?? "").trim()) {
+    throw new HttpError(400, "Mã xác nhận không khớp mã hạng mục")
+  }
+
+  // Kiểu cấu trúc thay vì kiểu của firebase-admin, giống `deleteProject`, để
+  // test chạy được với fake db.
+  type DeletableRef = { delete: () => unknown }
+  const db = getAdminDb()
+  const refs: DeletableRef[] = []
+
+  for (const col of [
+    COLLECTIONS.statusHistory,
+    COLLECTIONS.comments,
+    COLLECTIONS.adsBindings,
+    COLLECTIONS.adsMetrics,
+    COLLECTIONS.notifications,
+  ]) {
+    const snap = await db
+      .collection(col)
+      .where("content_item_id", "==", contentItemId)
+      .get()
+    refs.push(...snap.docs.map((d) => d.ref))
+  }
+
+  // referenceLinks dùng chung một collection, phân biệt bằng owner_type
+  const linksSnap = await db
+    .collection(COLLECTIONS.referenceLinks)
+    .where("owner_type", "==", "content_item")
+    .where("owner_id", "==", contentItemId)
+    .get()
+  refs.push(...linksSnap.docs.map((d) => d.ref))
+
+  refs.push(ref)
+
+  for (let i = 0; i < refs.length; i += 450) {
+    const batch = db.batch()
+    for (const r of refs.slice(i, i + 450)) batch.delete(r as never)
+    await batch.commit()
+  }
+
+  return { id: contentItemId, docs_deleted: refs.length }
 }
 
 // SPEC §5.4 R5: the "đánh giá / đề xuất" note is manager-only, and the write

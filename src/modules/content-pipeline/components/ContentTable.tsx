@@ -53,12 +53,20 @@ export function ContentTable({
   projectId,
   editable,
   canEvaluate,
+  canDelete,
 }: {
   projectId: string
   editable: boolean
   /** SPEC §5.4 R5: only a project manager writes the evaluation note. */
   canEvaluate: boolean
+  /** Xoá vĩnh viễn hạng mục — manager của dự án. Ngoài SPEC. */
+  canDelete: boolean
 }) {
+  // Cột "Xoá" chỉ dựng cho manager; nhân viên không thấy một cột trống.
+  const columns = React.useMemo(
+    () => (canDelete ? [...COLUMNS, "Xoá"] : COLUMNS),
+    [canDelete]
+  )
   const [view, setView] = React.useState<"table" | "board">("table")
   const [assignee, setAssignee] = React.useState<string>("all")
   const [status, setStatus] = React.useState<string>("all")
@@ -201,7 +209,7 @@ export function ContentTable({
           <Table>
             <TableHeader className="bg-muted">
               <TableRow>
-                {COLUMNS.map((c) => (
+                {columns.map((c) => (
                   <TableHead key={c}>{c}</TableHead>
                 ))}
               </TableRow>
@@ -210,7 +218,7 @@ export function ContentTable({
               {loading ? (
                 <TableRow>
                   <td
-                    colSpan={COLUMNS.length}
+                    colSpan={columns.length}
                     className="h-16 text-center text-sm text-muted-foreground"
                   >
                     Đang tải...
@@ -224,13 +232,14 @@ export function ContentTable({
                     members={memberOptions}
                     editable={editable}
                     canEvaluate={canEvaluate}
+                    canDelete={canDelete}
                     onChanged={refresh}
                   />
                 ))
               ) : (
                 <TableRow>
                   <td
-                    colSpan={COLUMNS.length}
+                    colSpan={columns.length}
                     className="h-16 text-center text-sm text-muted-foreground"
                   >
                     Chưa có hạng mục nào.

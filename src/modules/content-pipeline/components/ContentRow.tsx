@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import { useRouter } from "next/navigation"
+import { Trash2Icon } from "lucide-react"
 import { toast } from "sonner"
 
 import {
@@ -11,6 +12,7 @@ import {
 } from "@/lib/domain"
 import {
   assignContent,
+  deleteContentItem,
   setEvaluation,
   updateContentFields,
   type ContentListRow,
@@ -60,6 +62,7 @@ export function ContentRow({
   members,
   editable,
   canEvaluate,
+  canDelete,
   onChanged,
 }: {
   item: ContentListRow
@@ -67,9 +70,31 @@ export function ContentRow({
   editable: boolean
   /** SPEC §5.4 R5: the evaluation note is manager-only. */
   canEvaluate: boolean
+  /** Xoá vĩnh viễn — manager của dự án, dự án còn ghi được. Ngoài SPEC. */
+  canDelete: boolean
   onChanged: () => void
 }) {
   const router = useRouter()
+  const [deleting, setDeleting] = React.useState(false)
+
+  async function handleDelete() {
+    const ok = window.confirm(
+      `Xoá vĩnh viễn hạng mục "${item.code}"?\n\n` +
+        `Toàn bộ bình luận, lịch sử trạng thái, liên kết quảng cáo, số liệu ads ` +
+        `và tài liệu đính kèm của hạng mục này sẽ mất và KHÔNG khôi phục được.`
+    )
+    if (!ok) return
+
+    setDeleting(true)
+    try {
+      const r = await deleteContentItem(item.id, item.code)
+      toast.success(`Đã xoá "${item.code}" — ${r.docs_deleted} bản ghi`)
+      onChanged()
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Không xoá được")
+      setDeleting(false)
+    }
+  }
 
   // ads-overview-reporting task 6.2: accumulate videos into a comparison basket
   // (localStorage), hard-capped at 6, then open the comparison page.
@@ -278,6 +303,24 @@ export function ContentRow({
           }
         />
       </TableCell>
+
+      {/* Xoá vĩnh viễn — cột chỉ được dựng khi người xem là manager, nên số ô
+          luôn khớp số cột của bảng. */}
+      {canDelete && (
+        <TableCell className="align-top">
+          <Button
+            type="button"
+            variant="destructive"
+            size="icon-sm"
+            disabled={deleting}
+            title={`Xoá hạng mục ${item.code}`}
+            onClick={handleDelete}
+          >
+            <Trash2Icon />
+            <span className="sr-only">Xoá hạng mục {item.code}</span>
+          </Button>
+        </TableCell>
+      )}
     </TableRow>
   )
 }

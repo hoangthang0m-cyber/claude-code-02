@@ -72,6 +72,15 @@ export function assignContent(
   )
 }
 
+// Xoá vĩnh viễn hạng mục. Manager của dự án mới gọi được; `confirmCode` phải
+// đúng mã hạng mục, tránh xoá nhầm khi id sai.
+export function deleteContentItem(contentItemId: string, confirmCode: string) {
+  return authedJson<{ id: string; docs_deleted: number }>(
+    `/api/content/${contentItemId}`,
+    { method: "DELETE", body: JSON.stringify({ confirm_code: confirmCode }) }
+  )
+}
+
 // SPEC §5.4 R5: manager-only "đánh giá / đề xuất" note.
 export function setEvaluation(contentItemId: string, evaluation: string | null) {
   return authedJson<{ id: string }>(
