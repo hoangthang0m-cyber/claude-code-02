@@ -23,6 +23,7 @@ import {
   FilesIcon,
   LightbulbIcon,
   ChartColumnBigIcon,
+  SparklesIcon,
   Settings2Icon,
   CommandIcon,
 } from "lucide-react"
@@ -59,6 +60,7 @@ const data = {
     { title: "Báo cáo", url: "/reports", icon: <NavIcon icon={ChartColumnBigIcon} /> },
     { title: "Tài liệu", url: "/documents", icon: <NavIcon icon={FilesIcon} /> },
     { title: "Tri thức", url: "/knowledge", icon: <NavIcon icon={LightbulbIcon} /> },
+    { title: "Trợ lý", url: "/assistant", icon: <NavIcon icon={SparklesIcon} /> },
   ],
   navSecondary: [
     { title: "Cài đặt", url: "/ad-accounts", icon: <NavIcon icon={Settings2Icon} /> },

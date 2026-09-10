@@ -133,3 +133,50 @@ the project memory). Drop them once group 7.9 integration testing is done.
 
 Task 6.1 adds a locked `match /googleConnections/{uid}` block (`read, write: if
 false`) — **redeploy the rules** (`npm run rules:deploy` or paste in the console).
+
+## Trợ lý AI (Anthropic)
+
+Trang **Trợ lý** (`/assistant`) gọi Claude qua Anthropic API. Tính tiền theo
+token cho mỗi câu hỏi — đặt hạn mức chi tiêu trong Console trước khi mở cho cả
+đội dùng.
+
+| Key | Purpose |
+|---|---|
+| `ANTHROPIC_API_KEY` | Khoá API Anthropic. **Bắt buộc.** Server-side only. |
+| `ANTHROPIC_WORKSPACE_ID` | **Tuỳ chọn.** Chỉ cần khi khoá không gắn sẵn workspace. |
+
+**Không bao giờ đặt tiền tố `NEXT_PUBLIC_`** cho hai biến này — làm thế là đẩy
+khoá ra trình duyệt, ai xem mã nguồn trang cũng lấy được và tiêu tiền của bạn.
+Khoá chỉ được đọc trong `src/lib/server/anthropic.ts`, phía máy chủ.
+
+### Hai loại khoá — chọn đúng để khỏi lỗi 400
+
+Khoá tạo ở cấp tổ chức mà **không gắn workspace** sẽ bị API từ chối:
+
+```
+This API key is not scoped to a workspace, so this request must include
+the anthropic-workspace-id header...
+```
+
+Hai cách xử lý, chọn một:
+
+1. **Tạo khoá gắn sẵn workspace** (khuyến nghị) — trong Console → Settings →
+   API Keys, chọn workspace khi tạo. Khi đó chỉ cần `ANTHROPIC_API_KEY`.
+2. **Giữ khoá hiện tại** và thêm `ANTHROPIC_WORKSPACE_ID`. Id workspace nằm
+   trong đường dẫn Console khi bạn mở workspace đó.
+
+### Model đang dùng
+
+`claude-opus-5` (khai báo trong `src/lib/server/anthropic.ts`). Nếu muốn rẻ hơn,
+đổi sang `claude-sonnet-5` — cùng cách gọi, chất lượng thấp hơn một bậc.
+
+Yêu cầu bật sẵn: suy luận thích ứng (`thinking: adaptive`) và dự phòng phía máy
+chủ (`fallbacks: "default"`) — khi model chính từ chối vì lý do chính sách,
+Anthropic tự chạy lại trên model khác trong cùng lệnh gọi.
+
+### Triển khai lên Vercel
+
+Thêm `ANTHROPIC_API_KEY` (và `ANTHROPIC_WORKSPACE_ID` nếu cần) vào
+**Vercel → Settings → Environment Variables**, môi trường Production. Thiếu biến
+này thì trang Trợ lý trả về lỗi 503 kèm thông báo rõ ràng, phần còn lại của ứng
+dụng không bị ảnh hưởng.

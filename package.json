@@ -25,6 +25,7 @@
     "test:emulator": "npx --yes firebase-tools emulators:exec --only firestore --project demo-team-calendar \"vitest run --config vitest.emulator.config.ts\""
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.124.0",
     "@base-ui/react": "^1.7.0",
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/modifiers": "^9.0.0",
