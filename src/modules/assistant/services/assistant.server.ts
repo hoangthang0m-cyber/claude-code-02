@@ -6,6 +6,7 @@ import {
   type AssistantAnswer,
   type AssistantToolCall,
 } from "@/lib/domain"
+import { requireSystemManager } from "@/lib/permissions/projectScope"
 import type { AuthedUser } from "@/lib/server/auth"
 import {
   ASSISTANT_FALLBACK_BETA,
@@ -22,19 +23,19 @@ import {
 // Trợ lý AI — vòng lặp gọi công cụ viết tay. Chỉ đọc dữ liệu; không công cụ nào
 // ghi. Dùng vòng lặp tay thay cho tool runner của SDK vì mỗi công cụ phải chạy
 // dưới danh nghĩa người đang hỏi, và ta cần chặn cứng số vòng để không đốt tiền.
+//
+// CHỈ TRƯỞNG PHÒNG được dùng (yêu cầu người dùng 2026-09-10). Chốt chặn nằm ở
+// đây, phía máy chủ — việc ẩn mục trong sidebar chỉ là lớp trang trí, ai gọi
+// thẳng POST /api/assistant vẫn phải qua cửa này.
 
-function systemPrompt(actor: AuthedUser): string {
-  const role =
-    actor.system_role === "manager"
-      ? "Trưởng phòng (manager) — thấy được số liệu quảng cáo và toàn bộ phạm vi quản lý"
-      : "Nhân viên (staff) — chỉ thấy dữ liệu của những dự án họ tham gia"
-
+function systemPrompt(): string {
   return [
     "Bạn là trợ lý nội bộ của Hẻm Tarot, một đội làm marketing nội dung.",
     "Ứng dụng theo dõi: Dự án, Hạng mục nội dung (kịch bản/video, có trạng thái và deadline),",
     "Lịch đội, Báo cáo hiệu quả quảng cáo Meta, Tài liệu, và kho Tri thức đúc kết.",
     "",
-    `Người đang hỏi có vai trò: ${role}.`,
+    "Người đang hỏi là Trưởng phòng (manager) — thấy được số liệu quảng cáo và",
+    "toàn bộ phạm vi mình quản lý. Công cụ vẫn tự giới hạn theo đúng quyền của họ.",
     "",
     "QUY TẮC:",
     "- Luôn trả lời bằng tiếng Việt, ngắn gọn, đi thẳng vào việc.",
@@ -67,6 +68,8 @@ export async function askAssistant(
   actor: AuthedUser,
   body: unknown
 ): Promise<AssistantAnswer> {
+  requireSystemManager(actor, "Trợ lý AI chỉ dành cho Trưởng phòng")
+
   const { messages: history } = parseOrThrow(assistantAskSchema, body)
   const client = getAnthropic()
 
@@ -94,7 +97,7 @@ export async function askAssistant(
         // Bị từ chối vì chính sách thì Anthropic tự chạy lại trên model dự phòng.
         betas: [ASSISTANT_FALLBACK_BETA],
         fallbacks: "default",
-        system: systemPrompt(actor),
+        system: systemPrompt(),
         tools: TOOL_DEFS,
         messages,
       })

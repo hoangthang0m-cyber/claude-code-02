@@ -60,6 +60,10 @@ const data = {
     { title: "Báo cáo", url: "/reports", icon: <NavIcon icon={ChartColumnBigIcon} /> },
     { title: "Tài liệu", url: "/documents", icon: <NavIcon icon={FilesIcon} /> },
     { title: "Tri thức", url: "/knowledge", icon: <NavIcon icon={LightbulbIcon} /> },
+  ],
+  // Chỉ Trưởng phòng thấy. Đây thuần trang trí — chốt chặn thật nằm ở
+  // requireSystemManager trong assistant.server.ts.
+  navManagerOnly: [
     { title: "Trợ lý", url: "/assistant", icon: <NavIcon icon={SparklesIcon} /> },
   ],
   navSecondary: [
@@ -68,7 +72,11 @@ const data = {
 }
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
-  const { user } = useAuth()
+  const { user, profile } = useAuth()
+  const isManager = profile?.system_role === "manager"
+  const navMain = isManager
+    ? [...data.navMain, ...data.navManagerOnly]
+    : data.navMain
   const navUser = {
     name: user?.displayName || user?.email?.split("@")[0] || "Người dùng",
     email: user?.email ?? "",
@@ -91,7 +99,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={data.navMain} />
+        <NavMain items={navMain} />
         <NavSecondary items={data.navSecondary} className="mt-auto" />
       </SidebarContent>
       <SidebarFooter>

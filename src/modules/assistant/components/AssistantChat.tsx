@@ -9,6 +9,7 @@ import {
   ASSISTANT_MAX_MESSAGE_CHARS,
   type AssistantMessage,
 } from "@/lib/domain"
+import { useAuth } from "@/context/AuthContext"
 import { askAssistant } from "@/modules/assistant/services/assistant.client"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
@@ -22,6 +23,7 @@ const SUGGESTIONS = [
 ]
 
 export function AssistantChat() {
+  const { profile, loading } = useAuth()
   const [messages, setMessages] = React.useState<AssistantMessage[]>([])
   const [draft, setDraft] = React.useState("")
   const [busy, setBusy] = React.useState(false)
@@ -63,6 +65,22 @@ export function AssistantChat() {
     } finally {
       setBusy(false)
     }
+  }
+
+  // Chặn phía giao diện cho gọn mắt; máy chủ vẫn trả 403 nếu ai đó gọi thẳng API.
+  if (!loading && profile?.system_role !== "manager") {
+    return (
+      <div className="flex flex-col items-start gap-2 rounded-xl border bg-muted/40 p-6">
+        <div className="flex items-center gap-2 text-sm font-medium">
+          <SparklesIcon className="size-4" />
+          Trợ lý Hẻm Tarot
+        </div>
+        <p className="text-sm text-muted-foreground">
+          Mục này chỉ dành cho Trưởng phòng. Nếu bạn cần dùng, hãy liên hệ
+          Trưởng phòng để được cấp quyền.
+        </p>
+      </div>
+    )
   }
 
   return (

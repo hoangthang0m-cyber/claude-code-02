@@ -33,6 +33,7 @@ import type { AuthedUser } from "@/lib/server/auth"
 import { askAssistant } from "@/modules/assistant/services/assistant.server"
 
 const staff: AuthedUser = { uid: "u1", email: null, system_role: "staff" }
+const mgr: AuthedUser = { uid: "u2", email: null, system_role: "manager" }
 const ask = (q = "dự án của tôi?") => ({ messages: [{ role: "user", content: q }] })
 
 const usage = { input_tokens: 10, output_tokens: 5 }
@@ -58,7 +59,7 @@ beforeEach(() => {
 describe("askAssistant", () => {
   it("trả lời thẳng khi model không cần công cụ", async () => {
     fx.replies = [say("Chào bạn")]
-    const r = await askAssistant(staff, ask())
+    const r = await askAssistant(mgr, ask())
     expect(r.text).toBe("Chào bạn")
     expect(r.tools_used).toEqual([])
     expect(r.usage).toEqual({ input_tokens: 10, output_tokens: 5 })
@@ -68,7 +69,7 @@ describe("askAssistant", () => {
     toolRun.mockResolvedValue({ projects: [{ name: "UGC" }] })
     fx.replies = [callTool("list_my_projects"), say("Bạn có 1 dự án: UGC")]
 
-    const r = await askAssistant(staff, ask())
+    const r = await askAssistant(mgr, ask())
 
     expect(r.text).toBe("Bạn có 1 dự án: UGC")
     expect(r.tools_used).toEqual([{ name: "list_my_projects", ok: true }])
@@ -79,16 +80,16 @@ describe("askAssistant", () => {
     toolRun.mockResolvedValue({ projects: [] })
     fx.replies = [callTool("list_my_projects"), say("xong")]
 
-    await askAssistant(staff, ask())
+    await askAssistant(mgr, ask())
 
-    expect(toolRun).toHaveBeenCalledWith(staff, {})
+    expect(toolRun).toHaveBeenCalledWith(mgr, {})
   })
 
   it("mọi tool_result nằm chung một tin nhắn user, và khối assistant được giữ nguyên", async () => {
     toolRun.mockResolvedValue({ ok: 1 })
     fx.replies = [callTool("list_my_projects"), say("xong")]
 
-    await askAssistant(staff, ask())
+    await askAssistant(mgr, ask())
 
     const second = create.mock.calls[1][0] as {
       messages: Array<{ role: string; content: unknown }>
@@ -106,7 +107,7 @@ describe("askAssistant", () => {
     toolRun.mockRejectedValue(new Error("Bạn không có quyền với dự án này"))
     fx.replies = [callTool("list_my_projects"), say("Bạn không xem được mục này")]
 
-    const r = await askAssistant(staff, ask())
+    const r = await askAssistant(mgr, ask())
 
     expect(r.tools_used).toEqual([{ name: "list_my_projects", ok: false }])
     const second = create.mock.calls[1][0] as {
@@ -123,14 +124,14 @@ describe("askAssistant", () => {
 
   it("model gọi công cụ không tồn tại thì báo lỗi chứ không ném", async () => {
     fx.replies = [callTool("khong_co_that"), say("xin lỗi")]
-    const r = await askAssistant(staff, ask())
+    const r = await askAssistant(mgr, ask())
     expect(r.tools_used).toEqual([{ name: "khong_co_that", ok: false }])
     expect(toolRun).not.toHaveBeenCalled()
   })
 
   it("bị từ chối vì chính sách thì trả thông báo thân thiện", async () => {
     fx.replies = [{ stop_reason: "refusal", usage, content: [] }]
-    const r = await askAssistant(staff, ask())
+    const r = await askAssistant(mgr, ask())
     expect(r.text).toContain("không trả lời được")
   })
 
@@ -138,39 +139,44 @@ describe("askAssistant", () => {
     toolRun.mockResolvedValue({})
     create.mockImplementation(async () => callTool("list_my_projects"))
 
-    const r = await askAssistant(staff, ask())
+    const r = await askAssistant(mgr, ask())
 
     expect(r.text).toContain("quá nhiều bước")
     expect(create).toHaveBeenCalledTimes(6)
   })
 
   it("từ chối lịch sử rỗng hoặc kết thúc bằng lượt assistant", async () => {
-    await expect(askAssistant(staff, { messages: [] })).rejects.toBeTruthy()
+    await expect(askAssistant(mgr, { messages: [] })).rejects.toBeTruthy()
     await expect(
-      askAssistant(staff, { messages: [{ role: "assistant", content: "hi" }] })
+      askAssistant(mgr, { messages: [{ role: "assistant", content: "hi" }] })
     ).rejects.toBeTruthy()
   })
 
   it("gửi đúng model, bật suy luận thích ứng và dự phòng khi bị từ chối", async () => {
     fx.replies = [say("ok")]
-    await askAssistant(staff, ask())
+    await askAssistant(mgr, ask())
 
     const req = create.mock.calls[0][0] as Record<string, unknown>
     expect(req.model).toBe("claude-opus-5")
     expect(req.thinking).toEqual({ type: "adaptive" })
     expect(req.fallbacks).toBe("default")
     expect(req.betas).toEqual(["server-side-fallback-2026-07-01"])
-    expect(String(req.system)).toContain("Nhân viên (staff)")
+    expect(String(req.system)).toContain("Trưởng phòng (manager)")
   })
 
-  it("nói cho model biết người hỏi là trưởng phòng", async () => {
+  it("chặn nhân viên thường bằng 403, và không gọi API nào cả", async () => {
     fx.replies = [say("ok")]
-    await askAssistant(
-      { uid: "u2", email: null, system_role: "manager" },
-      ask()
-    )
-    expect(String((create.mock.calls[0][0] as Record<string, unknown>).system)).toContain(
-      "Trưởng phòng (manager)"
-    )
+    await expect(askAssistant(staff, ask())).rejects.toMatchObject({
+      status: 403,
+    })
+    // quan trọng: chặn TRƯỚC khi gọi Anthropic, nên không tốn tiền
+    expect(create).not.toHaveBeenCalled()
+    expect(toolRun).not.toHaveBeenCalled()
+  })
+
+  it("chặn quyền trước cả khi kiểm định dạng câu hỏi", async () => {
+    await expect(askAssistant(staff, { messages: [] })).rejects.toMatchObject({
+      status: 403,
+    })
   })
 })
