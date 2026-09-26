@@ -75,6 +75,9 @@ export function ContentTable({
   const [sort, setSort] = React.useState<"deadline" | "updated_at">("updated_at")
   const [newCode, setNewCode] = React.useState("")
   const [adding, setAdding] = React.useState(false)
+  // Lỗi thêm hạng mục hiện cố định cạnh form, không chỉ toast: toast tự tắt sau
+  // vài giây nên người dùng chỉ thấy "bấm mãi không được" mà không biết vì sao.
+  const [addError, setAddError] = React.useState<string | null>(null)
 
   const params = React.useMemo(
     () => ({
@@ -103,13 +106,16 @@ export function ContentTable({
     e.preventDefault()
     if (!newCode.trim()) return
     setAdding(true)
+    setAddError(null)
     try {
       await createContentItem(projectId, newCode.trim())
       setNewCode("")
       toast.success("Đã thêm hạng mục")
       refresh()
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Không thêm được")
+      const message = err instanceof Error ? err.message : "Không thêm được"
+      setAddError(message)
+      toast.error(message)
     } finally {
       setAdding(false)
     }
@@ -252,17 +258,25 @@ export function ContentTable({
       )}
 
       {editable && (
-        <form onSubmit={addItem} className="flex items-center gap-2">
-          <Input
-            className="h-8 w-56"
-            placeholder="Mã / tên hạng mục"
-            value={newCode}
-            onChange={(e) => setNewCode(e.target.value)}
-          />
-          <Button type="submit" size="sm" disabled={adding || !newCode.trim()}>
-            <PlusIcon className="size-4" /> Thêm hạng mục
-          </Button>
-        </form>
+        <div className="flex flex-col gap-1.5">
+          <form onSubmit={addItem} className="flex items-center gap-2">
+            <Input
+              className="h-8 w-56"
+              placeholder="Mã / tên hạng mục"
+              value={newCode}
+              onChange={(e) => setNewCode(e.target.value)}
+            />
+            <Button type="submit" size="sm" disabled={adding || !newCode.trim()}>
+              <PlusIcon className="size-4" />
+              {adding ? "Đang thêm…" : "Thêm hạng mục"}
+            </Button>
+          </form>
+          {addError && (
+            <p role="alert" className="text-sm text-destructive">
+              Không thêm được: {addError}
+            </p>
+          )}
+        </div>
       )}
     </section>
   )

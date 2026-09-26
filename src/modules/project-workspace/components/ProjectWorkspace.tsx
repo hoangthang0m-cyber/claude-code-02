@@ -41,6 +41,11 @@ export function ProjectWorkspace({ projectId }: { projectId: string }) {
     )
   }
 
+  // Thêm/sửa hạng mục: MỌI thành viên dự án, không riêng Trưởng phòng (SPEC §2).
+  // Phải kèm điều kiện là thành viên — trước đây chỉ xét vòng đời, nên người
+  // ngoài dự án vẫn thấy form "Thêm hạng mục" rồi bấm là dính 403.
+  const isMember = myRole != null
+  const canAddContent = isMember && isProjectWritable(project.lifecycle)
   const canEdit = isManager && isProjectWritable(project.lifecycle)
   const hasLifecycleActions =
     isManager && PROJECT_LIFECYCLE_TRANSITIONS[project.lifecycle].length > 0
@@ -124,7 +129,7 @@ export function ProjectWorkspace({ projectId }: { projectId: string }) {
       <Panel>
         <ContentTable
           projectId={projectId}
-          editable={isProjectWritable(project.lifecycle)}
+          editable={canAddContent}
           canEvaluate={canEdit}
           canDelete={canEdit}
         />
