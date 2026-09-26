@@ -62,7 +62,11 @@ const money = (n: number, currency: string) =>
     currency: currency || "VND",
     maximumFractionDigits: 0,
   }).format(n)
+const day = (iso: string) => iso.split("-").reverse().join("/")
 const roas = (n: number) => (Math.round(n * 100) / 100).toFixed(2)
+// Meta insights are never snapshotted for today (reportSync task 3.7), so a
+// window ending today can never be fully covered.
+const YESTERDAY = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10)
 const pct = (p: number | null) =>
   p == null ? "—" : `${p > 0 ? "+" : ""}${Math.round(p * 1000) / 10}%`
 const ARROW = { up: "▲", down: "▼", flat: "–" } as const
@@ -168,6 +172,7 @@ export function AdsOverviewView() {
             <Input
               type="date"
               className="h-8 w-40"
+              max={YESTERDAY}
               value={from}
               onChange={(e) => setFrom(e.target.value)}
             />
@@ -175,6 +180,7 @@ export function AdsOverviewView() {
             <Input
               type="date"
               className="h-8 w-40"
+              max={YESTERDAY}
               value={to}
               onChange={(e) => setTo(e.target.value)}
             />
@@ -183,6 +189,7 @@ export function AdsOverviewView() {
           <Input
             type="date"
             className="h-8 w-40"
+            max={YESTERDAY}
             value={date}
             onChange={(e) => setDate(e.target.value)}
           />
@@ -251,6 +258,21 @@ export function AdsOverviewView() {
             {report.freshness.accounts_missing_rate.length > 0 &&
               ` Thiếu tỷ giá: ${report.freshness.accounts_missing_rate.join(", ")}.`}
           </p>
+
+          {/* the selected window reaches past the last synced day: say so, else
+              every number below silently covers a shorter range than the one
+              picked in the controls */}
+          {report.freshness.data_through != null &&
+            report.freshness.data_through < report.window.to && (
+              <p className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm">
+                Khoảng ngày đang chọn là {day(report.window.from)} –{" "}
+                {day(report.window.to)} nhưng số liệu mới đồng bộ đến{" "}
+                {day(report.freshness.data_through)}.{" "}
+                {report.freshness.data_through < report.window.from
+                  ? "Khoảng ngày này chưa có số liệu nào."
+                  : `Mọi số liệu bên dưới — gồm cả ROAS và biểu đồ — chỉ tính trong ${day(report.window.from)} – ${day(report.freshness.data_through)}.`}
+              </p>
+            )}
 
           {/* product blocks (task 5.2) */}
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
