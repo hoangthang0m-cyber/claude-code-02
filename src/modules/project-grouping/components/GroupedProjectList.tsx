@@ -54,6 +54,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuGroup,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuSub,
@@ -369,9 +370,13 @@ function Block({
               <MoreVerticalIcon className="size-4" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-52">
-              <DropdownMenuLabel className="truncate text-foreground">
-                {title}
-              </DropdownMenuLabel>
+              {/* Base UI bắt buộc GroupLabel phải nằm trong Menu.Group —
+                  thiếu nó là ném lỗi và React gỡ bỏ cả cây, trang trắng. */}
+              <DropdownMenuGroup>
+                <DropdownMenuLabel className="truncate text-foreground">
+                  {title}
+                </DropdownMenuLabel>
+              </DropdownMenuGroup>
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 onClick={async () => {
@@ -534,9 +539,11 @@ function Row({
                   <MoreVerticalIcon className="size-4" />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56">
-                  <DropdownMenuLabel className="truncate text-foreground">
-                    {project.name}
-                  </DropdownMenuLabel>
+                  <DropdownMenuGroup>
+                    <DropdownMenuLabel className="truncate text-foreground">
+                      {project.name}
+                    </DropdownMenuLabel>
+                  </DropdownMenuGroup>
                   <DropdownMenuSeparator />
                   <DropdownMenuSub>
                     <DropdownMenuSubTrigger>
