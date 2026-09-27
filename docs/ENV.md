@@ -18,7 +18,8 @@ to set. Configure it in the Firebase console instead:
 
 - **Authentication → Sign-in method → Google → Enable** (set a support email).
 - **Authentication → Settings → Authorized domains** must list every domain the
-  app is served from: `localhost`, `claude-code-02-thang20.vercel.app`, and any
+  app is served from: `localhost`, `www.hemanager.space` (tên miền chính),
+  `claude-code-02-thang20.vercel.app`, and any
   other Vercel alias in use.
 
 ## Firebase — Admin SDK (group 7.1)
@@ -88,7 +89,7 @@ repo secrets** (Settings → Secrets and variables → Actions):
 
 | Secret | Value |
 |---|---|
-| `APP_URL` | `https://claude-code-02-thang20.vercel.app` (no trailing slash) |
+| `APP_URL` | `https://www.hemanager.space` (no trailing slash) — tên miền chính từ 2026-09-27 |
 | `CRON_SECRET` | same as the Vercel env var |
 
 Scheduled workflows only fire on `main` and can be a few minutes late under load.

@@ -5,11 +5,14 @@
 ## 🔗 Link chính của web
 
 ```
-https://claude-code-02-thang20.vercel.app
+https://www.hemanager.space
 ```
 
 **Đây là link duy nhất nên dùng và nên chia sẻ.** Nó luôn trỏ tới bản mới nhất
 đã được đưa lên nhánh `main`.
+
+Chú ý chính tả: **`hemanager`, một chữ `m`** — không phải `hemmanager`. Gõ
+`hemanager.space` (không có `www`) cũng được, nó tự chuyển sang `www`.
 
 ## Ba loại link Vercel — đừng nhầm
 
@@ -18,8 +21,9 @@ chúng đã từng gây hiểu lầm là "code chưa được cập nhật":
 
 | Loại | Ví dụ | Ý nghĩa |
 |---|---|---|
-| **Domain production** | `claude-code-02-thang20.vercel.app` | ✅ **Dùng cái này.** Luôn trỏ tới bản `main` mới nhất. |
-| Alias theo nhánh | `claude-code-02-git-main-thang20.vercel.app` | Trỏ tới bản mới nhất của nhánh `main`. Dùng được nhưng không phải link chuẩn. |
+| **Tên miền riêng** | `www.hemanager.space` | ✅ **Dùng cái này.** Luôn trỏ tới bản `main` mới nhất. |
+| Domain Vercel cũ | `claude-code-02-thang20.vercel.app` | Vẫn chạy, cùng một bản build. Chỉ dùng khi cần đối chiếu. |
+| Alias theo nhánh | `claude-code-02-git-main-thang20.vercel.app` | Trỏ tới bản mới nhất của nhánh `main`. Không phải link chuẩn. |
 | Link của từng lần deploy | `claude-code-02-<mã ngẫu nhiên>-thang20.vercel.app` | ⚠️ **Đóng băng vĩnh viễn** ở đúng commit lúc build. Không bao giờ thay đổi, kể cả khi đã sửa hoặc hoàn nguyên code. Chỉ dùng để xem lại lịch sử. |
 
 Mỗi lần build, Vercel tạo thêm một link loại thứ ba. Trong bảng Deployments,

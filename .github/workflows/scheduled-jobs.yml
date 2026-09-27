@@ -7,7 +7,7 @@ name: scheduled-jobs
 # same Authorization: Bearer <CRON_SECRET> header Vercel Cron would send.
 #
 # Repo secrets required (Settings → Secrets and variables → Actions):
-#   APP_URL      https://claude-code-02-thang20.vercel.app   (no trailing slash)
+#   APP_URL      https://www.hemanager.space   (no trailing slash)
 #   CRON_SECRET  same value as the Vercel env var
 
 on:
