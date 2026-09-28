@@ -340,14 +340,16 @@ describe("7.5 video comparison", () => {
 // ── 7.6 permissions ───────────────────────────────────────────────────
 
 describe("7.6 permissions", () => {
-  it("staff is rejected from the report, the config and the comparison", async () => {
+  // Ranh giới quyền sau 2026-09-28: nhân viên XEM được báo cáo và so sánh
+  // video, nhưng KHÔNG mở được cấu hình sản phẩm.
+  it("nhân viên xem được báo cáo và so sánh, nhưng không mở được cấu hình", async () => {
     col("contentItems").set("ci1", { code: "V1" })
     await expect(
       getProductReport(staff, p("period=month&date=2026-06-15"))
-    ).rejects.toMatchObject({ status: 403 })
-    await expect(getProductConfig(staff)).rejects.toMatchObject({ status: 403 })
+    ).resolves.toBeTruthy()
     await expect(
       getVideoComparison(staff, p("items=ci1&period=month&date=2026-06-15"))
-    ).rejects.toMatchObject({ status: 403 })
+    ).resolves.toBeTruthy()
+    await expect(getProductConfig(staff)).rejects.toMatchObject({ status: 403 })
   })
 })

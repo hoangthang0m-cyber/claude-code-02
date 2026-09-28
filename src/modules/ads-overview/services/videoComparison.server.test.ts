@@ -55,10 +55,11 @@ beforeEach(() => {
 })
 
 describe("getVideoComparison (tasks 6.2 / 6.3 / 6.7)", () => {
-  it("rejects staff", async () => {
+  // quyền xem báo cáo đã mở cho mọi thành viên (2026-09-28)
+  it("cho nhân viên so sánh video", async () => {
     await expect(
       getVideoComparison(staff, p("items=ci1&period=month&date=2026-06-15"))
-    ).rejects.toMatchObject({ status: 403 })
+    ).resolves.toBeTruthy()
   })
 
   it("rejects more than 6 items", async () => {

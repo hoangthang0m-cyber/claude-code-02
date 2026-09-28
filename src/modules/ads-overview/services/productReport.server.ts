@@ -12,7 +12,7 @@ import {
   loadReportingCurrency,
   type ReportFreshness,
 } from "@/modules/ads-overview/services/reportingData.server"
-import { requireReportingManager } from "@/modules/ads-overview/services/reportingScope.server"
+import { requireReportingViewer } from "@/modules/ads-overview/services/reportingScope.server"
 import {
   resolveComparisonWindows,
   resolveReportWindow,
@@ -71,7 +71,7 @@ export async function getProductReport(
   actor: AuthedUser,
   params: URLSearchParams
 ): Promise<ProductReportResult> {
-  requireReportingManager(actor)
+  requireReportingViewer(actor)
   const db = getAdminDb()
   const window = resolveReportWindow(params)
   const { report, reporting_currency } = await reportForWindow(db, window)
@@ -101,7 +101,7 @@ export async function getReportTimeseries(
   actor: AuthedUser,
   params: URLSearchParams
 ): Promise<TimeseriesResult> {
-  requireReportingManager(actor)
+  requireReportingViewer(actor)
   const db = getAdminDb()
   const window = resolveReportWindow(params)
   const granularity = granularityOf(params)
@@ -155,7 +155,7 @@ export async function getProductReportComparison(
   actor: AuthedUser,
   params: URLSearchParams
 ): Promise<ComparisonResult> {
-  requireReportingManager(actor)
+  requireReportingViewer(actor)
   const db = getAdminDb()
   const { current, previous } = resolveComparisonWindows(params)
 
@@ -207,7 +207,7 @@ export async function getReportExport(
   actor: AuthedUser,
   params: URLSearchParams
 ): Promise<{ filename: string; csv: string }> {
-  requireReportingManager(actor)
+  requireReportingViewer(actor)
   const db = getAdminDb()
   const window = resolveReportWindow(params)
   const kind = params.get("format") ?? "report"

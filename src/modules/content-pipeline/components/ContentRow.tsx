@@ -264,7 +264,9 @@ export function ContentRow({
       <TableCell className="min-w-44 align-top">
         <div className="flex flex-col gap-1">
           <AdsReportCell metric={item.ads_metric} />
-          {canEvaluate && item.has_ads_binding === true && (
+          {/* Xem số liệu là quyền của mọi thành viên (2026-09-28); ghi chú và
+              đánh giá bên dưới thì vẫn chỉ Trưởng phòng. */}
+          {item.has_ads_binding === true && (
             <button
               type="button"
               onClick={openComparison}

@@ -4,6 +4,7 @@ import * as React from "react"
 import Link from "next/link"
 import { toast } from "sonner"
 
+import { useAuth } from "@/context/AuthContext"
 import { downloadCsv } from "@/modules/analytics/services/analytics.client"
 import {
   getProductReport,
@@ -72,6 +73,8 @@ const pct = (p: number | null) =>
 const ARROW = { up: "▲", down: "▼", flat: "–" } as const
 
 export function AdsOverviewView() {
+  const { profile } = useAuth()
+  const isReportingManager = profile?.system_role === "manager"
   const [mode, setMode] = React.useState<Mode>("month")
   const [date, setDate] = React.useState(() =>
     new Date().toISOString().slice(0, 10)
@@ -222,9 +225,13 @@ export function AdsOverviewView() {
           >
             Xuất biểu đồ
           </Button>
-          <Button size="xs" variant="ghost" render={<Link href="/reports/settings" />}>
-            Cấu hình
-          </Button>
+          {/* Trang cấu hình vẫn chỉ Trưởng phòng — nhân viên xem báo cáo được
+              nhưng không cần thấy lối vào đó. */}
+          {isReportingManager && (
+            <Button size="xs" variant="ghost" render={<Link href="/reports/settings" />}>
+              Cấu hình
+            </Button>
+          )}
         </div>
       </div>
 

@@ -10,7 +10,7 @@ import {
   loadCurrencyRates,
   loadReportingCurrency,
 } from "@/modules/ads-overview/services/reportingData.server"
-import { requireReportingManager } from "@/modules/ads-overview/services/reportingScope.server"
+import { requireReportingViewer } from "@/modules/ads-overview/services/reportingScope.server"
 import {
   resolveReportWindow,
   type ReportWindow,
@@ -127,7 +127,7 @@ export async function getVideoComparison(
   actor: AuthedUser,
   params: URLSearchParams
 ): Promise<VideoComparisonResult> {
-  requireReportingManager(actor)
+  requireReportingViewer(actor)
   const db = getAdminDb()
   const ids = parseItemIds(params)
   const window = resolveReportWindow(params)

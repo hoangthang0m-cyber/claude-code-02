@@ -79,10 +79,12 @@ beforeEach(() => {
 })
 
 describe("getProductReport (tasks 4.1 / 4.5)", () => {
-  it("rejects staff", async () => {
+  // Từ 2026-09-28 mọi thành viên đăng nhập đều xem được báo cáo hiệu quả
+  // quảng cáo; chỉ sửa cấu hình mới giới hạn Trưởng phòng.
+  it("cho nhân viên xem báo cáo", async () => {
     await expect(
       getProductReport(staff, p("period=month&date=2026-06-15"))
-    ).rejects.toMatchObject({ status: 403 })
+    ).resolves.toBeTruthy()
   })
 
   it("aggregates the window and reports freshness", async () => {

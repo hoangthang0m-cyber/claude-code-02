@@ -7,7 +7,7 @@ import {
   loadCurrencyRates,
   loadReportingCurrency,
 } from "@/modules/ads-overview/services/reportingData.server"
-import { requireReportingManager } from "@/modules/ads-overview/services/reportingScope.server"
+import { requireReportingViewer } from "@/modules/ads-overview/services/reportingScope.server"
 import { resolveReportWindow } from "@/modules/ads-overview/services/reportWindow"
 import {
   summarizeUnclassified,
@@ -27,7 +27,7 @@ export async function getUnclassifiedGroup(
   actor: AuthedUser,
   params: URLSearchParams
 ): Promise<UnclassifiedGroupResult> {
-  requireReportingManager(actor)
+  requireReportingViewer(actor)
   const window = resolveReportWindow(params)
   const db = getAdminDb()
 

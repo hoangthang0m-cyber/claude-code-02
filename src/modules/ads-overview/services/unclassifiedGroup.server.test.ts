@@ -93,10 +93,11 @@ beforeEach(() => {
 })
 
 describe("getUnclassifiedGroup (task 2.6)", () => {
-  it("rejects a staff account", async () => {
+  // quyền xem báo cáo đã mở cho mọi thành viên (2026-09-28)
+  it("cho nhân viên xem nhóm chưa phân loại", async () => {
     await expect(
       getUnclassifiedGroup(staff, p("period=month&date=2026-06-15"))
-    ).rejects.toMatchObject({ status: 403 })
+    ).resolves.toBeTruthy()
   })
 
   it("returns only the orphan-account campaign inside the window", async () => {
