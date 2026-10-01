@@ -105,6 +105,16 @@ export async function loadProducts(db: Db): Promise<ProductRow[]> {
 // of M accounts are actually in the merged total.
 export interface ReportFreshness {
   data_through: string | null
+  /**
+   * Mốc lần ghi trạng thái đồng bộ gần nhất (ms), lấy max trên mọi tài khoản.
+   *
+   * `accounts_delayed` chỉ bắt được tài khoản có `last_result !== "ok"`. Nếu
+   * job đồng bộ ngừng chạy hẳn — hỏng lịch, sai APP_URL, secret lệch — thì
+   * server không ghi gì cả, `last_result` đứng im ở "ok", và báo cáo mục rữa
+   * trong im lặng. Đã xảy ra thật: dữ liệu đứng 3 ngày mà trang không hề cảnh
+   * báo. Trường này cho giao diện biết lần đồng bộ CUỐI CÙNG cách đây bao lâu.
+   */
+  last_synced_at: number | null
   accounts_total: number
   accounts_merged: number
   accounts_delayed: Array<{
@@ -137,10 +147,17 @@ export async function loadFreshness(
   }
 
   let dataThrough: string | null = null
+  let lastSyncedAt: number | null = null
   const delayed: ReportFreshness["accounts_delayed"] = []
   for (const d of states.docs) {
     const x = d.data()
     const acct = String(x.ad_account_id ?? "")
+    const wroteAt = x.updated_at as { toMillis?: () => number } | undefined
+    const wroteMs =
+      typeof wroteAt?.toMillis === "function" ? wroteAt.toMillis() : null
+    if (wroteMs !== null && (lastSyncedAt === null || wroteMs > lastSyncedAt)) {
+      lastSyncedAt = wroteMs
+    }
     const latest = typeof x.latest_synced_date === "string" ? x.latest_synced_date : null
     if (latest && (dataThrough === null || latest > dataThrough)) {
       dataThrough = latest
@@ -162,6 +179,7 @@ export async function loadFreshness(
   ])
   return {
     data_through: dataThrough,
+    last_synced_at: lastSyncedAt,
     accounts_total: total,
     accounts_merged: Math.max(0, total - dropped.size),
     accounts_delayed: delayed,

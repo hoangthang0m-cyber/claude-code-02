@@ -75,6 +75,9 @@ const ARROW = { up: "▲", down: "▼", flat: "–" } as const
 export function AdsOverviewView() {
   const { profile } = useAuth()
   const isReportingManager = profile?.system_role === "manager"
+  // Chốt "bây giờ" một lần lúc mount: gọi Date.now() trong thân render là hàm
+  // không thuần, eslint react-hooks/purity chặn.
+  const [nowMs] = React.useState(() => Date.now())
   const [mode, setMode] = React.useState<Mode>("month")
   const [date, setDate] = React.useState(() =>
     new Date().toISOString().slice(0, 10)
@@ -251,6 +254,32 @@ export function AdsOverviewView() {
 
       {report && !noAccounts && (
         <>
+          {/* Cảnh báo đồng bộ đứng. Lịch chạy 2 tiếng/lần, nên quá 6 tiếng là
+              bất thường. Phải đo bằng mốc ghi trạng thái chứ không đọc
+              last_result: khi job ngừng chạy hẳn thì last_result kẹt ở "ok" và
+              báo cáo mục rữa trong im lặng — đã xảy ra, đứng 3 ngày. */}
+          {(() => {
+            const at = report.freshness.last_synced_at
+            if (at == null) return null
+            const hours = (nowMs - at) / 3_600_000
+            if (hours < 6) return null
+            const howLong =
+              hours < 48
+                ? `${Math.round(hours)} giờ`
+                : `${Math.round(hours / 24)} ngày`
+            return (
+              <div
+                role="alert"
+                className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+              >
+                <strong>Số liệu đang cũ.</strong> Lần đồng bộ gần nhất cách đây{" "}
+                {howLong} — lịch tự động chạy 2 tiếng một lần, nên nhiều khả
+                năng job đồng bộ đang hỏng. Các con số bên dưới chưa phản ánh
+                những ngày gần đây.
+              </div>
+            )
+          })()}
+
           {/* freshness line (task 4.5) */}
           <p className="text-xs text-muted-foreground">
             {report.freshness.data_through

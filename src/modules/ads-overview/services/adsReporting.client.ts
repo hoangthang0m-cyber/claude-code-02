@@ -19,6 +19,8 @@ interface WindowView {
 
 export interface ReportFreshnessView {
   data_through: string | null
+  /** Mốc ms của lần ghi trạng thái đồng bộ gần nhất — xem ReportFreshness. */
+  last_synced_at: number | null
   accounts_total: number
   accounts_merged: number
   accounts_delayed: Array<{

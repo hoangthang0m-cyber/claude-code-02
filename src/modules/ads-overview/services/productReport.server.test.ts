@@ -106,6 +106,42 @@ describe("getProductReport (tasks 4.1 / 4.5)", () => {
     })
   })
 
+  // Chốt lại lỗi thật đã xảy ra: job đồng bộ ngừng chạy hẳn thì server không
+  // ghi gì, last_result kẹt ở "ok", và báo cáo mục rữa trong im lặng ba ngày.
+  // Giao diện cần biết lần ghi trạng thái CUỐI CÙNG cách đây bao lâu, nên
+  // freshness phải mang theo mốc đó — lấy max trên mọi tài khoản.
+  it("mang theo mốc đồng bộ gần nhất, kể cả khi mọi tài khoản đều ok", async () => {
+    snap("s1", { stat_date: "2026-06-05", spend: 100, revenue: 100 })
+    const older = new Date("2026-06-10T01:00:00Z").getTime()
+    const newer = new Date("2026-06-12T03:00:00Z").getTime()
+    col("adAccountReportSyncStates").set("amhd__campaign", {
+      ad_account_id: "amhd",
+      scope: "campaign",
+      latest_synced_date: "2026-06-14",
+      last_result: "ok",
+      updated_at: { toMillis: () => older },
+    })
+    col("adAccountReportSyncStates").set("second__campaign", {
+      ad_account_id: "second",
+      scope: "campaign",
+      latest_synced_date: "2026-06-14",
+      last_result: "ok",
+      updated_at: { toMillis: () => newer },
+    })
+
+    const r = await getProductReport(manager, p("period=month&date=2026-06-15"))
+
+    expect(r.freshness.last_synced_at).toBe(newer)
+    // không tài khoản nào "delayed" — đúng kiểu sự cố đã xảy ra
+    expect(r.freshness.accounts_delayed).toEqual([])
+  })
+
+  it("để last_synced_at là null khi chưa đồng bộ lần nào", async () => {
+    snap("s1", { stat_date: "2026-06-05", spend: 100, revenue: 100 })
+    const r = await getProductReport(manager, p("period=month&date=2026-06-15"))
+    expect(r.freshness.last_synced_at).toBeNull()
+  })
+
   it("flags a delayed account in freshness", async () => {
     snap("s1", { stat_date: "2026-06-05", spend: 100, revenue: 100 })
     col("adAccountReportSyncStates").set("amhd__campaign", {
